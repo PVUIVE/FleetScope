@@ -12,6 +12,10 @@
   "dependencies": {
     "@fleetscope/domain": "workspace:*",
     "@fleetscope/event-schema": "workspace:*",
-    "@fleetscope/fixtures": "workspace:*"
+    "@fleetscope/fixtures": "workspace:*",
+    "@fleetscope/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@fleetscope/canonicalizer": "workspace:*"
   }
 }

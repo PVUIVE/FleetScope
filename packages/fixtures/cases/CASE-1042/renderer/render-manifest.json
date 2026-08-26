@@ -1,0 +1,859 @@
+{
+  "manifestVersion": "1.0.0",
+  "caseId": "CASE-1042",
+  "adapterId": "zoetrope-claude-jsonl@1.0.0",
+  "rendererEntryCount": 69,
+  "firstCaseSequence": 0,
+  "lastCaseSequence": 59,
+  "entries": [
+    {
+      "eventId": "evt-0001",
+      "caseSequence": 0,
+      "rendererEntryStart": 0,
+      "rendererEntryEnd": 0,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Case created",
+      "evidenceEventIds": [
+        "evt-0001"
+      ]
+    },
+    {
+      "eventId": "evt-0002",
+      "caseSequence": 1,
+      "rendererEntryStart": 1,
+      "rendererEntryEnd": 2,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.014705882352941176,
+      "domain": "registry",
+      "outcome": "succeeded",
+      "label": "approved · vendor-onboarding@1.4",
+      "evidenceEventIds": [
+        "evt-0002"
+      ]
+    },
+    {
+      "eventId": "evt-0003",
+      "caseSequence": 2,
+      "rendererEntryStart": 3,
+      "rendererEntryEnd": 3,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.04411764705882353,
+      "domain": "runtime",
+      "outcome": "informational",
+      "label": "Session started",
+      "evidenceEventIds": [
+        "evt-0003"
+      ]
+    },
+    {
+      "eventId": "evt-0004",
+      "caseSequence": 3,
+      "rendererEntryStart": 4,
+      "rendererEntryEnd": 4,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.058823529411764705,
+      "domain": "agent",
+      "outcome": "informational",
+      "label": "Agent spawned · orchestrator",
+      "evidenceEventIds": [
+        "evt-0004"
+      ]
+    },
+    {
+      "eventId": "evt-0005",
+      "caseSequence": 4,
+      "rendererEntryStart": 5,
+      "rendererEntryEnd": 5,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.07352941176470588,
+      "domain": "agent",
+      "outcome": "informational",
+      "label": "Agent started",
+      "evidenceEventIds": [
+        "evt-0005"
+      ]
+    },
+    {
+      "eventId": "evt-0006",
+      "caseSequence": 5,
+      "rendererEntryStart": 6,
+      "rendererEntryEnd": 5,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.08823529411764706,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Milestone · review",
+      "evidenceEventIds": [
+        "evt-0006"
+      ]
+    },
+    {
+      "eventId": "evt-0007",
+      "caseSequence": 6,
+      "rendererEntryStart": 6,
+      "rendererEntryEnd": 6,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.08823529411764706,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "AgentIdentity.authorize requested",
+      "evidenceEventIds": [
+        "evt-0007"
+      ]
+    },
+    {
+      "eventId": "evt-0008",
+      "caseSequence": 7,
+      "rendererEntryStart": 7,
+      "rendererEntryEnd": 7,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.10294117647058823,
+      "domain": "identity",
+      "outcome": "succeeded",
+      "label": "allowed · erp.inventory.reader on erp/inventory",
+      "evidenceEventIds": [
+        "evt-0007",
+        "evt-0008"
+      ]
+    },
+    {
+      "eventId": "evt-0009",
+      "caseSequence": 8,
+      "rendererEntryStart": 8,
+      "rendererEntryEnd": 8,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.11764705882352941,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "ERP.inventory.read requested",
+      "evidenceEventIds": [
+        "evt-0009"
+      ]
+    },
+    {
+      "eventId": "evt-0010",
+      "caseSequence": 9,
+      "rendererEntryStart": 9,
+      "rendererEntryEnd": 9,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.1323529411764706,
+      "domain": "tool",
+      "outcome": "succeeded",
+      "label": "ERP.inventory.read succeeded",
+      "evidenceEventIds": [
+        "evt-0009",
+        "evt-0010"
+      ]
+    },
+    {
+      "eventId": "evt-0011",
+      "caseSequence": 10,
+      "rendererEntryStart": 10,
+      "rendererEntryEnd": 11,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.14705882352941177,
+      "domain": "memory",
+      "outcome": "succeeded",
+      "label": "Agreed unit price EUR 12.40 with 45-day payment terms",
+      "evidenceEventIds": [
+        "evt-0011"
+      ]
+    },
+    {
+      "eventId": "evt-0012",
+      "caseSequence": 11,
+      "rendererEntryStart": 12,
+      "rendererEntryEnd": 11,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.17647058823529413,
+      "domain": "usage",
+      "outcome": "informational",
+      "label": "Usage recorded",
+      "evidenceEventIds": [
+        "evt-0012"
+      ]
+    },
+    {
+      "eventId": "evt-0013",
+      "caseSequence": 12,
+      "rendererEntryStart": 12,
+      "rendererEntryEnd": 12,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.17647058823529413,
+      "domain": "runtime",
+      "outcome": "informational",
+      "label": "Waiting · vendor_compliance_documents",
+      "evidenceEventIds": [
+        "evt-0013"
+      ]
+    },
+    {
+      "eventId": "evt-0014",
+      "caseSequence": 13,
+      "rendererEntryStart": 13,
+      "rendererEntryEnd": 12,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.19117647058823528,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Milestone · negotiation",
+      "evidenceEventIds": [
+        "evt-0014"
+      ]
+    },
+    {
+      "eventId": "evt-0015",
+      "caseSequence": 14,
+      "rendererEntryStart": 13,
+      "rendererEntryEnd": 13,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.19117647058823528,
+      "domain": "runtime",
+      "outcome": "informational",
+      "label": "Simulated Day 12 · Session resumed",
+      "evidenceEventIds": [
+        "evt-0015"
+      ]
+    },
+    {
+      "eventId": "evt-0016",
+      "caseSequence": 15,
+      "rendererEntryStart": 14,
+      "rendererEntryEnd": 15,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.20588235294117646,
+      "domain": "armor",
+      "outcome": "blocked",
+      "label": "Armor blocked · prompt_injection",
+      "evidenceEventIds": [
+        "evt-0016"
+      ]
+    },
+    {
+      "eventId": "evt-0017",
+      "caseSequence": 16,
+      "rendererEntryStart": 16,
+      "rendererEntryEnd": 16,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.23529411764705882,
+      "domain": "incident",
+      "outcome": "informational",
+      "label": "Incident opened · context_drift",
+      "evidenceEventIds": [
+        "evt-0017"
+      ]
+    },
+    {
+      "eventId": "evt-0018",
+      "caseSequence": 17,
+      "rendererEntryStart": 17,
+      "rendererEntryEnd": 18,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.25,
+      "domain": "memory",
+      "outcome": "denied",
+      "label": "Memory rejected · source_input_blocked_by_armor",
+      "evidenceEventIds": [
+        "evt-0018"
+      ]
+    },
+    {
+      "eventId": "evt-0019",
+      "caseSequence": 18,
+      "rendererEntryStart": 19,
+      "rendererEntryEnd": 20,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.27941176470588236,
+      "domain": "armor",
+      "outcome": "succeeded",
+      "label": "allowed",
+      "evidenceEventIds": [
+        "evt-0019"
+      ]
+    },
+    {
+      "eventId": "evt-0020",
+      "caseSequence": 19,
+      "rendererEntryStart": 21,
+      "rendererEntryEnd": 22,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.3088235294117647,
+      "domain": "memory",
+      "outcome": "succeeded",
+      "label": "Agreed unit price EUR 12.40 with 45-day payment terms",
+      "evidenceEventIds": [
+        "evt-0020"
+      ]
+    },
+    {
+      "eventId": "evt-0021",
+      "caseSequence": 20,
+      "rendererEntryStart": 23,
+      "rendererEntryEnd": 23,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.3382352941176471,
+      "domain": "agent",
+      "outcome": "informational",
+      "label": "Agent spawned · logistics",
+      "evidenceEventIds": [
+        "evt-0021"
+      ]
+    },
+    {
+      "eventId": "evt-0022",
+      "caseSequence": 21,
+      "rendererEntryStart": 24,
+      "rendererEntryEnd": 25,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.35294117647058826,
+      "domain": "gateway",
+      "outcome": "succeeded",
+      "label": "routed · logistics.leadtime.check",
+      "evidenceEventIds": [
+        "evt-0022"
+      ]
+    },
+    {
+      "eventId": "evt-0023",
+      "caseSequence": 22,
+      "rendererEntryStart": 26,
+      "rendererEntryEnd": 27,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.38235294117647056,
+      "domain": "agent",
+      "outcome": "informational",
+      "label": "Agent started",
+      "evidenceEventIds": [
+        "evt-0023"
+      ]
+    },
+    {
+      "eventId": "evt-0024",
+      "caseSequence": 23,
+      "rendererEntryStart": 28,
+      "rendererEntryEnd": 28,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.4117647058823529,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "Logistics.leadtime.check requested",
+      "evidenceEventIds": [
+        "evt-0024"
+      ]
+    },
+    {
+      "eventId": "evt-0025",
+      "caseSequence": 24,
+      "rendererEntryStart": 29,
+      "rendererEntryEnd": 29,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.4264705882352941,
+      "domain": "tool",
+      "outcome": "failed",
+      "label": "Logistics.leadtime.check failed",
+      "evidenceEventIds": [
+        "evt-0024",
+        "evt-0025"
+      ]
+    },
+    {
+      "eventId": "evt-0026",
+      "caseSequence": 25,
+      "rendererEntryStart": 30,
+      "rendererEntryEnd": 30,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.4411764705882353,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "Logistics.leadtime.check requested",
+      "evidenceEventIds": [
+        "evt-0026"
+      ]
+    },
+    {
+      "eventId": "evt-0027",
+      "caseSequence": 26,
+      "rendererEntryStart": 31,
+      "rendererEntryEnd": 31,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.45588235294117646,
+      "domain": "tool",
+      "outcome": "failed",
+      "label": "Logistics.leadtime.check failed",
+      "evidenceEventIds": [
+        "evt-0026",
+        "evt-0027"
+      ]
+    },
+    {
+      "eventId": "evt-0028",
+      "caseSequence": 27,
+      "rendererEntryStart": 32,
+      "rendererEntryEnd": 32,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.47058823529411764,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "Logistics.leadtime.check requested",
+      "evidenceEventIds": [
+        "evt-0028"
+      ]
+    },
+    {
+      "eventId": "evt-0029",
+      "caseSequence": 28,
+      "rendererEntryStart": 33,
+      "rendererEntryEnd": 33,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.4852941176470588,
+      "domain": "tool",
+      "outcome": "failed",
+      "label": "Logistics.leadtime.check failed",
+      "evidenceEventIds": [
+        "evt-0028",
+        "evt-0029"
+      ]
+    },
+    {
+      "eventId": "evt-0030",
+      "caseSequence": 29,
+      "rendererEntryStart": 34,
+      "rendererEntryEnd": 34,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.5,
+      "domain": "incident",
+      "outcome": "informational",
+      "label": "Incident opened · repeated_tool_failure",
+      "evidenceEventIds": [
+        "evt-0030"
+      ]
+    },
+    {
+      "eventId": "evt-0031",
+      "caseSequence": 30,
+      "rendererEntryStart": 35,
+      "rendererEntryEnd": 36,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.5147058823529411,
+      "domain": "policy",
+      "outcome": "informational",
+      "label": "Policy · auto_act",
+      "evidenceEventIds": [
+        "evt-0031"
+      ]
+    },
+    {
+      "eventId": "evt-0032",
+      "caseSequence": 31,
+      "rendererEntryStart": 37,
+      "rendererEntryEnd": 37,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.5441176470588235,
+      "domain": "intervention",
+      "outcome": "informational",
+      "label": "Warden proposed · retry_idempotent_read",
+      "evidenceEventIds": [
+        "evt-0032"
+      ]
+    },
+    {
+      "eventId": "evt-0033",
+      "caseSequence": 32,
+      "rendererEntryStart": 38,
+      "rendererEntryEnd": 38,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.5588235294117647,
+      "domain": "intervention",
+      "outcome": "informational",
+      "label": "Warden authorized",
+      "evidenceEventIds": [
+        "evt-0033"
+      ]
+    },
+    {
+      "eventId": "evt-0034",
+      "caseSequence": 33,
+      "rendererEntryStart": 39,
+      "rendererEntryEnd": 39,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.5735294117647058,
+      "domain": "intervention",
+      "outcome": "pending",
+      "label": "Warden requested",
+      "evidenceEventIds": [
+        "evt-0034"
+      ]
+    },
+    {
+      "eventId": "evt-0035",
+      "caseSequence": 34,
+      "rendererEntryStart": 40,
+      "rendererEntryEnd": 40,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.5882352941176471,
+      "domain": "intervention",
+      "outcome": "informational",
+      "label": "Runtime acknowledged",
+      "evidenceEventIds": [
+        "evt-0035"
+      ]
+    },
+    {
+      "eventId": "evt-0036",
+      "caseSequence": 35,
+      "rendererEntryStart": 41,
+      "rendererEntryEnd": 42,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.6029411764705882,
+      "domain": "runtime",
+      "outcome": "succeeded",
+      "label": "Runtime controlled · retry",
+      "evidenceEventIds": [
+        "evt-0036"
+      ]
+    },
+    {
+      "eventId": "evt-0037",
+      "caseSequence": 36,
+      "rendererEntryStart": 43,
+      "rendererEntryEnd": 43,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.6323529411764706,
+      "domain": "intervention",
+      "outcome": "succeeded",
+      "label": "Runtime result · succeeded",
+      "evidenceEventIds": [
+        "evt-0037"
+      ]
+    },
+    {
+      "eventId": "evt-0038",
+      "caseSequence": 37,
+      "rendererEntryStart": 44,
+      "rendererEntryEnd": 44,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.6470588235294118,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "Logistics.leadtime.check requested",
+      "evidenceEventIds": [
+        "evt-0038"
+      ]
+    },
+    {
+      "eventId": "evt-0039",
+      "caseSequence": 38,
+      "rendererEntryStart": 45,
+      "rendererEntryEnd": 45,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.6617647058823529,
+      "domain": "tool",
+      "outcome": "succeeded",
+      "label": "Logistics.leadtime.check succeeded",
+      "evidenceEventIds": [
+        "evt-0038",
+        "evt-0039"
+      ]
+    },
+    {
+      "eventId": "evt-0040",
+      "caseSequence": 39,
+      "rendererEntryStart": 46,
+      "rendererEntryEnd": 46,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.6764705882352942,
+      "domain": "incident",
+      "outcome": "succeeded",
+      "label": "Incident resolved · recovered",
+      "evidenceEventIds": [
+        "evt-0040"
+      ]
+    },
+    {
+      "eventId": "evt-0041",
+      "caseSequence": 40,
+      "rendererEntryStart": 47,
+      "rendererEntryEnd": 48,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.6911764705882353,
+      "domain": "agent",
+      "outcome": "succeeded",
+      "label": "Agent completed",
+      "evidenceEventIds": [
+        "evt-0021",
+        "evt-0041"
+      ]
+    },
+    {
+      "eventId": "evt-0042",
+      "caseSequence": 41,
+      "rendererEntryStart": 49,
+      "rendererEntryEnd": 48,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.7205882352941176,
+      "domain": "usage",
+      "outcome": "informational",
+      "label": "Usage recorded",
+      "evidenceEventIds": [
+        "evt-0042"
+      ]
+    },
+    {
+      "eventId": "evt-0043",
+      "caseSequence": 42,
+      "rendererEntryStart": 49,
+      "rendererEntryEnd": 48,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.7205882352941176,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Milestone · compliance",
+      "evidenceEventIds": [
+        "evt-0043"
+      ]
+    },
+    {
+      "eventId": "evt-0044",
+      "caseSequence": 43,
+      "rendererEntryStart": 49,
+      "rendererEntryEnd": 50,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.7205882352941176,
+      "domain": "policy",
+      "outcome": "informational",
+      "label": "Policy · approval_required",
+      "evidenceEventIds": [
+        "evt-0044"
+      ]
+    },
+    {
+      "eventId": "evt-0045",
+      "caseSequence": 44,
+      "rendererEntryStart": 51,
+      "rendererEntryEnd": 51,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.75,
+      "domain": "approval",
+      "outcome": "pending",
+      "label": "Approval required · erp_activate_vendor",
+      "evidenceEventIds": [
+        "evt-0045"
+      ]
+    },
+    {
+      "eventId": "evt-0046",
+      "caseSequence": 45,
+      "rendererEntryStart": 52,
+      "rendererEntryEnd": 52,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.7647058823529411,
+      "domain": "runtime",
+      "outcome": "informational",
+      "label": "Waiting · operator_approval",
+      "evidenceEventIds": [
+        "evt-0046"
+      ]
+    },
+    {
+      "eventId": "evt-0047",
+      "caseSequence": 46,
+      "rendererEntryStart": 53,
+      "rendererEntryEnd": 53,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.7794117647058824,
+      "domain": "approval",
+      "outcome": "succeeded",
+      "label": "Approval approved",
+      "evidenceEventIds": [
+        "evt-0047"
+      ]
+    },
+    {
+      "eventId": "evt-0048",
+      "caseSequence": 47,
+      "rendererEntryStart": 54,
+      "rendererEntryEnd": 54,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.7941176470588235,
+      "domain": "runtime",
+      "outcome": "informational",
+      "label": "Session resumed",
+      "evidenceEventIds": [
+        "evt-0048"
+      ]
+    },
+    {
+      "eventId": "evt-0049",
+      "caseSequence": 48,
+      "rendererEntryStart": 55,
+      "rendererEntryEnd": 56,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.8088235294117647,
+      "domain": "gateway",
+      "outcome": "denied",
+      "label": "Gateway denied · destination_capability_not_allowed_for_source",
+      "evidenceEventIds": [
+        "evt-0049"
+      ]
+    },
+    {
+      "eventId": "evt-0050",
+      "caseSequence": 49,
+      "rendererEntryStart": 57,
+      "rendererEntryEnd": 57,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.8382352941176471,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "ERP.vendor.write requested",
+      "evidenceEventIds": [
+        "evt-0050"
+      ]
+    },
+    {
+      "eventId": "evt-0051",
+      "caseSequence": 50,
+      "rendererEntryStart": 58,
+      "rendererEntryEnd": 60,
+      "rendererEntryCount": 3,
+      "rendererFraction": 0.8529411764705882,
+      "domain": "identity",
+      "outcome": "denied",
+      "label": "Identity denied · role_not_granted_to_agent_version",
+      "evidenceEventIds": [
+        "evt-0050",
+        "evt-0051"
+      ]
+    },
+    {
+      "eventId": "evt-0052",
+      "caseSequence": 51,
+      "rendererEntryStart": 61,
+      "rendererEntryEnd": 61,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.8970588235294118,
+      "domain": "tool",
+      "outcome": "pending",
+      "label": "ERP.vendor.activate requested",
+      "evidenceEventIds": [
+        "evt-0052"
+      ]
+    },
+    {
+      "eventId": "evt-0053",
+      "caseSequence": 52,
+      "rendererEntryStart": 62,
+      "rendererEntryEnd": 63,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.9117647058823529,
+      "domain": "identity",
+      "outcome": "succeeded",
+      "label": "allowed · erp.vendor.writer on erp/vendors/northwind",
+      "evidenceEventIds": [
+        "evt-0053"
+      ]
+    },
+    {
+      "eventId": "evt-0054",
+      "caseSequence": 53,
+      "rendererEntryStart": 64,
+      "rendererEntryEnd": 64,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.9411764705882353,
+      "domain": "tool",
+      "outcome": "succeeded",
+      "label": "ERP.vendor.activate succeeded",
+      "evidenceEventIds": [
+        "evt-0052",
+        "evt-0054"
+      ]
+    },
+    {
+      "eventId": "evt-0055",
+      "caseSequence": 54,
+      "rendererEntryStart": 65,
+      "rendererEntryEnd": 66,
+      "rendererEntryCount": 2,
+      "rendererFraction": 0.9558823529411765,
+      "domain": "memory",
+      "outcome": "succeeded",
+      "label": "Vendor Northwind activated in ERP under approval apr-001",
+      "evidenceEventIds": [
+        "evt-0055"
+      ]
+    },
+    {
+      "eventId": "evt-0056",
+      "caseSequence": 55,
+      "rendererEntryStart": 67,
+      "rendererEntryEnd": 66,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.9852941176470589,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Milestone · logistics",
+      "evidenceEventIds": [
+        "evt-0056"
+      ]
+    },
+    {
+      "eventId": "evt-0057",
+      "caseSequence": 56,
+      "rendererEntryStart": 67,
+      "rendererEntryEnd": 66,
+      "rendererEntryCount": 0,
+      "rendererFraction": 0.9852941176470589,
+      "domain": "case",
+      "outcome": "informational",
+      "label": "Milestone · activation",
+      "evidenceEventIds": [
+        "evt-0057"
+      ]
+    },
+    {
+      "eventId": "evt-0058",
+      "caseSequence": 57,
+      "rendererEntryStart": 67,
+      "rendererEntryEnd": 67,
+      "rendererEntryCount": 1,
+      "rendererFraction": 0.9852941176470589,
+      "domain": "agent",
+      "outcome": "succeeded",
+      "label": "Agent completed",
+      "evidenceEventIds": [
+        "evt-0058"
+      ]
+    },
+    {
+      "eventId": "evt-0059",
+      "caseSequence": 58,
+      "rendererEntryStart": 68,
+      "rendererEntryEnd": 67,
+      "rendererEntryCount": 0,
+      "rendererFraction": 1,
+      "domain": "usage",
+      "outcome": "informational",
+      "label": "Usage recorded",
+      "evidenceEventIds": [
+        "evt-0059"
+      ]
+    },
+    {
+      "eventId": "evt-0060",
+      "caseSequence": 59,
+      "rendererEntryStart": 68,
+      "rendererEntryEnd": 68,
+      "rendererEntryCount": 1,
+      "rendererFraction": 1,
+      "domain": "runtime",
+      "outcome": "succeeded",
+      "label": "Runtime result · completed",
+      "evidenceEventIds": [
+        "evt-0060"
+      ]
+    }
+  ]
+}
