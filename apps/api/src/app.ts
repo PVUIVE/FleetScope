@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { capabilityRoutes } from './routes/capability.js';
 import { healthRoutes } from './routes/health.js';
 import { liveRoutes } from './routes/live.js';
+import { cors } from './middleware/cors.js';
 import { requestContext } from './middleware/request-context.js';
 import type { GeminiDependencies } from './live/gemini.js';
 import type { FleetScopeConfig } from './config/index.js';
@@ -27,6 +28,7 @@ export function createApp(
   const app = new Hono();
 
   app.use('*', requestContext(logLevel));
+  app.use('*', cors(config));
   app.route('/', healthRoutes(config));
   app.route('/', capabilityRoutes(config));
   app.route('/', liveRoutes(config, liveDependencies));

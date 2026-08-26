@@ -143,3 +143,46 @@ describe('admitLiveRequest', () => {
     expect(result.rejection.reason).toBe('live_mode_disabled');
   });
 });
+
+describe('CORS for the browser live proof', () => {
+  const origin = 'http://localhost:4331';
+  const configWith = (source: Record<string, string>): FleetScopeConfig => config(source);
+
+  it('sends no CORS header when no origin is configured', async () => {
+    const app = createApp(configWith({}), 'silent');
+    const response = await app.request('/capability', { headers: { origin } });
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('grants only an exactly allowlisted origin', async () => {
+    const app = createApp(configWith({ WEB_ORIGINS: origin }), 'silent');
+    const allowed = await app.request('/capability', { headers: { origin } });
+    expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe(origin);
+
+    // A near-miss is a different origin, and gets nothing.
+    const denied = await app.request('/capability', {
+      headers: { origin: 'http://localhost:4331.evil.example' },
+    });
+    expect(denied.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('refuses a preflight from an origin it does not know', async () => {
+    const app = createApp(configWith({ WEB_ORIGINS: origin }), 'silent');
+    const response = await app.request('/live/decision', {
+      method: 'OPTIONS',
+      headers: { origin: 'https://elsewhere.example' },
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it('answers a preflight for the allowlisted origin without granting credentials', async () => {
+    const app = createApp(configWith({ WEB_ORIGINS: origin }), 'silent');
+    const response = await app.request('/live/decision', {
+      method: 'OPTIONS',
+      headers: { origin },
+    });
+    expect(response.status).toBe(204);
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+    expect(response.headers.get('Access-Control-Allow-Credentials')).toBeNull();
+  });
+});

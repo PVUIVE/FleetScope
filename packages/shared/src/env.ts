@@ -17,6 +17,16 @@ export interface FleetScopeConfig {
    */
   readonly liveMode: boolean;
   readonly defaultCaseId: string;
+  /**
+   * Browser origins allowed to call this API cross-origin.
+   *
+   * Empty by DEFAULT and therefore fail-closed: with no entry the service sends
+   * no CORS header at all, which is correct for a same-origin deployment and
+   * correct for a deployment that has not thought about it. The browser live
+   * proof needs one entry when the static site is served from a different
+   * origin than the API — a local `astro preview` on :4331 calling :8080, say.
+   */
+  readonly webOrigins: readonly string[];
   readonly port: number;
   readonly logLevel: 'silent' | 'info';
   readonly gcp: { readonly projectId: string | null; readonly region: string | null };
@@ -97,6 +107,10 @@ export function parseConfig(source: EnvSource): Result<FleetScopeConfig, string[
       : 'development',
     liveMode,
     defaultCaseId: source['PUBLIC_DEFAULT_CASE_ID'] ?? 'CASE-1042',
+    webOrigins: (source['WEB_ORIGINS'] ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin !== ''),
     port: parseInt_(source['PORT'], 8080, 'PORT', problems),
     logLevel: source['API_LOG_LEVEL'] === 'silent' ? 'silent' : 'info',
     gcp: {
