@@ -147,6 +147,72 @@ describe('the bounded call', () => {
     expect(sent.generationConfig['responseSchema']).toBeDefined();
   });
 
+  it('disables thinking, because thinking tokens spend the output budget', () => {
+    // Measured against the real API: 284 of a 300-token budget went to thoughts,
+    // leaving one token for the answer. The call succeeds, is billed, and yields
+    // truncated JSON the schema then rejects.
+    const stub = stubFetch(() => modelResponse(goodBody));
+    return requestLiveDecision(live, STEP, {
+      fetch: stub.fetch,
+      elapsedMs: () => 0,
+      apiKey: 'not-a-real-key',
+    }).then(() => {
+      const sent = JSON.parse(String(stub.calls[0]!.init.body)) as {
+        generationConfig: { thinkingConfig?: { thinkingBudget?: number } };
+      };
+      expect(sent.generationConfig.thinkingConfig?.thinkingBudget).toBe(0);
+    });
+  });
+
+  it('names the provider reason on an HTTP error, so a 400 is diagnosable', async () => {
+    const stub = stubFetch(() =>
+      modelResponse(
+        {
+          error: {
+            code: 400,
+            status: 'INVALID_ARGUMENT',
+            message: 'API key not valid. Please pass a valid API key.',
+            details: [
+              { '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'API_KEY_INVALID' },
+            ],
+          },
+        },
+        400,
+      ),
+    );
+    const outcome = await requestLiveDecision(live, STEP, {
+      fetch: stub.fetch,
+      elapsedMs: () => 0,
+      apiKey: 'not-a-real-key',
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.ok === false && outcome.detail).toContain('API_KEY_INVALID');
+    // The free-text message is deliberately NOT read: it carries no guarantee
+    // about its content, unlike the enum-like status and reason.
+    expect(outcome.ok === false && outcome.detail).not.toContain('Please pass a valid');
+  });
+
+  it('falls back to the status when no structured reason is present', async () => {
+    const stub = stubFetch(() => modelResponse({ error: { status: 'RESOURCE_EXHAUSTED' } }, 429));
+    const outcome = await requestLiveDecision(live, STEP, {
+      fetch: stub.fetch,
+      elapsedMs: () => 0,
+      apiKey: 'not-a-real-key',
+    });
+    expect(outcome.ok === false && outcome.detail).toContain('RESOURCE_EXHAUSTED');
+  });
+
+  it('stays quiet rather than guessing when the error body is unrecognizable', async () => {
+    const stub = stubFetch(() => new Response('gateway timeout', { status: 504 }));
+    const outcome = await requestLiveDecision(live, STEP, {
+      fetch: stub.fetch,
+      elapsedMs: () => 0,
+      apiKey: 'not-a-real-key',
+    });
+    expect(outcome.ok === false && outcome.detail).toBe('The model API returned HTTP 504.');
+  });
+
   it('carries the credential in a header, never in the URL', async () => {
     const stub = stubFetch(() => modelResponse(goodBody));
     await requestLiveDecision(live, STEP, {

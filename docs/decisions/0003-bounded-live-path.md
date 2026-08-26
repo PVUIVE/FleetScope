@@ -78,8 +78,17 @@ when FleetScope received it.
 worth keeping; serving the recorded result with no trace would leave the demo
 unable to tell the two apart afterwards.
 
-**Still not run against a real endpoint.** Every test uses an injected `fetch`
-that never leaves the process — which is what lets the bounded path run in CI on
-every commit at zero cost. **USD 0.00 has been spent.** The three-run live
-reliability check in `docs/plans/demo-validation.md` has not been performed, and
-recorded mode remains the official demo path.
+**Now run against the real endpoint: 3/3, ~USD 0.0007.** Both allowlisted steps
+executed; a third call was refused by the budget before reaching the API; the
+result canonicalized onto the recorded stream at `caseSequence` 60–62 with the
+recorded prefix byte-identical afterwards. Unit tests still use an injected
+`fetch` that never leaves the process, so the bounded path runs in CI at zero
+cost. Recorded mode remains the default and the official demo path.
+
+**Thinking is disabled** (`thinkingConfig: { thinkingBudget: 0 }`), and that is a
+correctness requirement rather than tuning. Gemini 2.5 thinks by default and
+thinking tokens count against `maxOutputTokens`: measured on the real request,
+284 of 300 tokens went to thoughts and the answer came back as `{"`. It is also
+right on principle — FleetScope records no hidden reasoning, so paying for
+reasoning that is then discarded spends the budget the guardrails exist to
+protect.

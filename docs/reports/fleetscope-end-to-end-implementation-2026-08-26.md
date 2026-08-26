@@ -35,8 +35,8 @@ Every command in this report was executed. Counts are copied from real output.
 | Audit evidence export | **IMPLEMENTED** | self-verifying, honestly labelled |
 | Recorded mode with `LIVE_MODE=false` | **IMPLEMENTED** | 10/10 cold runs byte-identical |
 | Static/offline operation | **IMPLEMENTED, with a stated limit** | a loaded page makes **zero** requests; navigation needs the static host |
-| Bounded live proof | **PARTIAL — implemented, never executed** | full path built and tested against an injected `fetch`. **No live call has been made. USD 0.00 spent.** |
-| Live 3-run reliability | **NOT DONE** | requires a credential and spend; recorded mode is the demo |
+| Bounded live proof | **IMPLEMENTED and EXECUTED** | 2 allowlisted steps run against the real Gemini API; result canonicalized onto the recorded stream |
+| Live 3-run reliability | **IMPLEMENTED** | **3/3 passed**, identical output at temperature 0, **~USD 0.0007 total** |
 | Second Case fixture (alternate branches) | **NOT DONE** | see §N |
 
 ---
@@ -545,24 +545,68 @@ manifest validation, cursor round-trips, and audit-export self-verification.
 
 ---
 
-## M. Live reliability
+## M. Live reliability — executed
 
-**Not performed. USD 0.00 spent.**
+**3/3 runs passed. Total spend ~USD 0.0007.**
 
-The bounded path is implemented and covered by 19 tests, all against an injected
-`fetch` that never leaves the process — which is what lets it run in CI on every
-commit for nothing. What is proven without spending: the guardrails
-(`temperature: 0`, `maxOutputTokens: 300`, `candidateCount: 1`, `responseSchema`,
-one timeout, **no retry**), the credential in a header rather than a URL, the
-per-Case call budget enforced *before* the call, schema rejection of prose and of
-an out-of-range confidence, and the full fallback path.
+`bash scripts/live-reliability.sh 3`, each run against a freshly restarted API
+because the per-Case budget of 2 is in-memory by design:
 
-What is NOT proven: that a real Gemini endpoint returns a schema-conforming
-response for these prompts, and the 3-of-3 reliability run
-`docs/plans/demo-validation.md` asks for. Both need a credential and spend.
+```text
+run 1 PASS  mode=live model=gemini-2.5-flash requestId=O_WOaobdLdjUqfkPv5nC6AY in=138 out=71 1655ms canonicalized=yes ~$0.00022
+        result: compliant (confidence 0.95)
+run 2 PASS  mode=live model=gemini-2.5-flash requestId=QPWOauj-FdvFg8UP6PjEmAU in=138 out=71 1805ms canonicalized=yes ~$0.00022
+        result: compliant (confidence 0.95)
+run 3 PASS  mode=live model=gemini-2.5-flash requestId=RPWOap3ZNaS-g8UPpb_W8QE in=138 out=71 1709ms canonicalized=yes ~$0.00022
 
-**Recorded mode is the official demo path** and is unaffected. Live mode is off
-by default and fails closed.
+3/3 runs passed   ·   spend this session ~USD 0.00066
+```
+
+Identical classification, confidence and token counts across all three — which
+is what `temperature: 0` with thinking disabled is for.
+
+Both allowlisted steps were run. `warden-incident-advice` returned
+`compliant / 0.9` in 1529 ms (104 in, 66 out). A third call was refused with
+`call_budget_exhausted` **before** reaching the API, as designed.
+
+**The live result becomes canonical evidence**, verified by
+`scripts/verify-live-append.ts` on every run: 3 Source Events canonicalize onto
+the recorded stream at `caseSequence` 60–62, the recorded prefix is byte-identical
+afterwards, the renderer grows 69 → 71 entries, the extended manifest validates,
+and no invariant is violated. Nothing about a live result skips the pipeline.
+
+Against the USD 35 ceiling: **~0.002% of budget for the full demo.**
+
+Recorded mode remains the default and the official demo path. `LIVE_MODE` is
+back to `false`.
+
+### Three defects the live run exposed that no test could
+
+Each is now covered by a test, but none would have been found without spending
+the first cent.
+
+1. **`apps/api` never read `.env`.** No dotenv, no `--env-file`. The documented
+   "copy `.env.example` to `.env`" workflow silently did nothing for the API.
+   Fixed with `--env-file-if-exists` in the package scripts.
+2. **Gemini 2.5 thinks by default, and thinking tokens spend
+   `maxOutputTokens`.** Measured on the real request: **284 of 300 tokens went to
+   thoughts**, leaving one for the answer, which came back as the two characters
+   `{"`. The call succeeds, is billed, and yields nothing the schema will accept.
+   Fixed with `thinkingConfig: { thinkingBudget: 0 }` — which is also the correct
+   default on principle, since FleetScope records no hidden reasoning and should
+   not pay a model to produce reasoning it then discards.
+3. **`HTTP 400` was not diagnosable.** The original code deliberately refused to
+   read the error body, so a wrong credential, an unsupported generation config
+   and a malformed schema were indistinguishable. It took six probes to find that
+   the answer was one field. Now `error.status` and `error.details[].reason` are
+   read — enum-like metadata on a response that by definition carries no
+   candidate — while the free-text `message` still is not.
+
+A fourth was an environment problem rather than a code one, and worth recording
+because it will recur: a stale `GEMINI_API_KEY` exported from `~/.zshrc`
+**shadowed the one in `.env`**, because Node's `--env-file` does not override an
+already-set variable. The symptom was `API_KEY_INVALID` on a key that was
+perfectly valid in the file.
 
 ---
 

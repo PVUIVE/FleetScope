@@ -153,9 +153,15 @@ a live result becomes canonical evidence before it reaches an authoritative
 surface. A failure returns `200` with `mode: "recorded"` and records the attempt
 as evidence — FleetScope never fabricates a live success.
 
-**No live call has ever been made. USD 0.00 spent.** Every test injects a `fetch`
-that stays in-process, which is what lets the bounded path run in CI for free.
+**Executed: 3/3 live runs passed against the real Gemini API, ~USD 0.0007 total**
+— about 0.002% of the USD 35 ceiling. Reproduce with
+`bash scripts/live-reliability.sh 3`. Every unit test still injects a `fetch`
+that stays in-process, so the bounded path runs in CI for free.
 See `docs/decisions/0003-bounded-live-path.md`.
+
+If the API reports `API_KEY_INVALID` on a key you know is good, check for a
+`GEMINI_API_KEY` exported in your shell profile: Node's `--env-file` does not
+override an already-set variable, so an ambient value silently shadows `.env`.
 
 Never boot the normal UI with credentials. It does not need them.
 

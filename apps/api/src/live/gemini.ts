@@ -29,6 +29,17 @@ import type { LiveStep } from './allowlist.js';
 const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /**
+ * The operator-safe summary length, defined ONCE.
+ *
+ * It is enforced in three places — the prompt asks for it, the provider's
+ * response schema constrains generation to it, and Zod rejects anything past it
+ * — so a single constant keeps the three from drifting. Measured: asked for a
+ * compliance summary with no limit, the model returns ~400 characters, which is
+ * a paragraph rather than the one-line summary the evidence rail renders.
+ */
+const SUMMARY_MAX_CHARS = 280;
+
+/**
  * What FleetScope will accept back. Anything else is a failed call.
  *
  * Deliberately small and closed: the fields are operator-safe by construction,
@@ -40,7 +51,7 @@ export const liveDecisionSchema = z
     /** One of a closed set. Never free text. */
     classification: z.enum(['compliant', 'needs_review', 'non_compliant', 'insufficient_evidence']),
     /** A concise operator-safe summary. NOT reasoning, and length-capped. */
-    summary: z.string().min(1).max(280),
+    summary: z.string().min(1).max(SUMMARY_MAX_CHARS),
     confidence: z.number().min(0).max(1),
   })
   .strict();
@@ -54,11 +65,18 @@ const RESPONSE_SCHEMA = {
       type: 'STRING',
       enum: ['compliant', 'needs_review', 'non_compliant', 'insufficient_evidence'],
     },
-    summary: { type: 'STRING' },
+    // maxLength constrains GENERATION, so the model is steered inside the
+    // budget rather than being rejected after spending it.
+    summary: { type: 'STRING', maxLength: SUMMARY_MAX_CHARS },
     confidence: { type: 'NUMBER' },
   },
   required: ['classification', 'summary', 'confidence'],
 } as const;
+
+/** Appended to every prompt. Says the constraint the schema also enforces. */
+const SUMMARY_INSTRUCTION =
+  `Keep "summary" under ${SUMMARY_MAX_CHARS} characters — one or two sentences, ` +
+  'stating only what the recorded evidence shows.';
 
 /**
  * The server-owned prompts, keyed by allowlisted step.
@@ -77,6 +95,7 @@ const PROMPTS: Readonly<Record<string, string>> = {
     'after one bounded retry; and an operator-approved ERP vendor activation.',
     'Classify the compliance posture of this case from that evidence alone.',
     'Do not speculate about anything not listed. Answer only in the required JSON shape.',
+    SUMMARY_INSTRUCTION,
   ].join(' '),
   'warden-incident-advice': [
     'You are advising, not deciding, inside a governed enterprise agent-fleet control plane.',
@@ -85,6 +104,7 @@ const PROMPTS: Readonly<Record<string, string>> = {
     'policy authorized. Classify whether this incident is resolved from that evidence',
     'alone. Your answer is advisory only and grants no authority to act.',
     'Answer only in the required JSON shape.',
+    SUMMARY_INSTRUCTION,
   ].join(' '),
 };
 
@@ -120,6 +140,28 @@ export interface GeminiDependencies {
   /** Elapsed milliseconds. Injected so a test does not depend on wall time. */
   readonly elapsedMs: () => number;
   readonly apiKey: string | null;
+}
+
+/**
+ * The machine-readable reason for a failed request.
+ *
+ * Reads ONLY `error.status` and `error.details[].reason` — both enum-like, both
+ * describing the request rather than any response content. Returns null if the
+ * body is not the shape expected, because a diagnostic that guesses is worse
+ * than one that stays quiet.
+ */
+async function googleErrorReason(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as {
+      error?: { status?: unknown; details?: { reason?: unknown }[] };
+    };
+    const status = typeof body.error?.status === 'string' ? body.error.status : null;
+    const detail = body.error?.details?.find((d) => typeof d.reason === 'string');
+    const reason = typeof detail?.reason === 'string' ? detail.reason : null;
+    return reason ?? status;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -188,17 +230,42 @@ export async function requestLiveDecision(
             responseMimeType: 'application/json',
             responseSchema: RESPONSE_SCHEMA,
             candidateCount: 1,
+            // THINKING IS OFF, and this is load-bearing rather than a tuning
+            // preference.
+            //
+            // Gemini 2.5 models think by default, and thinking tokens count
+            // against `maxOutputTokens`. Measured against this exact request:
+            // 284 of a 300-token budget went to thoughts, leaving ONE token for
+            // the answer — the response came back as the two characters `{"`,
+            // which the schema then rejected. The failure is silent in the worst
+            // way: the call succeeds, is billed, and yields nothing.
+            //
+            // It is also the right default on principle. FleetScope records no
+            // hidden reasoning and reconstructs none, so paying a model to
+            // produce reasoning that is then discarded buys the product nothing
+            // and spends the budget it is supposed to be protecting.
+            //
+            // Not every model honours a zero budget (the Pro tier cannot disable
+            // it). Pointing GEMINI_MODEL at one now yields a 400 that names its
+            // own reason, thanks to the error handling below.
+            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       },
     );
 
     if (!response.ok) {
-      // The status is safe to record; the body is not, so it is not read.
+      // "HTTP 400" alone is not diagnosable — it is equally an invalid
+      // credential, an unsupported generation config, and a malformed schema.
+      // Google's structured `status` and `details[].reason` are enum-like
+      // metadata: a 4xx carries no candidate, so there is no model content in
+      // them to leak. The free-text `message` is NOT read, because that is the
+      // field with no such guarantee.
+      const reason = await googleErrorReason(response);
       return {
         ok: false,
         reason: 'http_error',
-        detail: `The model API returned HTTP ${response.status}.`,
+        detail: `The model API returned HTTP ${response.status}${reason === null ? '' : ` (${reason})`}.`,
         durationMs: elapsed(),
       };
     }
