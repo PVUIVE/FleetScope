@@ -1,0 +1,21 @@
+---
+/**
+ * An absent thing, said plainly.
+ *
+ * "No pending approvals" and "the approvals could not be loaded" are different
+ * facts and must not share a blank panel. `tone` distinguishes an ordinary empty
+ * state from a failure the operator should notice.
+ */
+interface Props {
+  title: string;
+  detail?: string;
+  tone?: 'neutral' | 'warn' | 'deny';
+}
+const { title, detail, tone = 'neutral' } = Astro.props;
+---
+
+<div class="fs-empty" data-tone={tone} role={tone === 'neutral' ? undefined : 'status'}>
+  <span class="fs-empty__title">{title}</span>
+  {detail && <p class="fs-empty__detail">{detail}</p>}
+  <slot />
+</div>

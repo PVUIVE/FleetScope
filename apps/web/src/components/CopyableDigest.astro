@@ -1,0 +1,50 @@
+---
+/**
+ * A 64-character hex digest, rendered without breaking the page.
+ *
+ * A stream revision or a state hash has no word boundaries, so in an intrinsic
+ * grid column it sets the column width and pushes the BODY past the viewport.
+ * It wraps anywhere, or truncates with the full value one click away.
+ */
+interface Props {
+  value: string | null | undefined;
+  label: string;
+  truncate?: boolean;
+}
+const { value, label, truncate = false } = Astro.props;
+---
+
+{value === null || value === undefined || value === '' ? (
+  <span class="fs-unknown" title="FleetScope has no recorded value for this.">
+    <span aria-hidden="true">—</span>
+    <span class="fs-visually-hidden">Not recorded</span>
+  </span>
+) : (
+  <span class="fs-digest">
+    <span class="fs-digest__value" data-truncate={String(truncate)} title={value}>{value}</span>
+    <button
+      type="button"
+      class="fs-button fs-button--sm fs-digest__copy"
+      data-variant="quiet"
+      data-copy={value}
+      aria-label={`Copy ${label}`}
+    >Copy</button>
+  </span>
+)}
+
+<script>
+  // Delegated once per page, so any number of digests share one listener.
+  document.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-copy]');
+    if (button === null || button === undefined) return;
+    const value = button.dataset['copy'] ?? '';
+    const restore = button.textContent;
+    void navigator.clipboard
+      .writeText(value)
+      .then(() => { button.textContent = 'Copied'; })
+      .catch(() => { button.textContent = 'Copy failed'; })
+      .finally(() => {
+        window.setTimeout(() => { button.textContent = restore; }, 1200);
+      });
+  });
+</script>

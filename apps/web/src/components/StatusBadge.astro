@@ -1,0 +1,64 @@
+---
+/**
+ * The one status chip.
+ *
+ * Resolves through lib/status.ts so a state has the same word everywhere in the
+ * product. Renders three channels — glyph, word, tone — because a status carried
+ * only by colour is unreadable to a viewer who cannot see the colour.
+ */
+import {
+  agentStatus,
+  approvalStatusBadge,
+  caseStatus,
+  controlStatus,
+  dispositionStatus,
+  incidentStatus,
+  interventionStatus,
+  severityStatus,
+  type StatusDescriptor,
+} from '../lib/status';
+
+type Kind =
+  | 'case'
+  | 'agent'
+  | 'control'
+  | 'intervention'
+  | 'approval'
+  | 'incident'
+  | 'severity'
+  | 'disposition';
+
+interface Props {
+  kind: Kind;
+  value: string | null | undefined;
+  size?: 'sm' | 'md';
+  /** Overrides the resolved word. Use only to add detail, never to change meaning. */
+  label?: string;
+  class?: string;
+}
+const { kind, value, size = 'md', label, class: className = '' } = Astro.props;
+
+const resolvers: Record<Kind, (v: string | null | undefined) => StatusDescriptor> = {
+  case: caseStatus,
+  agent: agentStatus,
+  control: controlStatus,
+  intervention: interventionStatus,
+  approval: approvalStatusBadge,
+  incident: incidentStatus,
+  severity: severityStatus,
+  disposition: dispositionStatus,
+};
+
+const status = resolvers[kind](value);
+---
+
+<span
+  class={`fs-status ${size === 'sm' ? 'fs-status--sm' : ''} ${className}`}
+  data-tone={status.tone}
+  data-status-kind={kind}
+  data-status-value={value ?? 'unknown'}
+  title={status.hint}
+>
+  <span class="fs-status__glyph" aria-hidden="true">{status.glyph}</span>
+  <span>{label ?? status.label}</span>
+</span>

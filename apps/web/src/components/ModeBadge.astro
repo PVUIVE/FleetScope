@@ -1,0 +1,24 @@
+---
+/**
+ * Execution-mode label.
+ *
+ * Required wherever evidence is shown: the demo must never let a viewer mistake
+ * recorded or synthetic evidence for a live platform result, or a recorded
+ * fallback for a live proof. The words come from lib/status.ts so every surface
+ * uses the same ones.
+ */
+import { MODE_COPY, type ExecutionModeKey } from '../lib/status';
+
+interface Props {
+  mode: ExecutionModeKey;
+  /** Hide the explanatory clause where space is tight. The label always shows. */
+  compact?: boolean;
+}
+const { mode, compact = false } = Astro.props;
+const copy = MODE_COPY[mode];
+---
+
+<span class="fs-mode" data-tone={copy.tone} data-mode={mode} title={copy.note}>
+  <span>{copy.label}</span>
+  {!compact && <span class="fs-mode__note">· {copy.note}</span>}
+</span>

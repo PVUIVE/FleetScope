@@ -1,0 +1,297 @@
+---
+/**
+ * The bounded live proof control.
+ *
+ * Deliberately not a chat box. There is no text input anywhere on this path:
+ * the operator picks a pre-approved scenario step and the SERVER owns the
+ * prompt, which is what keeps both the spend and the injection surface bounded.
+ *
+ * The button is actionable only when the API says live mode is on and this step
+ * is allowlisted. Frontend configuration is not evidence of a capability — a
+ * build with `PUBLIC_LIVE_MODE=true` pointed at a server with live mode off
+ * shows "unavailable", because that is the truth.
+ */
+import type { CanonicalEvent } from '@fleetscope/event-schema';
+
+interface Props {
+  caseId: string;
+  stepId: string;
+  stepDescription: string;
+  apiBaseUrl: string | null;
+  /** The canonical stream this proof would append to. */
+  events: readonly CanonicalEvent[];
+  /** The Session a live result belongs to, or null for a Case-level fact. */
+  sessionId: string | null;
+}
+const { caseId, stepId, stepDescription, apiBaseUrl, events, sessionId } = Astro.props;
+
+const afterSourceTime = events.reduce(
+  (latest, event) => (event.sourceTime > latest ? event.sourceTime : latest),
+  '',
+);
+---
+
+<section class="fs-card" aria-labelledby="fs-liveproof-heading" data-live-proof>
+  <div class="fs-section-head">
+    <h2 id="fs-liveproof-heading">Live proof</h2>
+    <span class="fs-section-head__aside" data-live-availability>Checking availability…</span>
+  </div>
+
+  <div class="fs-liveproof">
+    <p class="fs-note" style="margin-top:0">
+      Runs one bounded model decision on the FleetScope API and appends the result
+      as canonical Case evidence. The response becomes authoritative only after
+      canonicalization — never before.
+    </p>
+
+    <dl class="fs-kv fs-kv--tight">
+      <dt>Model</dt><dd class="fs-mono" data-live-model>—</dd>
+      <dt>Case</dt><dd class="fs-mono">{caseId}</dd>
+      <dt>Step</dt><dd class="fs-mono">{stepId}</dd>
+      <dt>Proves</dt><dd>{stepDescription}</dd>
+      <dt>Call budget</dt><dd data-live-budget>—</dd>
+    </dl>
+
+    <div class="fs-row">
+      <button type="button" class="fs-button" data-variant="primary" data-live-run disabled>
+        Run Live Proof
+      </button>
+      <span class="fs-muted" style="font-size:12px" data-live-hint>
+        Recorded evidence is the default path and needs none of this.
+      </span>
+    </div>
+
+    <div class="fs-liveproof__state" data-live-state hidden></div>
+  </div>
+</section>
+
+<script type="application/json" data-live-config set:html={JSON.stringify({
+  caseId,
+  stepId,
+  apiBaseUrl,
+  sessionId,
+  afterSourceTime,
+  events,
+})} />
+
+<script>
+  import { buildEvidenceRecords } from '../lib/evidence-view';
+  import {
+    planAppend,
+    probeLiveCapability,
+    requestLiveDecision,
+    type LiveDecisionResponse,
+  } from '../lib/live-proof';
+  import { compileZoetropeScene } from '@fleetscope/scenario-compiler';
+  import type { CanonicalEvent } from '@fleetscope/event-schema';
+
+  interface LiveConfig {
+    caseId: string;
+    stepId: string;
+    apiBaseUrl: string | null;
+    sessionId: string | null;
+    afterSourceTime: string;
+    events: CanonicalEvent[];
+  }
+
+  const configNode = document.querySelector<HTMLScriptElement>('[data-live-config]');
+  const panel = document.querySelector<HTMLElement>('[data-live-proof]');
+
+  if (configNode !== null && panel !== null) {
+    const config = JSON.parse(configNode.textContent ?? '{}') as LiveConfig;
+    const availability = panel.querySelector<HTMLElement>('[data-live-availability]');
+    const modelCell = panel.querySelector<HTMLElement>('[data-live-model]');
+    const budgetCell = panel.querySelector<HTMLElement>('[data-live-budget]');
+    const button = panel.querySelector<HTMLButtonElement>('[data-live-run]');
+    const hint = panel.querySelector<HTMLElement>('[data-live-hint]');
+    const state = panel.querySelector<HTMLElement>('[data-live-state]');
+
+    /** One in-flight request at a time, and one completion. The API enforces the
+        budget too; this stops a double click from ever spending twice. */
+    let inFlight = false;
+    let spent = false;
+
+    const show = (kind: string, html: string): void => {
+      if (state === null) return;
+      state.hidden = false;
+      state.dataset['state'] = kind;
+      state.innerHTML = html;
+    };
+
+    const escape = (value: string): string =>
+      value.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+    void (async () => {
+      const capability = await probeLiveCapability(config.apiBaseUrl, {
+        caseId: config.caseId,
+        stepId: config.stepId,
+      });
+      if (capability.state === 'unavailable') {
+        if (availability !== null) availability.textContent = 'Unavailable';
+        if (hint !== null) hint.textContent = capability.reason;
+        if (modelCell !== null) modelCell.textContent = '—';
+        if (budgetCell !== null) budgetCell.textContent = '—';
+        show(
+          'unavailable',
+          `<strong>Live proof unavailable</strong><p class="fs-note" style="margin:0">${escape(capability.reason)} The recorded Case is complete and unaffected.</p>`,
+        );
+        return;
+      }
+      if (availability !== null) availability.textContent = 'Ready';
+      if (modelCell !== null) modelCell.textContent = capability.model;
+      if (budgetCell !== null) {
+        budgetCell.textContent = `≤ ${capability.maxCallsPerCase} bounded call${capability.maxCallsPerCase === 1 ? '' : 's'} for this Case`;
+      }
+      if (button !== null) button.disabled = false;
+      if (hint !== null) hint.textContent = 'One call. FleetScope never retries automatically.';
+    })();
+
+    button?.addEventListener('click', () => {
+      if (inFlight || spent || button.disabled) return;
+      inFlight = true;
+      button.disabled = true;
+      show(
+        'running',
+        `<div class="fs-row"><span class="fs-spinner" aria-hidden="true"></span><strong>Running live proof…</strong></div>` +
+          `<p class="fs-note" style="margin:0">${escape(modelCell?.textContent ?? 'the configured model')} · one bounded call</p>`,
+      );
+      void run().finally(() => {
+        inFlight = false;
+      });
+    });
+
+    async function run(): Promise<void> {
+      const started = performance.now();
+      const outcome = await requestLiveDecision(
+        config.apiBaseUrl ?? '',
+        { caseId: config.caseId, stepId: config.stepId },
+        { sessionId: config.sessionId, afterSourceTime: config.afterSourceTime },
+      );
+
+      if (!outcome.ok) {
+        spent = outcome.budgetExhausted;
+        show(
+          'failed',
+          `<strong>${outcome.budgetExhausted ? 'Live proof limit reached for this Case' : 'Live proof unavailable'}</strong>` +
+            `<p class="fs-note" style="margin:0">${escape(outcome.detail)}</p>` +
+            '<p class="fs-note" style="margin:0">Showing recorded evidence instead. Nothing was appended.</p>',
+        );
+        if (button !== null) button.disabled = spent;
+        return;
+      }
+
+      const response: LiveDecisionResponse = outcome.response;
+      const plan = planAppend(config.events, response.sourceEvents, config.caseId);
+
+      if (plan.problems.length > 0) {
+        // Refusing is the correct outcome. A live result that cannot pass the
+        // pipeline must not reach a surface by some other route.
+        show(
+          'failed',
+          '<strong>Live result refused</strong>' +
+            '<p class="fs-note" style="margin:0">The result did not pass canonicalization and was not appended. The recorded Case is unchanged.</p>' +
+            `<ul class="fs-note" style="margin:0;padding-left:1.1em">${plan.problems
+              .map((problem) => `<li>${escape(problem)}</li>`)
+              .join('')}</ul>`,
+        );
+        return;
+      }
+
+      // The renderer only learns about evidence that already survived
+      // canonicalization, projection and compilation.
+      const append = (globalThis as Record<string, unknown>)['fleetscopeAppend'] as
+        | ((mainTail: string, subagents: string, entries: unknown[]) => void)
+        | undefined;
+      let rendererApplied = false;
+      if (append !== undefined && plan.newManifestEntries.length > 0) {
+        append(plan.mainTail, plan.subagentsJson, [...plan.newManifestEntries]);
+        rendererApplied = true;
+      }
+
+      // Local state advances only now, so a second run appends onto the real
+      // stream rather than duplicating the first.
+      config.events = [...plan.stream] as CanonicalEvent[];
+      config.afterSourceTime = config.events.reduce(
+        (latest, event) => (event.sourceTime > latest ? event.sourceTime : latest),
+        '',
+      );
+
+      const fullManifest = compileZoetropeScene(plan.stream).manifest;
+      const newIds = new Set(plan.appendedEvents.map((event) => event.eventId));
+      const newRecords = buildEvidenceRecords(plan.stream, fullManifest).filter((record) =>
+        newIds.has(record.eventId),
+      );
+      const register = (globalThis as Record<string, unknown>)['fleetscopeRegisterEvidence'] as
+        | ((records: unknown[]) => void)
+        | undefined;
+      register?.(newRecords);
+      document.dispatchEvent(
+        new CustomEvent('fleetscope:evidence-appended', { detail: { records: newRecords } }),
+      );
+
+      spent = true;
+      if (button !== null) button.disabled = true;
+
+      const durationMs = Math.round(response.durationMs ?? performance.now() - started);
+      const usage = response.usage ?? { inputTokens: null, outputTokens: null };
+      const decision = plan.appendedEvents.find(
+        (event) => typeof event.payloadRedacted['classification'] === 'string',
+      );
+      const classification =
+        decision === undefined ? null : String(decision.payloadRedacted['classification']);
+      const confidence =
+        decision === undefined || typeof decision.payloadRedacted['confidence'] !== 'number'
+          ? null
+          : String(decision.payloadRedacted['confidence']);
+
+      const unknown = '<span class="fs-unknown">Unknown</span>';
+      const usageRows =
+        `<dt>Input tokens</dt><dd class="fs-mono">${usage.inputTokens === null ? unknown : usage.inputTokens}</dd>` +
+        `<dt>Output tokens</dt><dd class="fs-mono">${usage.outputTokens === null ? unknown : usage.outputTokens}</dd>` +
+        `<dt>Estimated cost</dt><dd class="fs-mono">${unknown}<span class="fs-faint"> — the API reports no cost figure</span></dd>` +
+        `<dt>Model reference</dt><dd class="fs-mono fs-break">${
+          response.modelReference === undefined
+            ? unknown
+            : escape(`${response.modelReference.model} · ${response.modelReference.responseRef}`)
+        }</dd>`;
+
+      if (response.mode === 'recorded' || response.fellBackToRecorded) {
+        // A failed attempt is a fact worth keeping: its evidence is appended and
+        // labelled as a failed live attempt, NOT as a live proof.
+        show(
+          'fallback',
+          '<strong>Live proof unavailable — showing recorded evidence instead</strong>' +
+            `<p class="fs-note" style="margin:0">${escape(response.failure?.detail ?? 'The live call did not succeed.')}</p>` +
+            '<dl class="fs-kv fs-kv--tight">' +
+            `<dt>Attempt recorded as</dt><dd class="fs-mono">${plan.appendedEvents.length} canonical event(s)</dd>` +
+            `<dt>Duration</dt><dd class="fs-mono">${durationMs} ms</dd>` +
+            '</dl>' +
+            '<p class="fs-note" style="margin:0">FleetScope does not retry automatically.</p>',
+        );
+        return;
+      }
+
+      show(
+        'succeeded',
+        '<strong>Live proof succeeded</strong>' +
+          '<dl class="fs-kv fs-kv--tight">' +
+          `<dt>Decision</dt><dd>${classification === null ? unknown : escape(classification)}</dd>` +
+          `<dt>Confidence</dt><dd class="fs-mono">${confidence === null ? unknown : escape(confidence)}</dd>` +
+          `<dt>New canonical evidence</dt><dd class="fs-mono">+${plan.appendedEvents.length} events</dd>` +
+          `<dt>Renderer</dt><dd class="fs-mono">${
+            rendererApplied
+              ? `+${plan.rendererEntriesAfter - plan.rendererEntriesBefore} entries`
+              : 'not applied — the renderer is unavailable on this page'
+          }</dd>` +
+          `<dt>Duration</dt><dd class="fs-mono">${durationMs} ms</dd>` +
+          `<dt>Stream revision</dt><dd class="fs-mono fs-break">${escape(plan.streamRevision)}</dd>` +
+          `<dt>State hash</dt><dd class="fs-mono fs-break">${escape(plan.stateHash)}</dd>` +
+          '</dl>' +
+          '<details><summary>Usage and model reference</summary>' +
+          `<dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">${usageRows}</dl>` +
+          '<p class="fs-note">A model contributed advice. Advice is never authority — no disposition changed because of it.</p>' +
+          '</details>',
+      );
+    }
+  }
+</script>

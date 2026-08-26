@@ -1,0 +1,244 @@
+---
+/**
+ * The Decision Evidence rail.
+ *
+ * Every important decision in the Case, in order, each one inspectable. The row
+ * reads the Render Manifest's SEMANTIC outcome, so a policy denial says "Denied"
+ * even where the graph has to draw it with the same error styling it uses for a
+ * crash.
+ *
+ * Two separate affordances, deliberately:
+ *   the row itself asks the Cockpit to seek — resolved through the Render
+ *     Manifest, never as a caseSequence ratio;
+ *   "Details" opens the Decision Evidence drawer.
+ * Collapsing them would put an overlay across the graph on every scrub.
+ */
+import type { EvidenceRecord } from '../lib/evidence-view';
+import { controlStatus } from '../lib/status';
+
+interface Props {
+  records: readonly EvidenceRecord[];
+  streamRevision: string;
+  projectorVersion: string;
+  stateHash: string;
+  rendererEntryCount: number;
+}
+const { records, streamRevision, projectorVersion, stateHash, rendererEntryCount } = Astro.props;
+
+const domains = [...new Set(records.map((record) => record.domain))].sort();
+
+/** Short domain tags. The rail is narrow; "intervention" would eat the row. */
+const DOMAIN_TAG: Readonly<Record<string, string>> = {
+  case: 'CASE',
+  registry: 'REG',
+  runtime: 'RUN',
+  memory: 'MEM',
+  identity: 'ID',
+  gateway: 'GW',
+  armor: 'ARMOR',
+  agent: 'AGENT',
+  tool: 'TOOL',
+  incident: 'INC',
+  policy: 'POL',
+  approval: 'APPR',
+  intervention: 'ITV',
+  usage: 'USE',
+};
+---
+
+<section class="fs-card" aria-labelledby="fs-evidence-heading" data-evidence-rail>
+  <div class="fs-section-head">
+    <h2 id="fs-evidence-heading">Decision Evidence</h2>
+    <span class="fs-section-head__aside">
+      <span data-evidence-count>{records.length}</span> decisions
+    </span>
+  </div>
+
+  <p class="fs-note" style="margin-top:0">
+    Recorded facts behind each decision. Not model reasoning — FleetScope records
+    no hidden thought and reconstructs none.
+  </p>
+
+  <div class="fs-rail__filters">
+    <label class="fs-field">
+      <span>Filter</span>
+      <select class="fs-select" data-evidence-filter-domain>
+        <option value="">All capabilities</option>
+        {domains.map((domain) => <option value={domain}>{DOMAIN_TAG[domain] ?? domain}</option>)}
+      </select>
+    </label>
+    <label class="fs-field" style="flex:1 1 140px">
+      <span>Search</span>
+      <input class="fs-input" type="search" data-evidence-filter-text placeholder="event, tool, policy…" />
+    </label>
+  </div>
+
+  <div class="fs-rail__body" data-evidence-body>
+    <ul class="fs-evidence-list">
+      {records.map((record) => {
+        const outcome = controlStatus(record.outcome);
+        return (
+          <li class="fs-evidence-item">
+            <button
+              type="button"
+              class="fs-evidence-row"
+              data-evidence-marker={record.eventId}
+              data-case-sequence={record.caseSequence}
+              data-event-id={record.eventId}
+              data-domain={record.domain}
+              data-outcome={record.outcome}
+              data-search={`${record.eventId} ${record.type} ${record.label} ${record.summary}`.toLowerCase()}
+              aria-current="false"
+            >
+              <span class="fs-evidence-row__seq">{record.humanIndex}</span>
+              <span class="fs-evidence-row__label">
+                {record.label}
+                <span class="fs-visually-hidden"> — {outcome.label}. {record.summary}</span>
+              </span>
+              <span class="fs-evidence-row__domain">{DOMAIN_TAG[record.domain] ?? record.domain}</span>
+              <span class="fs-evidence-row__meta">
+                <span><span aria-hidden="true">{outcome.glyph}</span> {outcome.label}</span>
+                {' · '}{record.sessionId ?? 'case-level'}
+                {record.rendererEntryCount === 0 && <> · not drawn in the graph</>}
+              </span>
+            </button>
+            <button
+              type="button"
+              class="fs-evidence-details"
+              data-evidence-open={record.eventId}
+              aria-label={`Open Decision Evidence for ${record.label}`}
+            >Details</button>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+
+  <details style="margin-top:var(--fs-space-3)">
+    <summary>Replay disclosure</summary>
+    <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">
+      <dt>Stream revision</dt><dd class="fs-mono fs-break">{streamRevision}</dd>
+      <dt>Projector version</dt><dd class="fs-mono">{projectorVersion}</dd>
+      <dt>Terminal state hash</dt><dd class="fs-mono fs-break">{stateHash}</dd>
+      <dt>Renderer entries</dt><dd class="fs-mono">{rendererEntryCount}</dd>
+    </dl>
+    <p class="fs-note">
+      Given the same canonical stream revision, event prefix and projector
+      version, FleetScope reconstructs the same Observable Case State.
+    </p>
+  </details>
+</section>
+
+<script>
+  // Filtering is presentation only: it hides rows, it never changes the cursor,
+  // the unread count, or what the renderer is showing.
+  const rail = document.querySelector<HTMLElement>('[data-evidence-rail]');
+  if (rail !== null) {
+    const domainSelect = rail.querySelector<HTMLSelectElement>('[data-evidence-filter-domain]');
+    const textInput = rail.querySelector<HTMLInputElement>('[data-evidence-filter-text]');
+    const count = rail.querySelector<HTMLElement>('[data-evidence-count]');
+    const rows = [...rail.querySelectorAll<HTMLElement>('.fs-evidence-row')];
+
+    const apply = (): void => {
+      const domain = domainSelect?.value ?? '';
+      const text = (textInput?.value ?? '').trim().toLowerCase();
+      let shown = 0;
+      for (const row of rows) {
+        const matches =
+          (domain === '' || row.dataset['domain'] === domain) &&
+          (text === '' || (row.dataset['search'] ?? '').includes(text));
+        (row.parentElement as HTMLElement).hidden = !matches;
+        if (matches) shown += 1;
+      }
+      if (count !== null) count.textContent = String(shown);
+    };
+
+    domainSelect?.addEventListener('change', apply);
+    textInput?.addEventListener('input', apply);
+
+    // Evidence appended at runtime (the bounded live proof) joins the rail in
+    // the same shape as recorded evidence — same row, same affordances, with the
+    // execution mode carried on the row so nothing reads as recorded that is not.
+    document.addEventListener('fleetscope:evidence-appended', (event) => {
+      const detail = (event as CustomEvent).detail as {
+        records: {
+          eventId: string;
+          caseSequence: number;
+          humanIndex: number;
+          label: string;
+          domain: string;
+          outcome: string;
+          summary: string;
+          sessionId: string | null;
+          mode: string;
+          rendererEntryCount: number;
+        }[];
+      };
+      const list = rail.querySelector<HTMLElement>('.fs-evidence-list');
+      if (list === null) return;
+      for (const record of detail.records) {
+        const item = document.createElement('li');
+        item.className = 'fs-evidence-item';
+        const seek = document.createElement('button');
+        seek.type = 'button';
+        seek.className = 'fs-evidence-row';
+        seek.dataset['evidenceMarker'] = record.eventId;
+        seek.dataset['caseSequence'] = String(record.caseSequence);
+        seek.dataset['eventId'] = record.eventId;
+        seek.dataset['domain'] = record.domain;
+        seek.dataset['outcome'] = record.outcome;
+        seek.dataset['search'] =
+          `${record.eventId} ${record.label} ${record.summary}`.toLowerCase();
+        seek.setAttribute('aria-current', 'false');
+        seek.innerHTML =
+          `<span class="fs-evidence-row__seq">${record.humanIndex}</span>` +
+          `<span class="fs-evidence-row__label"></span>` +
+          `<span class="fs-evidence-row__domain">${record.mode === 'live' ? 'LIVE' : record.domain.toUpperCase()}</span>` +
+          `<span class="fs-evidence-row__meta">${record.outcome} · ${record.sessionId ?? 'case-level'}</span>`;
+        seek.querySelector('.fs-evidence-row__label')!.textContent = record.label;
+        const details = document.createElement('button');
+        details.type = 'button';
+        details.className = 'fs-evidence-details';
+        details.dataset['evidenceOpen'] = record.eventId;
+        details.textContent = 'Details';
+        item.append(seek, details);
+        list.append(item);
+        rows.push(seek);
+      }
+      apply();
+      list.lastElementChild?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  // Keep the selected row in view when the Cockpit cursor moves, so scrubbing
+  // the graph and reading the evidence stay in step. Only on an actual change:
+  // re-scrolling to the same row every frame would take the scroll position away
+  // from an operator trying to read the rest of the rail.
+  let lastHighlighted = '';
+  document.addEventListener('fleetscope:cursor', (event) => {
+    const detail = (event as CustomEvent).detail as { entry: { eventId: string } | null };
+    if (detail.entry === null || detail.entry.eventId === lastHighlighted) return;
+    lastHighlighted = detail.entry.eventId;
+    const row = document.querySelector<HTMLElement>(
+      `[data-evidence-marker="${CSS.escape(detail.entry.eventId)}"]`,
+    );
+    if (row === null) return;
+    for (const other of document.querySelectorAll('[data-evidence-marker]')) {
+      other.setAttribute('aria-current', String(other === row));
+    }
+
+    // Scroll the RAIL, not the element.
+    //
+    // `Element.scrollIntoView` moves Chrome's sequential-focus starting point to
+    // the scrolled element, so the operator's very first Tab landed deep inside
+    // the evidence list instead of on the primary navigation. Setting the
+    // container's scrollTop puts the row in view and touches nothing else.
+    const body = document.querySelector<HTMLElement>('[data-evidence-body]');
+    if (body === null) return;
+    const top = row.offsetTop - body.offsetTop;
+    if (top < body.scrollTop) body.scrollTop = top;
+    else if (top + row.offsetHeight > body.scrollTop + body.clientHeight) {
+      body.scrollTop = top + row.offsetHeight - body.clientHeight;
+    }
+  });
+</script>

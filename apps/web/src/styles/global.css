@@ -1,24 +1,49 @@
 /*
- * Visual direction: enterprise control room, not sci-fi command center.
- * Dense but calm — evidence state must read faster than decorative detail.
+ * FleetScope visual language.
  *
- * State is never communicated by color alone (accessibility requirement in
- * docs/requirements/fleetscope/fleet-cockpit.md); every state token pairs a hue
- * with a text label or glyph at the call site.
+ * Enterprise control room, not sci-fi command centre. Dense but calm: evidence
+ * state must read faster than decorative detail, so there are no gradients, no
+ * glows, and no motion that is not reporting a state change.
+ *
+ * State is never communicated by colour alone (docs/requirements/fleetscope/
+ * fleet-cockpit.md). Every status token pairs a hue with a glyph AND a word at
+ * the call site — see lib/status.ts, which is the only place status vocabulary
+ * is defined.
  */
 :root {
-  --fs-bg: #0f1216;
-  --fs-surface: #171b21;
-  --fs-surface-raised: #1e242c;
-  --fs-border: #2b323c;
-  --fs-text: #e6eaf0;
-  --fs-text-muted: #9aa5b4;
+  /* Surfaces, darkest to lightest. Depth is one step at a time; a panel two
+     steps above its parent reads as a different product. */
+  --fs-bg: #0d1014;
+  --fs-surface: #14181e;
+  --fs-surface-raised: #1a1f26;
+  --fs-surface-sunken: #101418;
+  --fs-border: #262d36;
+  --fs-border-strong: #333c47;
+
+  /*
+   * Three text weights, all of which clear WCAG AA (4.5:1) against every
+   * surface above — including `--fs-surface-raised`, the lightest, which is
+   * where the smallest captions live. A caption an auditor cannot read is not a
+   * disclosure.
+   */
+  --fs-text: #e7ebf1;
+  --fs-text-muted: #98a3b2;
+  --fs-text-faint: #858fa0;
 
   --fs-ok: #4ea87a;
-  --fs-warn: #d8a03a;
-  --fs-deny: #cf5c5c;
-  --fs-info: #5b8fd6;
+  --fs-warn: #d5a03c;
+  --fs-deny: #e07878;
+  --fs-info: #6b9ce0;
   --fs-unknown: #6c7684;
+  --fs-accent: #6b9ce0;
+
+  /* Tinted backdrops for status chips. Kept very low contrast: the chip's job is
+     to be legible, not to shout across the page. */
+  --fs-ok-bg: #4ea87a1f;
+  --fs-warn-bg: #d5a03c1f;
+  --fs-deny-bg: #e078781f;
+  --fs-info-bg: #6b9ce01f;
+  --fs-neutral-bg: #98a3b214;
 
   --fs-space-1: 4px;
   --fs-space-2: 8px;
@@ -28,35 +53,48 @@
   --fs-space-6: 32px;
 
   --fs-radius: 6px;
+  --fs-radius-sm: 4px;
+  --fs-shadow-drawer: 0 24px 64px #00000073;
+
   --fs-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --fs-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  /* One header height, so every route's content starts on the same line. */
+  --fs-nav-height: 48px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  /* Belt and braces for the supported sizes (1440x900 and 1280x720): wide
+     content scrolls inside its own container, never taking the page with it. */
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
-  /*
-   * Belt and braces for the supported sizes (1440x900 and 1280x720): wide
-   * content must scroll inside its own container, never take the page with it.
-   */
   overflow-x: hidden;
   background: var(--fs-bg);
   color: var(--fs-text);
   font-family: var(--fs-font);
   font-size: 14px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: inherit;
+  color: var(--fs-accent);
+}
+a:hover {
+  color: var(--fs-text);
 }
 
 :focus-visible {
-  outline: 2px solid var(--fs-info);
+  outline: 2px solid var(--fs-accent);
   outline-offset: 2px;
+  border-radius: var(--fs-radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -65,8 +103,11 @@ a {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
+
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
 
 .fs-shell {
   display: flex;
@@ -76,53 +117,165 @@ a {
 
 .fs-nav {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--fs-space-4);
-  padding: var(--fs-space-3) var(--fs-space-5);
+  height: var(--fs-nav-height);
+  padding: 0 var(--fs-space-5);
   background: var(--fs-surface);
   border-bottom: 1px solid var(--fs-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 .fs-nav__brand {
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  margin-right: var(--fs-space-4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--fs-text);
+  margin-right: var(--fs-space-3);
+  flex: 0 0 auto;
+}
+.fs-nav__brand:hover {
+  color: var(--fs-text);
+}
+.fs-nav__brand-name {
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  font-size: 14px;
+  line-height: 1.15;
+}
+.fs-nav__brand-sub {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-text-faint);
+  line-height: 1.15;
+}
+.fs-nav__links {
+  display: flex;
+  align-items: stretch;
+  gap: var(--fs-space-1);
+  min-width: 0;
 }
 .fs-nav__link {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--fs-space-3);
   color: var(--fs-text-muted);
   text-decoration: none;
-  padding: var(--fs-space-1) 0;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.fs-nav__link:hover {
+  color: var(--fs-text);
+  background: var(--fs-surface-raised);
 }
 .fs-nav__link[aria-current='page'] {
   color: var(--fs-text);
-  box-shadow: inset 0 -2px 0 var(--fs-info);
+  border-bottom-color: var(--fs-accent);
+  font-weight: 550;
+}
+.fs-nav__env {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex: 0 0 auto;
 }
 
 .fs-main {
   flex: 1;
   padding: var(--fs-space-5);
-  max-width: 1440px;
+  max-width: 1560px;
   width: 100%;
   margin: 0 auto;
+  min-width: 0;
 }
+/* The Cockpit is a console, not a document: it uses the full width. */
+.fs-main--wide {
+  max-width: none;
+}
+
 .fs-footer {
   padding: var(--fs-space-3) var(--fs-space-5);
-  color: var(--fs-text-muted);
+  color: var(--fs-text-faint);
   border-top: 1px solid var(--fs-border);
-  font-size: 12px;
+  font-size: 11px;
+  display: flex;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
 }
+
+/* ── Page header ───────────────────────────────────────────────────────────── */
+
+.fs-page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--fs-space-4);
+}
+.fs-page-head__text {
+  min-width: 0;
+  flex: 1 1 380px;
+}
+.fs-page-head__actions {
+  display: flex;
+  gap: var(--fs-space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fs-page-head h1 {
+  font-size: 19px;
+  font-weight: 620;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.fs-page-head__lede {
+  color: var(--fs-text-muted);
+  max-width: 88ch;
+  margin: var(--fs-space-1) 0 0;
+  font-size: 13px;
+}
+
+/* ── Cards and sections ────────────────────────────────────────────────────── */
 
 .fs-card {
   background: var(--fs-surface);
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius);
   padding: var(--fs-space-4);
-  /*
-   * A grid or flex item defaults to `min-width: auto`, which refuses to shrink
-   * below its content. One long digest inside a card would then widen the whole
-   * layout. Wide content scrolls inside its own container (.fs-scroll-x); the
-   * page itself never scrolls sideways.
-   */
+  /* A grid or flex item defaults to `min-width: auto`, which refuses to shrink
+     below its content. One long digest inside a card would then widen the whole
+     layout. Wide content scrolls inside its own container (.fs-scroll-x); the
+     page itself never scrolls sideways. */
   min-width: 0;
+}
+.fs-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+.fs-card--attention {
+  border-color: var(--fs-warn);
+}
+
+.fs-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--fs-space-3);
+}
+.fs-section-head h2,
+.fs-section-head h3 {
+  margin: 0;
+}
+.fs-section-head__aside {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--fs-text-muted);
 }
 
 .fs-grid {
@@ -131,91 +284,186 @@ a {
   min-width: 0;
 }
 .fs-grid--2 {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  /* Cards size to their content. Stretching a two-line panel to match a
+     twenty-line neighbour buys nothing but empty space. */
+  align-items: start;
+}
+.fs-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+}
+.fs-stack {
+  display: grid;
+  gap: var(--fs-space-4);
+  min-width: 0;
 }
 
+h1 {
+  font-size: 19px;
+  margin: 0 0 var(--fs-space-2);
+}
+h2 {
+  font-size: 12px;
+  margin: 0 0 var(--fs-space-3);
+  color: var(--fs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+h3 {
+  font-size: 14px;
+  margin: 0 0 var(--fs-space-2);
+  font-weight: 600;
+}
+/* A title that names a thing rather than labelling a section. */
+.fs-title {
+  color: var(--fs-text);
+  text-transform: none;
+  letter-spacing: -0.005em;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ── Status ────────────────────────────────────────────────────────────────── */
+
+/*
+ * One chip for every state in the product. The tone is decoration; the glyph and
+ * the word carry the meaning, so nothing here depends on colour.
+ */
+.fs-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1.45;
+  border: 1px solid var(--fs-border-strong);
+  border-radius: 999px;
+  padding: 1px 9px 1px 7px;
+  color: var(--fs-text-muted);
+  background: var(--fs-neutral-bg);
+  white-space: nowrap;
+}
+.fs-status__glyph {
+  font-weight: 700;
+  font-size: 11px;
+}
+.fs-status[data-tone='ok'] {
+  color: var(--fs-ok);
+  border-color: #4ea87a55;
+  background: var(--fs-ok-bg);
+}
+.fs-status[data-tone='warn'] {
+  color: var(--fs-warn);
+  border-color: #d5a03c55;
+  background: var(--fs-warn-bg);
+}
+.fs-status[data-tone='deny'] {
+  color: var(--fs-deny);
+  border-color: #e0787855;
+  background: var(--fs-deny-bg);
+}
+.fs-status[data-tone='info'] {
+  color: var(--fs-info);
+  border-color: #6b9ce055;
+  background: var(--fs-info-bg);
+}
+.fs-status[data-tone='neutral'] {
+  color: var(--fs-text-muted);
+}
+.fs-status[data-tone='unknown'] {
+  color: var(--fs-unknown);
+  border-style: dashed;
+}
+.fs-status--sm {
+  font-size: 10.5px;
+  padding: 0 7px 0 5px;
+}
+
+/* Execution mode. Squared, monospace, deliberately unlike a status chip: mode is
+   a property of the EVIDENCE, not of the thing the evidence describes. */
 .fs-mode {
   display: inline-flex;
   align-items: center;
   gap: var(--fs-space-2);
-  font-size: 12px;
+  font-size: 11px;
   font-family: var(--fs-mono);
   border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
-  padding: 2px var(--fs-space-2);
-  color: var(--fs-text-muted);
-}
-
-.fs-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--fs-space-1);
-  font-family: var(--fs-mono);
-  font-size: 12px;
-  border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
+  border-radius: var(--fs-radius-sm);
   padding: 1px var(--fs-space-2);
+  color: var(--fs-text-muted);
+  background: var(--fs-surface-sunken);
+  white-space: nowrap;
 }
-.fs-badge[data-outcome='allowed'],
-.fs-badge[data-outcome='routed'],
-.fs-badge[data-outcome='resolved'] {
-  border-color: var(--fs-ok);
-  color: var(--fs-ok);
+.fs-mode__note {
+  color: var(--fs-text-faint);
 }
-.fs-badge[data-outcome='denied'],
-.fs-badge[data-outcome='blocked'] {
-  border-color: var(--fs-deny);
-  color: var(--fs-deny);
+.fs-mode[data-tone='info'] {
+  border-color: #6b9ce055;
+  color: var(--fs-info);
 }
-.fs-badge[data-outcome='sanitized'],
-.fs-badge[data-outcome='flagged'] {
-  border-color: var(--fs-warn);
+.fs-mode[data-tone='warn'] {
+  border-color: #d5a03c55;
   color: var(--fs-warn);
 }
+.fs-mode[data-tone='unknown'] {
+  border-style: dashed;
+  color: var(--fs-unknown);
+}
+
+/* ── Key/value ─────────────────────────────────────────────────────────────── */
 
 .fs-kv {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--fs-space-2) var(--fs-space-4);
+  margin: 0;
 }
 .fs-kv dt {
   color: var(--fs-text-muted);
+  font-size: 12px;
 }
 .fs-kv dd {
   margin: 0;
-  font-family: var(--fs-mono);
   font-size: 13px;
-  /*
-   * A stream revision and a state hash are 64 unbreakable hex characters. In a
-   * `max-content 1fr` grid they set the column's intrinsic width, which pushes
-   * the page past the viewport and gives the BODY a horizontal scrollbar —
-   * forbidden at the supported sizes. Breaking anywhere is correct for a digest:
-   * it has no words to preserve.
-   */
+  /* A stream revision and a state hash are 64 unbreakable hex characters. In a
+     `max-content 1fr` grid they set the column's intrinsic width, which pushes
+     the page past the viewport and gives the BODY a horizontal scrollbar —
+     forbidden at the supported sizes. Breaking anywhere is correct for a digest:
+     it has no words to preserve. */
   overflow-wrap: anywhere;
   min-width: 0;
 }
-
-.fs-placeholder {
-  border: 1px dashed var(--fs-border);
-  border-radius: var(--fs-radius);
-  padding: var(--fs-space-5);
-  color: var(--fs-text-muted);
+.fs-kv--tight {
+  gap: var(--fs-space-1) var(--fs-space-3);
 }
-
-h1 {
-  font-size: 20px;
-  margin: 0 0 var(--fs-space-2);
+.fs-kv--inline {
+  grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
+  gap: var(--fs-space-1) var(--fs-space-5);
 }
-h2 {
-  font-size: 15px;
-  margin: 0 0 var(--fs-space-3);
-  color: var(--fs-text-muted);
+.fs-kv--inline dt {
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+}
+.fs-kv--stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.fs-kv--stacked dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+  margin-top: var(--fs-space-3);
+}
+.fs-kv--stacked dt:first-of-type {
+  margin-top: 0;
 }
 
-/* ── Shared utilities ──────────────────────────────────────────────────────── */
+/* ── Utilities ─────────────────────────────────────────────────────────────── */
 
 .fs-mono {
   font-family: var(--fs-mono);
@@ -224,13 +472,17 @@ h2 {
 .fs-muted {
   color: var(--fs-text-muted);
 }
+.fs-faint {
+  color: var(--fs-text-faint);
+}
 .fs-note {
   font-size: 12px;
   margin: var(--fs-space-2) 0 0;
+  color: var(--fs-text-muted);
 }
 .fs-lede {
   color: var(--fs-text-muted);
-  max-width: 72ch;
+  max-width: 88ch;
   margin: 0 0 var(--fs-space-4);
 }
 .fs-list {
@@ -238,26 +490,44 @@ h2 {
   padding: 0;
   margin: 0;
   display: grid;
+  gap: var(--fs-space-3);
+}
+.fs-list--tight {
   gap: var(--fs-space-2);
 }
-.fs-kv--tight {
-  gap: var(--fs-space-1) var(--fs-space-3);
+.fs-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+  min-width: 0;
 }
-.fs-kv--inline {
-  grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
-  gap: var(--fs-space-1) var(--fs-space-5);
+.fs-row--between {
+  justify-content: space-between;
 }
-.fs-kv--inline dt {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.fs-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.fs-break {
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /*
- * Screen-reader-only text. Every state that is signalled with a glyph or a hue
- * also carries a word here, so nothing depends on colour alone.
+ * Screen-reader-only text. Every state signalled with a glyph or a hue also
+ * carries a word here, so nothing depends on colour alone.
  */
 .fs-visually-hidden {
+  /*
+   * `position: absolute` with no positioned ancestor resolves against the
+   * initial containing block, so a hidden label inside a SCROLLING panel lays
+   * out at its would-be document position — hundreds of pixels below the fold —
+   * and stretches the document. Every scroll container below is therefore
+   * `position: relative`, which keeps these labels inside the box they belong to.
+   */
   position: absolute;
   width: 1px;
   height: 1px;
@@ -275,71 +545,568 @@ h2 {
   font-family: var(--fs-mono);
 }
 
+/* ── Empty / loading / failure states ──────────────────────────────────────── */
+
+.fs-empty {
+  border: 1px dashed var(--fs-border-strong);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-4);
+  color: var(--fs-text-muted);
+  display: grid;
+  gap: var(--fs-space-1);
+  justify-items: start;
+  font-size: 13px;
+}
+.fs-empty__title {
+  color: var(--fs-text);
+  font-weight: 550;
+}
+.fs-empty__detail {
+  font-size: 12px;
+  color: var(--fs-text-faint);
+  margin: 0;
+}
+.fs-empty[data-tone='deny'] {
+  border-color: #e0787855;
+}
+.fs-empty[data-tone='warn'] {
+  border-color: #d5a03c55;
+}
+/* Retained name: several surfaces still describe a single absent fact inline. */
+.fs-placeholder {
+  border: 1px dashed var(--fs-border-strong);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-3) var(--fs-space-4);
+  color: var(--fs-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+
 .fs-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
   background: var(--fs-surface-raised);
   color: var(--fs-text);
-  border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
-  padding: var(--fs-space-1) var(--fs-space-3);
+  border: 1px solid var(--fs-border-strong);
+  border-radius: var(--fs-radius-sm);
+  padding: 5px var(--fs-space-3);
   font: inherit;
   font-size: 13px;
+  line-height: 1.3;
   cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
-.fs-button:hover {
-  border-color: var(--fs-info);
+.fs-button:hover:not(:disabled) {
+  border-color: var(--fs-accent);
+  color: var(--fs-text);
+}
+.fs-button:disabled,
+.fs-button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .fs-button[data-variant='primary'] {
-  border-color: var(--fs-info);
+  border-color: #6b9ce077;
+  background: var(--fs-info-bg);
   color: var(--fs-info);
+  font-weight: 550;
+}
+.fs-button[data-variant='primary']:hover:not(:disabled) {
+  background: #6b9ce02e;
+}
+.fs-button[data-variant='quiet'] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--fs-text-muted);
+  padding-inline: var(--fs-space-2);
+}
+.fs-button[data-variant='quiet']:hover:not(:disabled) {
+  background: var(--fs-surface-raised);
+  border-color: var(--fs-border);
+}
+.fs-button--sm {
+  font-size: 12px;
+  padding: 3px var(--fs-space-2);
+}
+
+.fs-link-row {
+  display: flex;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+}
+
+.fs-input,
+.fs-select {
+  background: var(--fs-surface-sunken);
+  color: var(--fs-text);
+  border: 1px solid var(--fs-border-strong);
+  border-radius: var(--fs-radius-sm);
+  padding: 4px var(--fs-space-2);
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+}
+.fs-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.fs-field > span {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
 }
 
 kbd {
   font-family: var(--fs-mono);
   font-size: 11px;
-  border: 1px solid var(--fs-border);
+  border: 1px solid var(--fs-border-strong);
   border-bottom-width: 2px;
   border-radius: 3px;
   padding: 0 4px;
   color: var(--fs-text-muted);
 }
 
-/* ── Outcome badges ────────────────────────────────────────────────────────── */
-/*
- * Semantic outcomes, kept apart on purpose. `sanitized` and `flagged` are
- * SUCCESSES with a finding; `denied` and `blocked` are policy decisions;
- * `failed` is an execution failure. Each pairs its hue with a glyph and the
- * outcome word, so the distinction survives without colour.
- */
-.fs-badge__glyph {
-  font-weight: 700;
+/* ── Copyable digest ───────────────────────────────────────────────────────── */
+
+.fs-digest {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--fs-space-2);
+  min-width: 0;
+  max-width: 100%;
 }
-.fs-badge[data-outcome='succeeded'] {
-  border-color: var(--fs-ok);
+.fs-digest__value {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fs-digest__value[data-truncate='true'] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fs-digest__copy {
+  flex: 0 0 auto;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────────── */
+
+.fs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.fs-table th {
+  text-align: left;
+  color: var(--fs-text-faint);
+  font-weight: 600;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: var(--fs-space-2);
+  position: sticky;
+  top: 0;
+  background: var(--fs-surface);
+  border-bottom: 1px solid var(--fs-border-strong);
+  white-space: nowrap;
+  z-index: 1;
+}
+.fs-table td {
+  padding: 5px var(--fs-space-2);
+  border-top: 1px solid var(--fs-border);
+  vertical-align: top;
+}
+.fs-table tbody tr:hover {
+  background: var(--fs-surface-raised);
+}
+.fs-table__num {
+  font-family: var(--fs-mono);
+  color: var(--fs-text-faint);
+  text-align: right;
+  width: 3.5rem;
+}
+.fs-table__mono {
+  font-family: var(--fs-mono);
+}
+.fs-scroll-x {
+  position: relative;
+  overflow-x: auto;
+  min-width: 0;
+}
+.fs-scroll-y {
+  position: relative;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+/* ── Case list ─────────────────────────────────────────────────────────────── */
+
+.fs-case-row {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.4fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(160px, 1.1fr)
+    minmax(150px, auto);
+  gap: var(--fs-space-3) var(--fs-space-4);
+  padding: var(--fs-space-3) var(--fs-space-4);
+  border-top: 1px solid var(--fs-border);
+  align-items: center;
+  min-width: 0;
+}
+.fs-case-row:first-of-type {
+  border-top: 0;
+}
+.fs-case-row:hover {
+  background: var(--fs-surface-raised);
+}
+.fs-case-row__head {
+  border-top: 0;
+  background: var(--fs-surface-sunken);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+  padding-block: var(--fs-space-2);
+}
+.fs-case-row__title {
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  color: var(--fs-text);
+}
+.fs-case-row__title:hover {
+  color: var(--fs-accent);
+}
+.fs-case-row__sub {
+  font-size: 12px;
+  color: var(--fs-text-muted);
+}
+.fs-case-row__actions {
+  display: flex;
+  gap: var(--fs-space-1);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+/* Attention rows carry a marker, not just a hue. */
+.fs-case-row[data-attention='true'] {
+  box-shadow: inset 3px 0 0 var(--fs-warn);
+}
+@media (max-width: 1180px) {
+  .fs-case-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .fs-case-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+/* ── Case surfaces ─────────────────────────────────────────────────────────── */
+
+.fs-case-head {
+  /* Identity, facts, actions. A grid rather than a wrapping flex row so the
+     actions stay on the title line instead of costing the console a whole row
+     of vertical space at 1280. */
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  gap: var(--fs-space-3) var(--fs-space-5);
+  align-items: start;
+  margin-bottom: var(--fs-space-4);
+}
+@media (max-width: 1100px) {
+  .fs-case-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.fs-case-head__id {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+/* The Case metadata strip: label over value, wrapping across the width. */
+.fs-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fs-space-2) var(--fs-space-5);
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 420px;
+}
+.fs-fact {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.fs-facts dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+}
+.fs-facts dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fs-case-head h2 {
+  color: var(--fs-text);
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: 17px;
+  font-weight: 620;
+  margin: 0;
+}
+
+.fs-answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--fs-space-3);
+  align-items: stretch;
+}
+.fs-answer {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-3);
+  background: var(--fs-surface-raised);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-2);
+}
+.fs-answer__q {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+  margin: 0;
+}
+.fs-answer__a {
+  margin: 0;
+  font-size: 14px;
+  flex: 1;
+}
+.fs-answer__evidence {
+  margin: 0;
+  font-size: 11px;
+}
+
+/* ── Milestone rail ────────────────────────────────────────────────────────── */
+
+.fs-rail-steps {
+  display: flex;
+  gap: var(--fs-space-1);
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  align-items: stretch;
+}
+.fs-milestone {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-2) var(--fs-space-3);
+  font-size: 12px;
+  color: var(--fs-text-faint);
+  background: var(--fs-surface-sunken);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.fs-milestone__name {
+  font-weight: 550;
+  text-transform: capitalize;
+}
+.fs-milestone__meta {
+  font-size: 10.5px;
+  font-family: var(--fs-mono);
+  color: var(--fs-text-faint);
+}
+.fs-milestone[data-state='done'] {
+  border-color: #4ea87a4d;
   color: var(--fs-ok);
+  background: var(--fs-ok-bg);
 }
-.fs-badge[data-outcome='failed'] {
-  border-color: var(--fs-deny);
-  color: var(--fs-deny);
-}
-.fs-badge[data-outcome='pending'] {
+.fs-milestone[data-state='current'] {
   border-color: var(--fs-info);
   color: var(--fs-info);
+  background: var(--fs-info-bg);
+  font-weight: 600;
 }
-.fs-badge[data-outcome='informational'] {
-  border-color: var(--fs-border);
+.fs-milestone[data-kind='boundary'] {
+  border-style: dashed;
+  border-color: var(--fs-border-strong);
   color: var(--fs-text-muted);
+  background: transparent;
+}
+
+/* ── Agent tree ────────────────────────────────────────────────────────────── */
+
+.fs-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--fs-space-1);
+}
+.fs-tree__node {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--fs-space-1) var(--fs-space-2);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.fs-tree__node:hover {
+  background: var(--fs-surface-raised);
+  border-color: var(--fs-border);
+}
+.fs-tree__node[aria-current='true'] {
+  background: var(--fs-surface-raised);
+  border-color: var(--fs-border-strong);
+  box-shadow: inset 3px 0 0 var(--fs-accent);
+}
+.fs-tree__node[data-static='true'] {
+  cursor: default;
+}
+.fs-tree__name {
+  font-size: 13px;
+  font-weight: 550;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fs-tree__meta {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-family: var(--fs-mono);
+  color: var(--fs-text-faint);
+  overflow-wrap: anywhere;
+}
+.fs-tree__child {
+  padding-left: var(--fs-space-4);
+  position: relative;
+}
+.fs-tree__child::before {
+  content: '└';
+  position: absolute;
+  left: 2px;
+  top: var(--fs-space-2);
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+}
+
+/* ── Lifecycle rail (interventions) ────────────────────────────────────────── */
+
+.fs-lifecycle {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fs-lifecycle__step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--fs-space-3);
+  padding-bottom: var(--fs-space-3);
+  position: relative;
+}
+.fs-lifecycle__step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: 0;
+  width: 1px;
+  background: var(--fs-border-strong);
+}
+.fs-lifecycle__marker {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid var(--fs-border-strong);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--fs-surface);
+  color: var(--fs-text-faint);
+  z-index: 1;
+}
+.fs-lifecycle__step[data-state='reached'] .fs-lifecycle__marker {
+  border-color: #4ea87a77;
+  color: var(--fs-ok);
+  background: var(--fs-ok-bg);
+}
+.fs-lifecycle__step[data-state='terminal-fail'] .fs-lifecycle__marker {
+  border-color: #e0787877;
+  color: var(--fs-deny);
+  background: var(--fs-deny-bg);
+}
+.fs-lifecycle__step[data-state='terminal-unknown'] .fs-lifecycle__marker {
+  border-color: #d5a03c77;
+  color: var(--fs-warn);
+  background: var(--fs-warn-bg);
+}
+.fs-lifecycle__body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.fs-lifecycle__label {
+  font-size: 13px;
+  font-weight: 550;
+}
+.fs-lifecycle__step[data-state='pending'] .fs-lifecycle__label {
+  color: var(--fs-text-faint);
+  font-weight: 450;
+}
+.fs-lifecycle__meta {
+  font-size: 11px;
+  font-family: var(--fs-mono);
+  color: var(--fs-text-faint);
+  overflow-wrap: anywhere;
 }
 
 /* ── Fleet Cockpit ─────────────────────────────────────────────────────────── */
 
 .fs-cockpit-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr);
-  gap: var(--fs-space-4);
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(320px, 380px);
+  gap: var(--fs-space-3);
   align-items: start;
+  min-width: 0;
 }
-/* 1280x720 is a supported size; below it the rail stacks under the graph. */
-@media (max-width: 1180px) {
+/* Below the supported 1280 width the side columns stack under the canvas rather
+   than squeezing the graph into uselessness. */
+@media (max-width: 1279px) {
+  .fs-cockpit-layout {
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  }
+  .fs-cockpit-layout > .fs-rail {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 900px) {
   .fs-cockpit-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -348,32 +1115,39 @@ kbd {
 .fs-cockpit {
   display: flex;
   flex-direction: column;
-  gap: var(--fs-space-3);
-  min-height: 520px;
+  gap: var(--fs-space-2);
+  min-width: 0;
 }
 .fs-cockpit__bar {
   display: flex;
   align-items: center;
   gap: var(--fs-space-3);
   flex-wrap: wrap;
+  min-width: 0;
 }
 .fs-cockpit__bar h2 {
   margin: 0;
   flex: 0 0 auto;
 }
 .fs-cockpit__canvas {
-  flex: 1;
-  min-height: 440px;
+  min-height: 460px;
+  height: 52vh;
   display: grid;
   place-items: center;
-  background: #121212;
+  background: #0a0c0f;
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius);
   overflow: hidden;
+  position: relative;
+  min-width: 0;
+}
+.fs-cockpit__canvas canvas {
+  display: block;
+  max-width: 100%;
 }
 .fs-cockpit__hint {
-  font-size: 12px;
-  color: var(--fs-text-muted);
+  font-size: 11px;
+  color: var(--fs-text-faint);
   margin: 0;
 }
 
@@ -381,7 +1155,9 @@ kbd {
   font-family: var(--fs-mono);
   font-size: 12px;
   color: var(--fs-text-muted);
-  margin-left: auto;
+}
+.fs-cursor-readout strong {
+  color: var(--fs-text);
 }
 
 /*
@@ -395,18 +1171,19 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: var(--fs-space-2);
-  font-family: var(--fs-mono);
   font-size: 12px;
-  border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
+  border: 1px solid var(--fs-border-strong);
+  border-radius: var(--fs-radius-sm);
   padding: 2px var(--fs-space-2);
   color: var(--fs-text-muted);
+  background: var(--fs-surface-sunken);
 }
 .fs-transport__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--fs-unknown);
+  flex: 0 0 auto;
 }
 .fs-transport[data-transport='live'] .fs-transport__dot {
   background: var(--fs-ok);
@@ -418,6 +1195,7 @@ kbd {
 .fs-transport[data-historical='true'] {
   border-color: var(--fs-warn);
   color: var(--fs-warn);
+  background: var(--fs-warn-bg);
 }
 .fs-transport[data-historical='true'] .fs-transport__dot {
   background: transparent;
@@ -439,144 +1217,336 @@ kbd {
   }
 }
 
+/* ── Demo phase navigation ─────────────────────────────────────────────────── */
+
+.fs-phases {
+  display: flex;
+  gap: var(--fs-space-1);
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.fs-phase {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border: 1px solid var(--fs-border);
+  background: var(--fs-surface-sunken);
+  color: var(--fs-text-muted);
+  border-radius: var(--fs-radius-sm);
+  padding: 2px var(--fs-space-2);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fs-phase:hover {
+  border-color: var(--fs-accent);
+  color: var(--fs-text);
+}
+.fs-phase[aria-current='true'] {
+  border-color: var(--fs-accent);
+  background: var(--fs-info-bg);
+  color: var(--fs-info);
+  font-weight: 600;
+}
+.fs-phase__index {
+  font-family: var(--fs-mono);
+  font-size: 10px;
+  color: var(--fs-text-faint);
+}
+.fs-phase[aria-current='true'] .fs-phase__index {
+  color: inherit;
+}
+
 /* ── Evidence rail ─────────────────────────────────────────────────────────── */
 
 .fs-rail {
   display: grid;
-  gap: var(--fs-space-4);
+  gap: var(--fs-space-3);
   min-width: 0;
+  align-content: start;
 }
-.fs-drawer__head p {
-  margin: 0 0 var(--fs-space-3);
-  font-size: 12px;
-}
-.fs-drawer__body {
-  max-height: 420px;
+.fs-rail__body {
+  position: relative;
+  max-height: 42vh;
+  min-height: 200px;
   overflow-y: auto;
-  margin-top: var(--fs-space-3);
+  /* Bleed to the card edges so a row reads as a row, not as a boxed item —
+     but keep both rules, so the scroll cut never lands flush against whatever
+     follows the rail. */
   border-top: 1px solid var(--fs-border);
+  border-bottom: 1px solid var(--fs-border);
+  margin: 0 calc(-1 * var(--fs-space-4));
 }
 .fs-evidence-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
+.fs-evidence-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--fs-border);
+}
+.fs-evidence-item[hidden] {
+  display: none;
+}
+.fs-evidence-details {
+  border: 0;
+  background: transparent;
+  color: var(--fs-text-faint);
+  font: inherit;
+  font-size: 11px;
+  padding: 0 var(--fs-space-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fs-evidence-details:hover {
+  color: var(--fs-accent);
+  background: var(--fs-surface-raised);
+}
 .fs-evidence-row {
   display: grid;
-  grid-template-columns: 3.5rem max-content 1fr;
-  gap: var(--fs-space-2);
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  gap: 2px var(--fs-space-2);
   align-items: baseline;
-  padding: var(--fs-space-2);
-  border-bottom: 1px solid var(--fs-border);
+  width: 100%;
+  text-align: left;
+  padding: var(--fs-space-2) var(--fs-space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
+  min-width: 0;
 }
 .fs-evidence-row:hover {
   background: var(--fs-surface-raised);
 }
 .fs-evidence-row[aria-current='true'] {
   background: var(--fs-surface-raised);
-  box-shadow: inset 3px 0 0 var(--fs-info);
+  box-shadow: inset 3px 0 0 var(--fs-accent);
 }
 .fs-evidence-row__seq {
-  color: var(--fs-text-muted);
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  color: var(--fs-text-faint);
 }
 .fs-evidence-row__label {
-  font-size: 13px;
-}
-.fs-evidence-row__meta {
-  grid-column: 1 / -1;
-  color: var(--fs-text-muted);
+  font-size: 12.5px;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
-
-/* ── Case surfaces ─────────────────────────────────────────────────────────── */
-
-.fs-case-head {
-  display: flex;
-  gap: var(--fs-space-5);
-  align-items: flex-start;
-  flex-wrap: wrap;
-  margin-bottom: var(--fs-space-4);
+.fs-evidence-row__meta {
+  grid-column: 2 / -1;
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
 }
-.fs-case-head h2 {
-  color: var(--fs-text);
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 17px;
-}
-
-.fs-answers {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--fs-space-3);
-}
-.fs-answer {
-  border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
-  padding: var(--fs-space-3);
-  background: var(--fs-surface-raised);
-}
-.fs-answer__q {
-  font-size: 11px;
-  text-transform: uppercase;
+.fs-evidence-row__domain {
+  font-family: var(--fs-mono);
+  font-size: 9.5px;
   letter-spacing: 0.06em;
-  color: var(--fs-text-muted);
-  margin: 0 0 var(--fs-space-2);
-}
-.fs-answer__a {
-  margin: 0;
-  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--fs-text-faint);
+  border: 1px solid var(--fs-border);
+  border-radius: 3px;
+  padding: 0 4px;
+  align-self: center;
 }
 
-.fs-milestones {
+.fs-rail__filters {
   display: flex;
   gap: var(--fs-space-2);
   flex-wrap: wrap;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.fs-milestone {
-  border: 1px solid var(--fs-border);
-  border-radius: var(--fs-radius);
-  padding: var(--fs-space-1) var(--fs-space-3);
-  font-size: 12px;
-  color: var(--fs-text-muted);
-}
-.fs-milestone[data-state='done'] {
-  border-color: var(--fs-ok);
-  color: var(--fs-ok);
-}
-.fs-milestone[data-state='current'] {
-  border-color: var(--fs-info);
-  color: var(--fs-info);
-  font-weight: 600;
+  align-items: end;
+  margin-bottom: var(--fs-space-2);
 }
 
-.fs-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--fs-mono);
-  font-size: 12px;
+/* ── Evidence drawer ───────────────────────────────────────────────────────── */
+
+.fs-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: 1fr min(520px, 92vw);
 }
-.fs-table th {
-  text-align: left;
-  color: var(--fs-text-muted);
-  font-weight: 500;
-  padding: var(--fs-space-1) var(--fs-space-2);
-  position: sticky;
-  top: 0;
+.fs-drawer[hidden] {
+  display: none;
+}
+.fs-drawer__scrim {
+  background: #05070a99;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.fs-drawer__panel {
   background: var(--fs-surface);
+  border-left: 1px solid var(--fs-border-strong);
+  box-shadow: var(--fs-shadow-drawer);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  animation: fs-slide-in 160ms ease-out;
 }
-.fs-table td {
-  padding: var(--fs-space-1) var(--fs-space-2);
-  border-top: 1px solid var(--fs-border);
-  vertical-align: top;
+@keyframes fs-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0.6;
+  }
 }
-.fs-scroll-x {
-  overflow-x: auto;
+.fs-drawer__head {
+  padding: var(--fs-space-4);
+  border-bottom: 1px solid var(--fs-border);
+  display: grid;
+  gap: var(--fs-space-2);
 }
-.fs-scroll-y {
-  max-height: 520px;
+.fs-drawer__title {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+.fs-drawer__title h2 {
+  margin: 0;
+  color: var(--fs-text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 15px;
+  font-weight: 620;
+}
+.fs-drawer__close {
+  margin-left: auto;
+}
+.fs-drawer__body {
+  position: relative;
+  padding: var(--fs-space-4);
   overflow-y: auto;
+  display: grid;
+  gap: var(--fs-space-4);
+  align-content: start;
+  min-width: 0;
+}
+.fs-drawer__group {
+  display: grid;
+  gap: var(--fs-space-2);
+  min-width: 0;
+}
+.fs-drawer__group > h3 {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fs-text-faint);
+  margin: 0;
+  font-weight: 600;
+}
+.fs-drawer__actions {
+  display: flex;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+.fs-payload {
+  background: var(--fs-surface-sunken);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-2);
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  margin: 0;
+  overflow-x: auto;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fs-text-muted);
+  list-style-position: outside;
+}
+details > summary:hover {
+  color: var(--fs-text);
+}
+
+/* ── Live proof ────────────────────────────────────────────────────────────── */
+
+.fs-liveproof {
+  display: grid;
+  gap: var(--fs-space-3);
+  min-width: 0;
+}
+.fs-liveproof__state {
+  display: grid;
+  gap: var(--fs-space-2);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-3);
+  background: var(--fs-surface-sunken);
+  min-width: 0;
+}
+.fs-liveproof__state[data-state='succeeded'] {
+  border-color: #4ea87a55;
+}
+.fs-liveproof__state[data-state='failed'],
+.fs-liveproof__state[data-state='fallback'] {
+  border-color: #d5a03c55;
+}
+.fs-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--fs-border-strong);
+  border-top-color: var(--fs-info);
+  border-radius: 50%;
+  animation: fs-spin 700ms linear infinite;
+}
+@keyframes fs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-spinner {
+    animation: none;
+    border-top-color: var(--fs-border-strong);
+  }
+}
+
+/* ── Metrics ───────────────────────────────────────────────────────────────── */
+
+.fs-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--fs-space-3);
+}
+.fs-metric {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.fs-metric__label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-faint);
+}
+.fs-metric__value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.fs-metric__value .fs-unknown {
+  font-size: 18px;
+}
+.fs-metric__note {
+  font-size: 11px;
+  color: var(--fs-text-faint);
 }

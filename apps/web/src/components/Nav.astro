@@ -1,28 +1,51 @@
 ---
+/**
+ * Primary navigation.
+ *
+ * Order follows the product surface hierarchy: Cases → Catalog → Approvals →
+ * Cockpit → Audit. Cases is first because that is where a procurement user
+ * starts; the Cockpit is an expert surface, not the entry point.
+ */
 interface Props {
   path: string;
   defaultCaseId: string;
+  liveMode: boolean;
 }
-const { path, defaultCaseId } = Astro.props;
+const { path, defaultCaseId, liveMode } = Astro.props;
 
-// Order follows the product surface hierarchy: Catalog -> Cases -> Approvals
-// -> Cockpit -> Audit. The Cockpit is an expert surface, not the entry point.
 const links = [
-  { href: '/catalog', label: 'Catalog' },
   { href: '/cases', label: 'Cases' },
+  { href: '/catalog', label: 'Agent Catalog' },
   { href: '/approvals', label: 'Approvals' },
-  { href: `/cockpit/${defaultCaseId}`, label: 'Fleet Cockpit' },
-  { href: `/audit/${defaultCaseId}`, label: 'Audit' },
+  { href: `/cockpit/${defaultCaseId}`, label: 'Fleet Cockpit', section: '/cockpit' },
+  { href: `/audit/${defaultCaseId}`, label: 'Audit', section: '/audit' },
 ];
 
-const isCurrent = (href: string) => path === href || path.startsWith(href + '/');
+const isCurrent = (link: { href: string; section?: string }): boolean => {
+  const base = link.section ?? link.href;
+  return path === base || path.startsWith(base + '/');
+};
 ---
 
 <nav class="fs-nav" aria-label="Primary">
-  <span class="fs-nav__brand">FleetScope</span>
-  {links.map((link) => (
-    <a class="fs-nav__link" href={link.href} aria-current={isCurrent(link.href) ? 'page' : undefined}>
-      {link.label}
-    </a>
-  ))}
+  <a class="fs-nav__brand" href="/cases">
+    <span class="fs-nav__brand-name">FleetScope</span>
+    <span class="fs-nav__brand-sub">Governed Agent Operations</span>
+  </a>
+  <div class="fs-nav__links">
+    {links.map((link) => (
+      <a
+        class="fs-nav__link"
+        href={link.href}
+        aria-current={isCurrent(link) ? 'page' : undefined}
+      >{link.label}</a>
+    ))}
+  </div>
+  <div class="fs-nav__env">
+    <span class="fs-mode" data-tone={liveMode ? 'info' : 'neutral'} title={liveMode
+      ? 'The bounded live-proof endpoint is enabled for this deployment.'
+      : 'Recorded path only. Zero cloud calls, zero spend.'}>
+      {liveMode ? 'Live proof enabled' : 'Recorded mode'}
+    </span>
+  </div>
 </nav>

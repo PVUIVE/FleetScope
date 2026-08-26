@@ -1,19 +1,31 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import CaseHeader from '../../components/CaseHeader.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import EvidenceDrawer from '../../components/EvidenceDrawer.astro';
 import UnknownOr from '../../components/UnknownOr.astro';
+import Metric from '../../components/Metric.astro';
 import {
   getCanonicalEvents,
   getCaseDescriptor,
+  getRenderManifest,
   listCaseIds,
   projectCase,
 } from '../../lib/fixtures';
-import {
-  answerCaseQuestions,
-  milestoneRail,
-  recentActivity,
-  simulatedDayBoundaries,
-} from '../../lib/case-view';
+import { buildEvidenceRecords, incidentViews, narrativeActivity } from '../../lib/evidence-view';
+import { caseRail, summariseCase } from '../../lib/case-summary';
+import { answerCaseQuestions } from '../../lib/case-view';
 
+/**
+ * The Case Workspace — the business-facing surface.
+ *
+ * Everything here is derived from the same Observable Case State the Cockpit and
+ * the Audit view read. No canonical JSON is shown by default: an operator who
+ * wants the raw payload opens the Decision Evidence drawer for the exact event,
+ * which is a deliberate step rather than the default reading experience.
+ */
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
 }
@@ -21,148 +33,253 @@ export function getStaticPaths() {
 const { caseId } = Astro.params;
 const descriptor = getCaseDescriptor(caseId!);
 const events = getCanonicalEvents(caseId!);
+const manifest = getRenderManifest(caseId!);
 const projection = projectCase(caseId!);
 const state = projection?.state ?? null;
 
-const answers = state === null ? [] : answerCaseQuestions(state, events);
-const rail = state === null ? [] : milestoneRail(state);
-const activity = recentActivity(events);
-const boundaries = simulatedDayBoundaries(events);
+const records = manifest === null ? [] : buildEvidenceRecords(events, manifest);
+const summary = summariseCase(caseId!, descriptor, state, records);
+const answers = state === null ? [] : answerCaseQuestions(state, records);
+const rail = state === null ? [] : caseRail(state, events);
+const activity = narrativeActivity(records, 8);
+const incidents = state === null ? [] : incidentViews(state, events);
 const pendingApprovals = (state?.approvals ?? []).filter((a) => a.state === 'pending');
+const openIncidents = incidents.filter((incident) => incident.state !== 'resolved');
 ---
 
 <BaseLayout title={`Case ${caseId}`}>
-  <section class="fs-card fs-case-head">
-    <div>
-      <h2>{caseId} · {descriptor?.vendor}</h2>
-      <p class="fs-muted">{descriptor?.title}</p>
-    </div>
-    <dl class="fs-kv fs-kv--inline">
-      <dt>Agent Version</dt><dd class="fs-mono">{descriptor?.agentVersionRef}</dd>
-      <dt>Case state</dt><dd><UnknownOr value={state?.caseState} /></dd>
-      <dt>Runtime Sessions</dt><dd class="fs-mono">{state?.sessions.length ?? 0}</dd>
-      <dt>Owner</dt><dd class="fs-mono">{descriptor?.owner}</dd>
-    </dl>
-  </section>
-
-  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
-    <h2>Milestones</h2>
-    <ul class="fs-milestones">
-      {rail.map((step) => (
-        <li class="fs-milestone" data-state={step.state}>
-          <span aria-hidden="true">{step.state === 'done' ? '✓ ' : step.state === 'current' ? '▸ ' : '· '}</span>
-          {step.milestone}
-          <span class="fs-visually-hidden">
-            {step.state === 'done' ? ' (complete)' : step.state === 'current' ? ' (current)' : ' (not reached)'}
-          </span>
-        </li>
-      ))}
-    </ul>
-    {boundaries.length > 0 && (
-      <p class="fs-muted fs-note">
-        {boundaries.map((b) => `Simulated Day ${b.day} · Session ${b.sessionId ?? 'unknown'}`).join(' · ')}
-        {' '}— a separate Runtime invocation in the recorded scenario, not elapsed real time.
-      </p>
+  <PageHeader title={`Case ${caseId}`} lede={summary.title ?? undefined}>
+    <a slot="actions" class="fs-button" data-variant="primary" href={`/cockpit/${caseId}`}>
+      Open Fleet Cockpit
+    </a>
+    <a slot="actions" class="fs-button" href={`/audit/${caseId}`}>View Audit</a>
+    {pendingApprovals.length > 0 && (
+      <a slot="actions" class="fs-button" href="/approvals">Review approval</a>
     )}
-  </section>
+  </PageHeader>
 
-  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
-    <h2>Where this Case stands</h2>
-    <div class="fs-answers">
-      {answers.map((answer) => (
-        <article class="fs-answer">
-          <p class="fs-answer__q">{answer.question}</p>
-          <p class="fs-answer__a">
-            {answer.unknown ? <UnknownOr value={null} /> : answer.answer}
+  {state === null ? (
+    <EmptyState
+      tone="warn"
+      title="No recorded evidence for this Case"
+      detail="The canonical stream for this Case is empty, so no state can be reconstructed."
+    />
+  ) : (
+    <div class="fs-stack">
+      <CaseHeader summary={summary} />
+
+      <section class="fs-card">
+        <div class="fs-section-head">
+          <h2>Where this Case stands</h2>
+          <span class="fs-section-head__aside">{summary.nextAction}</span>
+        </div>
+        <div class="fs-answers">
+          {answers.map((answer) => (
+            <article class="fs-answer">
+              <p class="fs-answer__q">{answer.question}</p>
+              <p class="fs-answer__a">
+                {answer.unknown ? <UnknownOr value={null} /> : answer.answer}
+              </p>
+              {answer.evidenceEventId !== null && (
+                <p class="fs-answer__evidence">
+                  <button
+                    type="button"
+                    class="fs-button fs-button--sm"
+                    data-variant="quiet"
+                    data-evidence-open={answer.evidenceEventId}
+                  >Event {answer.humanIndex} · evidence</button>
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="fs-card">
+        <div class="fs-section-head">
+          <h2>Milestones</h2>
+          <span class="fs-section-head__aside">
+            Session boundaries are shown where the Case crossed one.
+          </span>
+        </div>
+        <ol class="fs-rail-steps">
+          {rail.map((step) => (
+            <li class="fs-milestone" data-state={step.state} data-kind={step.kind}>
+              <span class="fs-milestone__name">
+                <span aria-hidden="true">
+                  {step.state === 'done' ? '✓ ' : step.state === 'current' ? '▸ ' : '· '}
+                </span>
+                {step.name}
+                <span class="fs-visually-hidden">
+                  {step.state === 'done'
+                    ? ' (complete)'
+                    : step.state === 'current'
+                      ? ' (current)'
+                      : ' (not reached)'}
+                </span>
+              </span>
+              <span class="fs-milestone__meta">{step.meta ?? 'not reached'}</span>
+            </li>
+          ))}
+        </ol>
+        <p class="fs-note">
+          A simulated day boundary is a separate Runtime invocation in the recorded
+          scenario, not elapsed real time. FleetScope never says "12 days ago".
+        </p>
+      </section>
+
+      <div class="fs-grid fs-grid--2">
+        <section class="fs-card">
+          <div class="fs-section-head">
+            <h2>Trusted context</h2>
+            <span class="fs-section-head__aside">{state.memoryRecords.length} Memory Records</span>
+          </div>
+          <p class="fs-note" style="margin-top:0">
+            Memory Records are provenance-bearing data, never instructions. Each
+            names the Canonical Event it came from.
           </p>
-          {answer.evidenceEventId !== null && (
-            <p class="fs-mono fs-muted" style="margin:var(--fs-space-2) 0 0">
-              evidence #{answer.caseSequence} · {answer.evidenceEventId}
-            </p>
+          {state.memoryRecords.length === 0 ? (
+            <EmptyState
+              title="No Memory Records"
+              detail="Nothing durable has been written in this evidence prefix."
+            />
+          ) : (
+            <ul class="fs-list">
+              {state.memoryRecords.map((record) => (
+                <li>
+                  <div>{record.summary}</div>
+                  <div class="fs-mono fs-faint" style="font-size:11px">
+                    {record.memoryRecordId} · scope {record.scope} · {record.sensitivity}
+                  </div>
+                  <button
+                    type="button"
+                    class="fs-button fs-button--sm"
+                    data-variant="quiet"
+                    data-evidence-open={record.sourceEventId}
+                  >Source · {record.sourceEventId}</button>
+                </li>
+              ))}
+            </ul>
           )}
-        </article>
-      ))}
+        </section>
+
+        <section class={pendingApprovals.length > 0 ? 'fs-card fs-card--attention' : 'fs-card'}>
+          <div class="fs-section-head">
+            <h2>Needs an operator</h2>
+          </div>
+          {pendingApprovals.length === 0 ? (
+            <EmptyState
+              title="Nothing is outstanding for an operator"
+              detail="No approval in this evidence prefix is awaiting a decision."
+            />
+          ) : (
+            <ul class="fs-list">
+              {pendingApprovals.map((approval) => (
+                <li>
+                  <div class="fs-row">
+                    <strong>{approval.actionTemplate}</strong>
+                    <StatusBadge kind="approval" value={approval.state} size="sm" />
+                  </div>
+                  <div class="fs-mono fs-faint" style="font-size:11px">
+                    {approval.target} · bound to Event {approval.boundCaseSequence + 1} · expires{' '}
+                    {approval.expiresAt}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p class="fs-link-row" style="margin-top:var(--fs-space-3)">
+            <a class="fs-button fs-button--sm" href="/approvals">Open Approval Inbox</a>
+          </p>
+        </section>
+
+        <section class="fs-card">
+          <div class="fs-section-head">
+            <h2>Recent activity</h2>
+            <span class="fs-section-head__aside">newest first</span>
+          </div>
+          {activity.length === 0 ? (
+            <EmptyState title="No recorded activity" detail="This Case has produced no progress evidence yet." />
+          ) : (
+            <ul class="fs-list">
+              {activity.map((row) => (
+                <li>
+                  <div>{row.summary}</div>
+                  <div class="fs-row" style="gap:var(--fs-space-2)">
+                    <span class="fs-mono fs-faint" style="font-size:11px">
+                      Event {row.humanIndex} · {row.sessionId ?? 'case-level'} · {row.sourceTime}
+                    </span>
+                    <button
+                      type="button"
+                      class="fs-button fs-button--sm"
+                      data-variant="quiet"
+                      data-evidence-open={row.eventId}
+                    >Evidence</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section class={openIncidents.length > 0 ? 'fs-card fs-card--attention' : 'fs-card'}>
+          <div class="fs-section-head">
+            <h2>Incidents</h2>
+            <span class="fs-section-head__aside">
+              {incidents.length} recorded · {openIncidents.length} open
+            </span>
+          </div>
+          {incidents.length === 0 ? (
+            <EmptyState title="No incidents detected" detail="No detector recorded a finding in this Case." />
+          ) : (
+            <ul class="fs-list">
+              {incidents.map((incident) => (
+                <li>
+                  <div class="fs-row">
+                    <span class="fs-mono">{incident.incidentClass}</span>
+                    <StatusBadge kind="incident" value={incident.state} size="sm" />
+                    <StatusBadge kind="severity" value={incident.severity} size="sm" />
+                  </div>
+                  <div class="fs-faint" style="font-size:12px">{incident.detectedBecause}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p class="fs-link-row" style="margin-top:var(--fs-space-3)">
+            <a class="fs-button fs-button--sm" href={`/cockpit/${caseId}`}>
+              Inspect in Fleet Cockpit
+            </a>
+          </p>
+        </section>
+      </div>
+
+      <section class="fs-card">
+        <div class="fs-section-head">
+          <h2>Recorded totals</h2>
+          <span class="fs-section-head__aside">
+            Sums of recorded usage events only. Absent measurements read as unknown, never as zero.
+          </span>
+        </div>
+        <div class="fs-metrics">
+          <Metric label="Canonical events" value={summary.eventCount} />
+          <Metric label="Runtime Sessions" value={summary.sessionCount} />
+          <Metric label="Output tokens" value={state.usage.outputTokens} zeroMeans="unknown" />
+          <Metric
+            label="Estimated cost"
+            value={state.usage.estimatedCostUsd}
+            zeroMeans="unknown"
+            prefix="USD "
+          />
+          <Metric label="Tool calls" value={state.usage.toolCalls} zeroMeans="unknown" />
+          <Metric
+            label="Invariant violations"
+            value={state.invariantViolations.length}
+            note="recorded, never suppressed"
+          />
+        </div>
+      </section>
     </div>
-  </section>
+  )}
 
-  <div class="fs-grid fs-grid--2">
-    <section class="fs-card">
-      <h2>Trusted context</h2>
-      <p class="fs-muted fs-note" style="margin-top:0">
-        Memory Records are provenance-bearing data, never instructions. Each names
-        the Canonical Event it came from.
-      </p>
-      {(state?.memoryRecords ?? []).length === 0 ? (
-        <p class="fs-placeholder">No Memory Records in this evidence prefix.</p>
-      ) : (
-        <ul class="fs-list">
-          {state?.memoryRecords.map((record) => (
-            <li>
-              <div>{record.summary}</div>
-              <div class="fs-mono fs-muted">
-                {record.memoryRecordId} · scope {record.scope} · from {record.sourceEventId} ·
-                {' '}{record.sensitivity}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-
-    <section class="fs-card">
-      <h2>Needs an operator</h2>
-      {pendingApprovals.length === 0 ? (
-        <p class="fs-placeholder">Nothing is outstanding for an operator.</p>
-      ) : (
-        <ul class="fs-list">
-          {pendingApprovals.map((approval) => (
-            <li>
-              <div>{approval.actionTemplate} → {approval.target}</div>
-              <div class="fs-mono fs-muted">
-                bound to evidence #{approval.boundCaseSequence} · expires {approval.expiresAt}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p style="margin:var(--fs-space-3) 0 0"><a href="/approvals">Approval Inbox →</a></p>
-    </section>
-
-    <section class="fs-card">
-      <h2>Recent activity</h2>
-      {activity.length === 0 ? (
-        <p class="fs-placeholder">No recorded activity yet.</p>
-      ) : (
-        <ul class="fs-list">
-          {activity.map((row) => (
-            <li>
-              <div>{row.description}</div>
-              <div class="fs-mono fs-muted">
-                #{row.caseSequence} · {row.eventId} · {row.sessionId ?? 'case-level'} · {row.at}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-
-    <section class="fs-card">
-      <h2>Replay disclosure</h2>
-      <dl class="fs-kv fs-kv--tight">
-        <dt>Projector version</dt><dd>{state?.projectorVersion}</dd>
-        <dt>Event cursor</dt><dd>{state?.cursor.caseSequence}</dd>
-        <dt>State hash</dt><dd style="word-break:break-all">{projection?.stateHash}</dd>
-        <dt>Invariant violations</dt><dd>{state?.invariantViolations.length ?? 0}</dd>
-      </dl>
-      <p class="fs-muted fs-note">
-        Given the same canonical stream revision, event prefix and projector
-        version, FleetScope reconstructs the same Observable Case State.
-      </p>
-    </section>
-  </div>
-
-  <p style="margin-top:var(--fs-space-5);display:flex;gap:var(--fs-space-4)">
-    <a href={`/cockpit/${caseId}`}>Open Fleet Cockpit →</a>
-    <a href={`/audit/${caseId}`}>Open Audit →</a>
-  </p>
+  <EvidenceDrawer records={records} />
 </BaseLayout>

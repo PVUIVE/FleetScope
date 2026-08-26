@@ -1,0 +1,208 @@
+---
+/**
+ * The Decision Evidence drawer.
+ *
+ * One drawer per page, driven by the evidence records inlined below. Any element
+ * carrying `data-evidence-open="<eventId>"` opens it — the Cockpit rail, the
+ * Audit table and the incident panels all reuse the same overlay rather than
+ * each growing their own.
+ *
+ * # What it shows, and what it will not
+ *
+ * Recorded facts: which events, which actor, which policy, which authoritative
+ * result. It renders no prompt, no credential, no unredacted tool input and no
+ * model reasoning — FleetScope records none of those and reconstructs none.
+ * The raw payload behind "View canonical payload" is the REDACTED payload that
+ * is already in the canonical stream.
+ */
+import type { EvidenceRecord } from '../lib/evidence-view';
+
+interface Props {
+  records: readonly EvidenceRecord[];
+  /** True when the page hosts a renderer that can be seeked. */
+  seekable?: boolean;
+}
+const { records, seekable = false } = Astro.props;
+---
+
+<div class="fs-drawer" data-evidence-drawer hidden role="dialog" aria-modal="true" aria-labelledby="fs-drawer-title">
+  <button type="button" class="fs-drawer__scrim" data-drawer-dismiss aria-label="Close evidence details"></button>
+  <div class="fs-drawer__panel">
+    <header class="fs-drawer__head">
+      <div class="fs-drawer__title">
+        <h2 id="fs-drawer-title" data-drawer-label>Decision Evidence</h2>
+        <button type="button" class="fs-button fs-button--sm fs-drawer__close" data-drawer-dismiss>
+          Close <kbd>Esc</kbd>
+        </button>
+      </div>
+      <div class="fs-row" data-drawer-badges></div>
+      <p class="fs-note" style="margin:0" data-drawer-summary></p>
+    </header>
+    <div class="fs-drawer__body" data-drawer-body></div>
+  </div>
+</div>
+
+<script type="application/json" data-evidence-records set:html={JSON.stringify({ records, seekable })} />
+
+<script>
+  import { MODE_COPY, controlStatus, type ExecutionModeKey } from '../lib/status';
+  import type { EvidenceRecord } from '../lib/evidence-view';
+
+  const node = document.querySelector<HTMLScriptElement>('[data-evidence-records]');
+  const drawer = document.querySelector<HTMLElement>('[data-evidence-drawer]');
+  if (node !== null && drawer !== null) {
+    const data = JSON.parse(node.textContent ?? '{}') as {
+      records: EvidenceRecord[];
+      seekable: boolean;
+    };
+    const byId = new Map(data.records.map((record) => [record.eventId, record]));
+    const label = drawer.querySelector<HTMLElement>('[data-drawer-label]');
+    const badges = drawer.querySelector<HTMLElement>('[data-drawer-badges]');
+    const summary = drawer.querySelector<HTMLElement>('[data-drawer-summary]');
+    const body = drawer.querySelector<HTMLElement>('[data-drawer-body]');
+    let restoreFocusTo: HTMLElement | null = null;
+
+    // Evidence appended at runtime (the bounded live proof) registers itself
+    // here, so a live event is inspectable exactly like a recorded one.
+    (globalThis as Record<string, unknown>)['fleetscopeRegisterEvidence'] = (
+      appended: EvidenceRecord[],
+    ): void => {
+      for (const record of appended) byId.set(record.eventId, record);
+    };
+
+    const escape = (value: string): string =>
+      value.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+    const badge = (text: string, tone: string, glyph: string, hint: string): string =>
+      `<span class="fs-status" data-tone="${tone}" title="${escape(hint)}">` +
+      `<span class="fs-status__glyph" aria-hidden="true">${escape(glyph)}</span>${escape(text)}</span>`;
+
+    function render(record: EvidenceRecord): void {
+      if (label !== null) label.textContent = record.label;
+      if (summary !== null) summary.textContent = record.summary;
+
+      const outcome = controlStatus(record.outcome);
+      const mode = MODE_COPY[record.mode as ExecutionModeKey] ?? MODE_COPY.recorded;
+      if (badges !== null) {
+        badges.innerHTML =
+          badge(outcome.label, outcome.tone, outcome.glyph, outcome.hint) +
+          `<span class="fs-mode" data-tone="${mode.tone}" title="${escape(mode.note)}">${escape(mode.label)}</span>` +
+          `<span class="fs-mono fs-faint">Event ${record.humanIndex} · ${escape(record.eventId)}</span>`;
+      }
+
+      const groups = record.groups
+        .map(
+          (group) =>
+            `<section class="fs-drawer__group"><h3>${escape(group.title)}</h3><dl class="fs-kv fs-kv--tight">` +
+            group.fields
+              .map(
+                (field) =>
+                  `<dt>${escape(field.label)}</dt><dd class="${field.mono === true ? 'fs-mono' : ''}">${escape(field.value ?? '')}</dd>`,
+              )
+              .join('') +
+            '</dl></section>',
+        )
+        .join('');
+
+      const related = record.evidenceEventIds
+        .filter((id) => id !== record.eventId)
+        .map((id) => `<li class="fs-mono">${escape(id)}</li>`)
+        .join('');
+
+      const seek =
+        data.seekable && record.rendererEntryCount > 0
+          ? `<div class="fs-drawer__actions"><button type="button" class="fs-button fs-button--sm" data-variant="primary" data-drawer-seek="${record.caseSequence}">Seek the graph to this event</button></div>`
+          : record.rendererEntryCount === 0
+            ? '<p class="fs-note">This event is recorded evidence but produces nothing in the graph. Nothing to seek to.</p>'
+            : '';
+
+      if (body !== null) {
+        body.innerHTML =
+          seek +
+          groups +
+          '<section class="fs-drawer__group"><h3>Provenance</h3><dl class="fs-kv fs-kv--tight">' +
+          `<dt>Canonical type</dt><dd class="fs-mono">${escape(record.type)}</dd>` +
+          `<dt>Evidence Event ID</dt><dd class="fs-mono">${escape(record.eventId)}</dd>` +
+          `<dt>Case position</dt><dd class="fs-mono">Event ${record.humanIndex}</dd>` +
+          `<dt>Runtime Session</dt><dd class="fs-mono">${escape(record.sessionId ?? 'case-level')}</dd>` +
+          `<dt>Actor</dt><dd class="fs-mono">${escape(record.actor)}</dd>` +
+          `<dt>Observed at</dt><dd class="fs-mono">${escape(record.sourceTime)}</dd>` +
+          `<dt>Accepted at</dt><dd class="fs-mono">${escape(record.acceptedTime)}</dd>` +
+          `<dt>Execution mode</dt><dd>${escape(mode.label)} — ${escape(mode.note)}</dd>` +
+          '</dl></section>' +
+          (related === ''
+            ? ''
+            : `<section class="fs-drawer__group"><h3>Related Canonical Events</h3><ul class="fs-list fs-list--tight" style="font-size:12px">${related}</ul></section>`) +
+          '<details><summary>View canonical payload</summary>' +
+          `<pre class="fs-payload">${escape(JSON.stringify(record.payload, null, 2))}</pre>` +
+          '<p class="fs-note">The redacted payload as it sits in the canonical stream. Redaction happens before persistence, not before display.</p></details>';
+      }
+    }
+
+    function open(eventId: string, source: HTMLElement | null): void {
+      const record = byId.get(eventId);
+      if (record === undefined) {
+        if (label !== null) label.textContent = 'Evidence could not be resolved';
+        if (summary !== null)
+          summary.textContent = `No canonical evidence is loaded for ${eventId} on this page.`;
+        if (badges !== null) badges.innerHTML = '';
+        if (body !== null) body.innerHTML = '';
+      } else {
+        render(record);
+      }
+      restoreFocusTo = source;
+      drawer!.hidden = false;
+      drawer!.querySelector<HTMLElement>('[data-drawer-dismiss]')?.focus();
+    }
+
+    function close(): void {
+      drawer!.hidden = true;
+      restoreFocusTo?.focus();
+      restoreFocusTo = null;
+    }
+
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null;
+      const opener = target?.closest<HTMLElement>('[data-evidence-open]');
+      if (opener !== null && opener !== undefined) {
+        open(opener.dataset['evidenceOpen'] ?? '', opener);
+        return;
+      }
+      if (target?.closest('[data-drawer-dismiss]')) close();
+      const seek = target?.closest<HTMLElement>('[data-drawer-seek]');
+      if (seek !== null && seek !== undefined) {
+        // The Cockpit owns the renderer; the drawer only asks. Seeking is
+        // resolved through the Render Manifest on the other side, never here.
+        document.dispatchEvent(
+          new CustomEvent('fleetscope:seek-request', {
+            detail: { caseSequence: Number(seek.dataset['drawerSeek'] ?? 0) },
+          }),
+        );
+        close();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !drawer.hidden) close();
+    });
+
+    // Focus stays inside the drawer while it is open. Without this a Tab walks
+    // into the page behind an overlay the operator cannot see past.
+    drawer.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const focusable = drawer.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+</script>

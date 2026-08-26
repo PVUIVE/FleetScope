@@ -1,32 +1,115 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getCaseDescriptor, listCaseIds, projectCase } from '../../lib/fixtures';
+import PageHeader from '../../components/PageHeader.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import ModeBadge from '../../components/ModeBadge.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import {
+  getCanonicalEvents,
+  getCaseDescriptor,
+  getRenderManifest,
+  listCaseIds,
+  projectCase,
+} from '../../lib/fixtures';
+import { buildEvidenceRecords } from '../../lib/evidence-view';
+import { summariseCase } from '../../lib/case-summary';
+import type { ExecutionModeKey } from '../../lib/status';
 
-const rows = listCaseIds().map((caseId) => {
-  const descriptor = getCaseDescriptor(caseId);
-  const projection = projectCase(caseId);
-  return { caseId, descriptor, state: projection?.state ?? null };
-});
+/**
+ * The Case queue.
+ *
+ * Ordered by who is blocked, not by id: a Case waiting on a person outranks a
+ * Case that is merely running, because only one of them stops if nobody looks at
+ * it. Nothing here is specific to a single Case — a second recorded Case adds a
+ * row and changes no component.
+ */
+const rows = listCaseIds()
+  .map((caseId) => {
+    const manifest = getRenderManifest(caseId);
+    const events = getCanonicalEvents(caseId);
+    const state = projectCase(caseId)?.state ?? null;
+    const records = manifest === null ? [] : buildEvidenceRecords(events, manifest);
+    return summariseCase(caseId, getCaseDescriptor(caseId), state, records);
+  })
+  .sort((a, b) => b.attention.priority - a.attention.priority || a.caseId.localeCompare(b.caseId));
+
+const needingAttention = rows.filter((row) => row.attention.flags.length > 0).length;
 ---
 
 <BaseLayout title="Cases">
-  <div class="fs-grid">
-    {rows.map(({ caseId, descriptor, state }) => (
-      <article class="fs-card">
-        <h2>{caseId} · {descriptor?.vendor}</h2>
-        <dl class="fs-kv">
-          <dt>Milestone</dt><dd>{state?.currentMilestone ?? 'unknown'}</dd>
-          <dt>Case state</dt><dd>{state?.caseState ?? 'unknown'}</dd>
-          <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
-          <dt>Sessions</dt><dd>{descriptor?.sessions.join(', ')}</dd>
-          <dt>Canonical events</dt><dd>{state === null ? 'unknown' : state.cursor.caseSequence + 1}</dd>
-        </dl>
-        <p style="margin-bottom:0;display:flex;gap:var(--fs-space-4)">
-          <a href={`/cases/${caseId}`}>Case Workspace →</a>
-          <a href={`/cockpit/${caseId}`}>Fleet Cockpit →</a>
-          <a href={`/audit/${caseId}`}>Audit →</a>
-        </p>
-      </article>
-    ))}
-  </div>
+  <PageHeader
+    title="Cases"
+    lede="Long-running governed workflows. A Case spans several Runtime Sessions and outlives every one of them."
+  >
+    <ModeBadge slot="badges" mode="recorded" />
+    <span slot="badges" class="fs-muted" style="font-size:12px">
+      {rows.length} Case{rows.length === 1 ? '' : 's'}
+      {needingAttention > 0 && <> · {needingAttention} needing attention</>}
+    </span>
+  </PageHeader>
+
+  {rows.length === 0 ? (
+    <EmptyState
+      title="No Cases in this build"
+      detail="No recorded Case evidence is bundled. Run pnpm fixtures:bless to compile one."
+    />
+  ) : (
+    <section class="fs-card fs-card--flush">
+      <div class="fs-case-row fs-case-row__head" role="presentation">
+        <span>Case · Vendor</span>
+        <span>State</span>
+        <span>Milestone</span>
+        <span>Last activity</span>
+        <span></span>
+      </div>
+      {rows.map((row) => (
+        <article class="fs-case-row" data-attention={String(row.attention.flags.length > 0)}>
+          <div style="min-width:0">
+            <a class="fs-case-row__title" href={`/cases/${row.caseId}`}>{row.caseId}</a>
+            <div class="fs-case-row__sub">{row.vendor ?? 'Vendor not recorded'}</div>
+            <div class="fs-mono fs-faint" style="font-size:11px">
+              {row.title ?? 'Workflow not recorded'} · {row.agentVersionRef}
+            </div>
+          </div>
+
+          <div class="fs-row">
+            <StatusBadge kind="case" value={row.caseState} size="sm" />
+            {row.attention.flags.map((flag) => (
+              <span class="fs-status fs-status--sm" data-tone={flag.tone} title={flag.hint}>
+                <span class="fs-status__glyph" aria-hidden="true">{flag.glyph}</span>{flag.label}
+              </span>
+            ))}
+          </div>
+
+          <div style="min-width:0">
+            <div style="text-transform:capitalize">{row.currentMilestone ?? 'Not recorded'}</div>
+            <div class="fs-faint" style="font-size:11px">
+              {row.completedMilestones} of {row.totalMilestones} complete · {row.sessionCount} Session{row.sessionCount === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          <div style="min-width:0">
+            <div class="fs-truncate" title={row.lastActivity?.summary ?? undefined}>
+              {row.lastActivity?.summary ?? 'No recorded activity'}
+            </div>
+            <div class="fs-mono fs-faint" style="font-size:11px">
+              {row.lastActivity?.at ?? '—'} · Event {row.eventCount}
+            </div>
+          </div>
+
+          <div class="fs-case-row__actions">
+            <ModeBadge mode={row.executionMode as ExecutionModeKey} compact />
+            <a class="fs-button fs-button--sm" href={`/cases/${row.caseId}`}>Workspace</a>
+            <a class="fs-button fs-button--sm" href={`/cockpit/${row.caseId}`}>Cockpit</a>
+            <a class="fs-button fs-button--sm" href={`/audit/${row.caseId}`}>Audit</a>
+          </div>
+        </article>
+      ))}
+    </section>
+  )}
+
+  <p class="fs-note">
+    "Needs Attention" is derived from recorded state — a pending approval or an
+    open incident — never from a clock.
+  </p>
 </BaseLayout>

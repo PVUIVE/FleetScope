@@ -1,58 +1,112 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CockpitMount from '../../features/cockpit/CockpitMount.astro';
-import DecisionEvidence from '../../components/DecisionEvidence.astro';
-import UnknownOr from '../../components/UnknownOr.astro';
+import CaseHeader from '../../components/CaseHeader.astro';
+import EvidenceRail from '../../components/EvidenceRail.astro';
+import EvidenceDrawer from '../../components/EvidenceDrawer.astro';
+import AgentTree from '../../components/AgentTree.astro';
+import IncidentPanel from '../../components/IncidentPanel.astro';
+import InterventionLifecycle from '../../components/InterventionLifecycle.astro';
+import LiveProofPanel from '../../components/LiveProofPanel.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import Metric from '../../components/Metric.astro';
 import {
   getCanonicalEvents,
   getCaseDescriptor,
+  getEvidenceManifest,
   getRendererScene,
   listCaseIds,
   projectCase,
 } from '../../lib/fixtures';
 import { streamRevisionOf } from '@fleetscope/canonicalizer';
+import { buildEvidenceRecords, incidentViews } from '../../lib/evidence-view';
+import { summariseCase } from '../../lib/case-summary';
+import { agentTree } from '../../lib/agent-tree';
+import { demoPhases } from '../../lib/demo-phases';
+import { webConfig } from '../../lib/config';
 
+/**
+ * The Fleet Cockpit — the expert operations surface.
+ *
+ * Three columns: topology on the left, the renderer in the middle, Decision
+ * Evidence on the right. The graph explains the Canonical Events the Workspace
+ * and the Audit view read; it never replaces them, and every seek it performs is
+ * a Render Manifest lookup rather than a position ratio.
+ */
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
 }
 
 const { caseId } = Astro.params;
+const config = webConfig();
 const events = getCanonicalEvents(caseId!);
 const projection = projectCase(caseId!);
 const state = projection?.state ?? null;
 const descriptor = getCaseDescriptor(caseId!);
 const scene = getRendererScene(caseId!);
+const evidenceManifest = getEvidenceManifest(caseId!);
 const caseSequences = events.map((event) => event.caseSequence);
+
+const records = scene === null ? [] : buildEvidenceRecords(events, scene.manifest);
+const summary = summariseCase(caseId!, descriptor, state, records);
+const phases = scene === null ? [] : demoPhases(events, scene.manifest);
+const agents = state === null ? [] : agentTree(state, events);
+const incidents = state === null ? [] : incidentViews(state, events);
+const interventions = state?.interventions ?? [];
+
+/** Per-intervention lifecycle anchors, so each step can be jumped to. */
+const anchorsFor = (interventionId: string): Record<string, number> => {
+  const recorded = evidenceManifest?.interventions.find(
+    (entry) => entry.interventionId === interventionId,
+  );
+  const anchors: Record<string, number> = {};
+  for (const step of recorded?.lifecycle ?? []) anchors[step.state] = step.caseSequence;
+  return anchors;
+};
+
+// The live proof appends to the Case's most recent Session, so the evidence
+// lands where the Case's own clock has reached rather than at wall time.
+const liveSessionId = state?.sessions.at(-1)?.sessionId ?? null;
+const LIVE_STEP_ID = 'orchestrator-compliance-decision';
 ---
 
-<BaseLayout title={`Fleet Cockpit · ${caseId}`}>
-  <p class="fs-lede">
-    The expert operations surface. The graph is derived from the same Canonical Events
-    the Case Workspace and the Audit view read — it explains them, it does not
-    replace them.
-  </p>
-
-  <section class="fs-card fs-case-head">
-    <div>
-      <h2>{caseId} · {descriptor?.vendor}</h2>
-      <p class="fs-muted">{descriptor?.title}</p>
-    </div>
-    <dl class="fs-kv fs-kv--inline">
-      <dt>Agent Version</dt><dd class="fs-mono">{descriptor?.agentVersionRef}</dd>
-      <dt>Case state</dt><dd><UnknownOr value={state?.caseState} /></dd>
-      <dt>Milestone</dt><dd><UnknownOr value={state?.currentMilestone} /></dd>
-      <dt>Sessions</dt><dd class="fs-mono">{state?.sessions.length ?? 0}</dd>
-    </dl>
-  </section>
+<BaseLayout title={`Fleet Cockpit · ${caseId}`} wide>
+  <CaseHeader summary={summary} compact>
+    <a slot="actions" class="fs-button fs-button--sm" href={`/cases/${caseId}`}>Case Workspace</a>
+    <a slot="actions" class="fs-button fs-button--sm" href={`/audit/${caseId}`}>Audit</a>
+  </CaseHeader>
 
   <div class="fs-cockpit-layout">
+    <div class="fs-rail">
+      <AgentTree nodes={agents} />
+
+      <section class="fs-card">
+        <h2>Recorded totals</h2>
+        <div class="fs-metrics">
+          <Metric label="Output tokens" value={state?.usage.outputTokens} zeroMeans="unknown" />
+          <Metric
+            label="Estimated cost"
+            value={state?.usage.estimatedCostUsd}
+            zeroMeans="unknown"
+            prefix="USD "
+          />
+          <Metric label="Tool calls" value={state?.usage.toolCalls} zeroMeans="unknown" />
+        </div>
+        <p class="fs-note">
+          Totals of recorded usage events only. Where no usage event exists the
+          value is unknown, not zero.
+        </p>
+      </section>
+    </div>
+
     {scene === null ? (
       <section class="fs-card">
         <h2>Fleet Cockpit</h2>
-        <p class="fs-placeholder">
-          This Case has not been compiled for the renderer. Run <code>pnpm fixtures:bless</code>.
-          Recorded evidence is unaffected and remains complete below.
-        </p>
+        <EmptyState
+          tone="warn"
+          title="This Case has not been compiled for the renderer"
+          detail="Run pnpm fixtures:bless. Recorded evidence is unaffected and remains complete in the Audit view."
+        />
       </section>
     ) : (
       <CockpitMount
@@ -61,78 +115,85 @@ const caseSequences = events.map((event) => event.caseSequence);
         main={scene.main}
         subagentsJson={scene.subagentsJson}
         caseSequences={caseSequences}
+        phases={phases}
       />
     )}
 
     <div class="fs-rail">
       {scene !== null && (
-        <DecisionEvidence
-          manifest={scene.manifest}
-          events={events}
+        <EvidenceRail
+          records={records}
           streamRevision={streamRevisionOf(events)}
           projectorVersion={state?.projectorVersion ?? 'unknown'}
           stateHash={projection?.stateHash ?? 'unknown'}
+          rendererEntryCount={scene.manifest.rendererEntryCount}
         />
       )}
 
-      <section class="fs-card">
-        <h2>Incidents</h2>
-        {(state?.incidents ?? []).length === 0 ? (
-          <p class="fs-placeholder">No incidents in this evidence prefix.</p>
-        ) : (
-          <ul class="fs-list">
-            {state?.incidents.map((incident) => (
-              <li>
-                <span class="fs-badge" data-outcome={incident.state === 'resolved' ? 'succeeded' : 'flagged'}>
-                  <span class="fs-badge__glyph" aria-hidden="true">{incident.state === 'resolved' ? '✓' : '!'}</span>
-                  {incident.incidentClass}
-                </span>
-                <span class="fs-mono fs-muted">
-                  {' '}{incident.incidentId} · {incident.state} · {incident.severity}
-                  {' '}· detector {incident.detectorId}@{incident.detectorVersion}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section class="fs-card">
-        <h2>Interventions</h2>
-        <p class="fs-muted fs-note">
-          Requested is not acknowledged, and acknowledged is not succeeded. Each step
-          is a separate recorded fact.
-        </p>
-        {(state?.interventions ?? []).length === 0 ? (
-          <p class="fs-placeholder">No interventions in this evidence prefix.</p>
-        ) : (
-          <ul class="fs-list">
-            {state?.interventions.map((intervention) => (
-              <li>
-                <div class="fs-mono">{intervention.interventionId} · {intervention.actionTemplate}</div>
-                <div class="fs-mono fs-muted">
-                  state <strong>{intervention.state}</strong> ·
-                  target {intervention.target} ·
-                  Runtime operation <UnknownOr value={intervention.runtimeOperationId} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section class="fs-card">
-        <h2>Usage</h2>
-        <dl class="fs-kv fs-kv--tight">
-          <dt>Output tokens</dt>
-          <dd><UnknownOr value={state?.usage.outputTokens} zeroMeans="recorded" /></dd>
-          <dt>Estimated cost</dt>
-          <dd><UnknownOr value={state?.usage.estimatedCostUsd} zeroMeans="recorded" prefix="USD " /></dd>
-          <dt>Tool calls</dt>
-          <dd><UnknownOr value={state?.usage.toolCalls} zeroMeans="recorded" /></dd>
-        </dl>
-        <p class="fs-muted fs-note">Totals of recorded usage events only.</p>
-      </section>
+      <LiveProofPanel
+        caseId={caseId!}
+        stepId={LIVE_STEP_ID}
+        stepDescription="One bounded compliance classification, appended to this Case as canonical evidence."
+        apiBaseUrl={config.apiBaseUrl}
+        events={events}
+        sessionId={liveSessionId}
+      />
     </div>
   </div>
+
+  <div class="fs-grid fs-grid--2" style="margin-top:var(--fs-space-4)">
+    <section class="fs-card">
+      <div class="fs-section-head">
+        <h2>Incidents</h2>
+        <span class="fs-section-head__aside">{incidents.length} recorded</span>
+      </div>
+      {incidents.length === 0 ? (
+        <EmptyState title="No incidents detected" detail="No detector recorded a finding in this evidence prefix." />
+      ) : (
+        <div class="fs-stack">
+          {incidents.map((incident) => (
+            <IncidentPanel incident={incident} seekable={scene !== null} />
+          ))}
+        </div>
+      )}
+    </section>
+
+    <section class="fs-card">
+      <div class="fs-section-head">
+        <h2>Warden interventions</h2>
+        <span class="fs-section-head__aside">
+          Control requests and Runtime observations are counted separately.
+        </span>
+      </div>
+      {interventions.length === 0 ? (
+        <EmptyState
+          title="No interventions"
+          detail="Nothing was proposed, authorized or requested in this evidence prefix."
+        />
+      ) : (
+        <div class="fs-stack">
+          {interventions.map((intervention) => (
+            <InterventionLifecycle
+              intervention={intervention}
+              anchors={anchorsFor(intervention.interventionId)}
+            />
+          ))}
+        </div>
+      )}
+      <div class="fs-metrics" style="margin-top:var(--fs-space-3)">
+        <Metric
+          label="Control requests"
+          value={interventions.length}
+          note="actions FleetScope asked the Runtime to take"
+        />
+        <Metric
+          label="Runtime observations"
+          value={interventions.filter((i) => i.runtimeOperationId !== undefined).length}
+          note="authoritative results the Runtime returned"
+        />
+      </div>
+    </section>
+  </div>
+
+  <EvidenceDrawer records={records} seekable={scene !== null} />
 </BaseLayout>

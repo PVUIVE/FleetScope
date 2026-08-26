@@ -1,16 +1,23 @@
 ---
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
-import ModeLabel from '../components/ModeLabel.astro';
 import { webConfig } from '../lib/config';
 
+/**
+ * The application shell.
+ *
+ * It provides navigation, the environment chip and the footer disclosure, and
+ * nothing else — each route owns its own header through PageHeader, so a page
+ * can put badges and actions on the same line as its title instead of paying two
+ * rows of chrome for them.
+ */
 interface Props {
   title: string;
-  /** Execution mode of the evidence on this page. Always shown, never guessed. */
-  mode?: 'recorded' | 'live' | 'synthetic' | 'simulated';
+  /** Console surfaces use the full viewport width; documents stay measured. */
+  wide?: boolean;
 }
 
-const { title, mode = 'recorded' } = Astro.props;
+const { title, wide = false } = Astro.props;
 const config = webConfig();
 const path = Astro.url.pathname;
 ---
@@ -19,22 +26,24 @@ const path = Astro.url.pathname;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
     <title>{title} · FleetScope</title>
   </head>
   <body>
     <div class="fs-shell">
-      <Nav path={path} defaultCaseId={config.defaultCaseId} />
-      <main class="fs-main">
-        <header style="display:flex;align-items:baseline;gap:var(--fs-space-3);margin-bottom:var(--fs-space-5)">
-          <h1>{title}</h1>
-          <ModeLabel mode={mode} />
-        </header>
+      <Nav path={path} defaultCaseId={config.defaultCaseId} liveMode={config.liveMode} />
+      <main class={wide ? 'fs-main fs-main--wide' : 'fs-main'} id="fs-main">
         <slot />
       </main>
       <footer class="fs-footer">
-        FleetScope · recorded evidence ·
-        {config.liveMode ? 'live proof enabled' : 'live mode disabled'} ·
-        third-party attribution in THIRD-PARTY-NOTICES.md
+        <span>FleetScope · governed agent operations</span>
+        <span>
+          Recorded evidence is bundled with this build and needs no backend.
+          {config.liveMode
+            ? ' The bounded live-proof endpoint is enabled.'
+            : ' Live mode is disabled.'}
+        </span>
+        <span>Third-party attribution in THIRD-PARTY-NOTICES.md</span>
       </footer>
     </div>
   </body>

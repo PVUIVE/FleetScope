@@ -1,0 +1,116 @@
+---
+/**
+ * The Warden intervention lifecycle, shown as the five separate facts it is.
+ *
+ * Invariant 10: success requires authoritative Runtime evidence. `requested` is
+ * not `acknowledged` and `acknowledged` is not `succeeded`, so this rail never
+ * collapses them into "Warden fixed it". A step that has not been reached is
+ * drawn as not reached — it is not shown as pending success.
+ */
+import type { Intervention } from '@fleetscope/domain';
+import { INTERVENTION_STATES } from '@fleetscope/domain';
+import StatusBadge from './StatusBadge.astro';
+import UnknownOr from './UnknownOr.astro';
+
+interface Props {
+  intervention: Intervention;
+  /** caseSequence of the event that produced each lifecycle state, if known. */
+  anchors?: Readonly<Record<string, number>>;
+}
+const { intervention, anchors = {} } = Astro.props;
+
+/** The happy path, in order. Terminal states are appended as they occur. */
+const SPINE = ['proposed', 'authorized', 'requested', 'acknowledged'] as const;
+const TERMINALS = ['succeeded', 'failed', 'timed_out', 'rejected'] as const;
+
+const reachedIndex = INTERVENTION_STATES.indexOf(intervention.state);
+const isReached = (state: string): boolean =>
+  INTERVENTION_STATES.indexOf(state as (typeof INTERVENTION_STATES)[number]) <= reachedIndex;
+
+const terminal = TERMINALS.find((state) => state === intervention.state) ?? null;
+
+const COPY: Readonly<Record<string, string>> = {
+  proposed: 'Warden proposed a bounded action',
+  authorized: 'Policy or an operator authorized it',
+  requested: 'FleetScope asked the Runtime to act',
+  acknowledged: 'The Runtime acknowledged the request',
+  succeeded: 'The Runtime confirmed it succeeded',
+  failed: 'The Runtime reported it failed',
+  timed_out: 'No authoritative Runtime result arrived',
+  rejected: 'The action was refused and never requested',
+};
+
+const steps = [
+  ...SPINE.map((state) => ({ state, reached: isReached(state) })),
+  ...(terminal === null
+    ? [{ state: 'result' as const, reached: false }]
+    : [{ state: terminal, reached: true }]),
+];
+
+const stateOf = (step: { state: string; reached: boolean }): string => {
+  if (!step.reached) return 'pending';
+  if (step.state === 'failed' || step.state === 'rejected') return 'terminal-fail';
+  if (step.state === 'timed_out') return 'terminal-unknown';
+  return 'reached';
+};
+---
+
+<article class="fs-card">
+  <div class="fs-section-head">
+    <h3 class="fs-mono" style="font-size:13px">{intervention.interventionId}</h3>
+    <StatusBadge kind="intervention" value={intervention.state} />
+    <span class="fs-section-head__aside fs-mono">{intervention.actionTemplate}</span>
+  </div>
+
+  <ol class="fs-lifecycle">
+    {steps.map((step) => (
+      <li class="fs-lifecycle__step" data-state={stateOf(step)}>
+        <span class="fs-lifecycle__marker" aria-hidden="true">
+          {stateOf(step) === 'reached' ? '✓'
+            : stateOf(step) === 'terminal-fail' ? '✗'
+            : stateOf(step) === 'terminal-unknown' ? '◷'
+            : '·'}
+        </span>
+        <span class="fs-lifecycle__body">
+          <span class="fs-lifecycle__label">
+            {step.state === 'result' ? 'Result' : COPY[step.state] ?? step.state}
+            <span class="fs-visually-hidden">
+              {step.reached ? ' — recorded' : ' — not reached'}
+            </span>
+          </span>
+          {!step.reached && (
+            <span class="fs-lifecycle__meta">
+              {step.state === 'result'
+                ? 'No authoritative Runtime result is recorded yet.'
+                : 'Not reached in this evidence prefix.'}
+            </span>
+          )}
+          {step.reached && anchors[step.state] !== undefined && (
+            <button
+              type="button"
+              class="fs-button fs-button--sm"
+              data-variant="quiet"
+              data-seek-sequence={anchors[step.state]}
+            >Jump to Event {anchors[step.state]! + 1}</button>
+          )}
+        </span>
+      </li>
+    ))}
+  </ol>
+
+  <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">
+    <dt>Target</dt><dd class="fs-mono">{intervention.target}</dd>
+    <dt>Operation</dt><dd class="fs-mono">{intervention.operation}</dd>
+    <dt>Policy version</dt><dd class="fs-mono">{intervention.policyVersion}</dd>
+    <dt>Incident</dt><dd class="fs-mono">{intervention.incidentId}</dd>
+    <dt>Runtime operation</dt>
+    <dd class="fs-mono"><UnknownOr value={intervention.runtimeOperationId} /></dd>
+    {intervention.retryOf !== undefined && (
+      <Fragment><dt>Retry of</dt><dd class="fs-mono">{intervention.retryOf}</dd></Fragment>
+    )}
+  </dl>
+  <p class="fs-note">
+    A retry is a new intervention linked back to the original, never a re-run of
+    one. Each state above is a separate recorded fact.
+  </p>
+</article>

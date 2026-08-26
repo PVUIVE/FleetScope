@@ -1,94 +1,328 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import ModeBadge from '../components/ModeBadge.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import EmptyState from '../components/EmptyState.astro';
+import EvidenceDrawer from '../components/EvidenceDrawer.astro';
+import CopyableDigest from '../components/CopyableDigest.astro';
 import UnknownOr from '../components/UnknownOr.astro';
-import { listCaseIds, projectCase } from '../lib/fixtures';
-import { approvalRows } from '../lib/approvals';
+import {
+  getCanonicalEvents,
+  getRenderManifest,
+  listCaseIds,
+  projectCase,
+} from '../lib/fixtures';
+import { approvalRows, type ApprovalRow } from '../lib/approvals';
+import { buildEvidenceRecords, type EvidenceRecord } from '../lib/evidence-view';
+import { INTERVENTION_STATES } from '@fleetscope/domain';
 
-const rows = listCaseIds().flatMap((caseId) => {
-  const state = projectCase(caseId)?.state;
-  return state === undefined ? [] : approvalRows(caseId, state);
-});
+/**
+ * The Approval Inbox.
+ *
+ * # Approval is not execution
+ *
+ * The four states an operator must be able to tell apart are approval,
+ * authorization, execution and success. This page shows them as four separate
+ * facts, because collapsing them into "Approved ✓" would claim an outcome
+ * FleetScope has no authoritative evidence for (Invariant 10).
+ *
+ * # No fake persistence
+ *
+ * This build serves recorded evidence from a static bundle: there is no write
+ * path, so the decision controls say so instead of pretending. A button that
+ * looked like it decided something and did not would be worse than no button.
+ */
 
+const rows: ApprovalRow[] = [];
+const recordsByCase = new Map<string, EvidenceRecord[]>();
+const interventionsByCase = new Map<string, ReturnType<typeof projectCase>>();
+
+for (const caseId of listCaseIds()) {
+  const projection = projectCase(caseId);
+  const state = projection?.state;
+  if (state === undefined) continue;
+  rows.push(...approvalRows(caseId, state));
+  const manifest = getRenderManifest(caseId);
+  recordsByCase.set(
+    caseId,
+    manifest === null ? [] : buildEvidenceRecords(getCanonicalEvents(caseId), manifest),
+  );
+  interventionsByCase.set(caseId, projection);
+}
+
+const allRecords = [...recordsByCase.values()].flat();
 const outstanding = rows.filter((row) => row.approval.state === 'pending');
 const decided = rows.filter((row) => row.approval.state !== 'pending');
+
+/** The Canonical Events that opened and resolved one approval, for inspection. */
+function approvalEvidence(caseId: string, approvalId: string): EvidenceRecord[] {
+  return (recordsByCase.get(caseId) ?? []).filter(
+    (record) =>
+      record.domain === 'approval' &&
+      (record.payload['approvalId'] === approvalId || record.eventId.length > 0) &&
+      (record.type === 'human_escalation.opened' || record.type === 'human_escalation.resolved'),
+  );
+}
+
+/**
+ * What actually happened after the approval.
+ *
+ * Approval is not execution and execution is not success. An approved action
+ * that never ran, or ran and failed, must not read as a success — so this
+ * resolves BOTH stages separately from recorded evidence: the request that cited
+ * the approval, and the authoritative result that resolved that request.
+ */
+interface ExecutionTrace {
+  readonly requested: { readonly detail: string; readonly caseSequence: number } | null;
+  readonly result: {
+    readonly outcome: string;
+    readonly detail: string;
+    readonly caseSequence: number;
+  } | null;
+}
+
+function executionAfter(caseId: string, actionTemplate: string): ExecutionTrace {
+  const state = interventionsByCase.get(caseId)?.state;
+  const records = recordsByCase.get(caseId) ?? [];
+
+  // A Warden intervention carries its own lifecycle, and the Runtime operation
+  // id is the authoritative handle — its absence means the outcome is unknown.
+  const intervention = state?.interventions.find(
+    (candidate) => candidate.actionTemplate === actionTemplate,
+  );
+  if (intervention !== undefined) {
+    const reached = INTERVENTION_STATES.indexOf(intervention.state);
+    return {
+      requested:
+        reached >= INTERVENTION_STATES.indexOf('requested')
+          ? { detail: `${intervention.interventionId} · ${intervention.operation}`, caseSequence: -1 }
+          : null,
+      result:
+        intervention.state === 'succeeded' ||
+        intervention.state === 'failed' ||
+        intervention.state === 'timed_out'
+          ? {
+              outcome: intervention.state,
+              detail: `Runtime operation ${intervention.runtimeOperationId ?? 'not recorded'}`,
+              caseSequence: -1,
+            }
+          : null,
+    };
+  }
+
+  // Otherwise the action ran as an ordinary tool call under the approval. The
+  // request cites the approval id; the result is the next resolution of the same
+  // tool, which is a separate recorded fact.
+  const requested = records.find(
+    (record) => record.type === 'tool.requested' && record.payload['approvalId'] !== undefined,
+  );
+  if (requested === undefined) return { requested: null, result: null };
+
+  const tool = requested.payload['tool'];
+  const resolution = records.find(
+    (record) =>
+      record.caseSequence > requested.caseSequence &&
+      (record.type === 'tool.succeeded' || record.type === 'tool.failed') &&
+      record.payload['tool'] === tool,
+  );
+
+  return {
+    requested: {
+      detail: `${String(tool ?? 'tool call')} · Event ${requested.humanIndex}`,
+      caseSequence: requested.caseSequence,
+    },
+    result:
+      resolution === undefined
+        ? null
+        : {
+            outcome: resolution.outcome,
+            detail: `${resolution.summary} · Event ${resolution.humanIndex}`,
+            caseSequence: resolution.caseSequence,
+          },
+  };
+}
+
+const STAGE_COPY = [
+  { key: 'approval', label: 'Operator approval', hint: 'A person authorized exactly this action.' },
+  { key: 'authorization', label: 'Authorization recorded', hint: 'FleetScope bound the approval to one evidence prefix.' },
+  { key: 'execution', label: 'Execution requested', hint: 'The action was actually attempted.' },
+  { key: 'result', label: 'Authoritative result', hint: 'The owning system confirmed the outcome.' },
+] as const;
 ---
 
 <BaseLayout title="Approval Inbox">
-  <p class="fs-lede">
-    An approval authorizes <strong>one</strong> action, on one target, with one set
-    of parameters, against one evidence prefix, until one expiry. It is never a
-    standing permission to continue — change any part of the request and the
-    approval no longer applies.
-  </p>
+  <PageHeader
+    title="Approval Inbox"
+    lede="An approval authorizes one action, on one target, with one set of parameters, against one evidence prefix, until one expiry. It is never a standing permission to continue."
+  >
+    <ModeBadge slot="badges" mode="recorded" />
+  </PageHeader>
 
-  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
-    <h2>Outstanding</h2>
-    {outstanding.length === 0 ? (
-      <p class="fs-placeholder">Nothing is waiting on an operator.</p>
-    ) : (
-      <div class="fs-grid">
-        {outstanding.map((row) => (
-          <article class="fs-answer">
-            <h3 style="margin:0 0 var(--fs-space-2);font-size:15px">{row.approval.actionTemplate}</h3>
-            <dl class="fs-kv fs-kv--tight">
-              <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
-              <dt>Target</dt><dd>{row.approval.target}</dd>
-              <dt>Side effect</dt><dd>{row.sideEffect}</dd>
-              <dt>Bound to evidence</dt><dd>#{row.approval.boundCaseSequence}</dd>
-              <dt>Expires</dt><dd>{row.approval.expiresAt}</dd>
-              <dt>Binding</dt><dd style="word-break:break-all">{row.fingerprint}</dd>
-            </dl>
-            <p class="fs-muted fs-note">{row.status.usable ? '' : row.status.reason}</p>
-          </article>
-        ))}
+  <div class="fs-stack">
+    <section class={outstanding.length > 0 ? 'fs-card fs-card--attention' : 'fs-card'}>
+      <div class="fs-section-head">
+        <h2>Awaiting a decision</h2>
+        <span class="fs-section-head__aside">{outstanding.length} outstanding</span>
       </div>
-    )}
-  </section>
-
-  <section class="fs-card">
-    <h2>Decided</h2>
-    {decided.length === 0 ? (
-      <p class="fs-placeholder">No approvals in recorded evidence.</p>
-    ) : (
-      <div class="fs-grid">
-        {decided.map((row) => (
-          <article class="fs-answer">
-            <header style="display:flex;align-items:baseline;gap:var(--fs-space-3);flex-wrap:wrap">
-              <h3 style="margin:0;font-size:15px">{row.approval.actionTemplate}</h3>
-              <span
-                class="fs-badge"
-                data-outcome={row.approval.state === 'approved' ? 'succeeded' : 'denied'}
-              >
-                <span class="fs-badge__glyph" aria-hidden="true">
-                  {row.approval.state === 'approved' ? '✓' : '⊘'}
+      {outstanding.length === 0 ? (
+        <EmptyState
+          title="No pending approvals"
+          detail="Nothing in this build is waiting on an operator decision."
+        />
+      ) : (
+        <div class="fs-grid">
+          {outstanding.map((row) => (
+            <article class="fs-answer">
+              <div class="fs-section-head">
+                <h3>{row.approval.actionTemplate}</h3>
+                <StatusBadge kind="approval" value={row.approval.state} />
+                <span class="fs-section-head__aside fs-mono">{row.caseId}</span>
+              </div>
+              <dl class="fs-kv fs-kv--tight">
+                <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
+                <dt>Requested action</dt><dd class="fs-mono">{row.approval.actionTemplate}</dd>
+                <dt>Target</dt><dd class="fs-mono">{row.approval.target}</dd>
+                <dt>Side-effect class</dt><dd class="fs-mono">{row.sideEffect}</dd>
+                <dt>Bound to evidence</dt>
+                <dd class="fs-mono">Event {row.approval.boundCaseSequence + 1}</dd>
+                <dt>Requested at</dt><dd class="fs-mono">{row.approval.requestedAt}</dd>
+                <dt>Expires</dt><dd class="fs-mono">{row.approval.expiresAt}</dd>
+              </dl>
+              <details style="margin-top:var(--fs-space-3)">
+                <summary>Review the exact request</summary>
+                <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">
+                  <dt>Binding fingerprint</dt>
+                  <dd><CopyableDigest value={row.fingerprint} label="approval binding" /></dd>
+                  <dt>Consequence</dt>
+                  <dd>
+                    {row.sideEffect === 'external_write'
+                      ? 'Changes a system outside FleetScope. It can never be auto-acted.'
+                      : row.sideEffect === 'idempotent_read'
+                        ? 'Repeatable without accumulating effect.'
+                        : row.sideEffect === 'internal_write'
+                          ? 'Changes FleetScope’s own state only.'
+                          : 'Changes nothing anywhere.'}
+                  </dd>
+                </dl>
+                <p class="fs-note">
+                  The fingerprint covers the Case, action, target, parameters and the
+                  exact evidence prefix. Change any of them and this approval stops
+                  applying — a new one is required.
+                </p>
+              </details>
+              <div class="fs-link-row" style="margin-top:var(--fs-space-3)">
+                <button type="button" class="fs-button" disabled aria-disabled="true">Approve</button>
+                <button type="button" class="fs-button" disabled aria-disabled="true">Reject</button>
+                <span class="fs-faint" style="font-size:12px">
+                  Decision controls are inert in a Recorded Case: this build has no
+                  write path, and FleetScope does not fake one.
                 </span>
-                {row.approval.state}
-              </span>
-            </header>
-            <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">
-              <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
-              <dt>Target</dt><dd>{row.approval.target}</dd>
-              <dt>Side effect</dt><dd>{row.sideEffect}</dd>
-              <dt>Approver</dt><dd><UnknownOr value={row.approval.approver} /></dd>
-              <dt>Bound to evidence</dt><dd>#{row.approval.boundCaseSequence}</dd>
-              <dt>Expires</dt><dd>{row.approval.expiresAt}</dd>
-              <dt>Binding</dt><dd style="word-break:break-all">{row.fingerprint}</dd>
-              <dt>Still authorizes</dt>
-              <dd>
-                {row.status.usable
-                  ? 'yes — the recorded action matches this binding exactly'
-                  : row.status.reason}
-              </dd>
-            </dl>
-          </article>
-        ))}
-      </div>
-    )}
-  </section>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
 
-  <p class="fs-muted fs-note">
-    The binding fingerprint covers the Case, action, target, parameters and the
-    exact evidence prefix. Recomputing it at the moment of use is what makes a
-    parameter change invalidate the approval rather than silently inherit it.
+    <section class="fs-card">
+      <div class="fs-section-head">
+        <h2>Decided</h2>
+        <span class="fs-section-head__aside">
+          Approval, authorization, execution and result are four separate facts.
+        </span>
+      </div>
+      {decided.length === 0 ? (
+        <EmptyState title="No decided approvals" detail="No approval decision is recorded in this build." />
+      ) : (
+        <div class="fs-grid">
+          {decided.map((row) => {
+            const execution = executionAfter(row.caseId, row.approval.actionTemplate);
+            const evidence = approvalEvidence(row.caseId, row.approval.approvalId);
+            const reached = {
+              approval: row.approval.state === 'approved',
+              authorization: row.approval.state === 'approved',
+              execution: execution.requested !== null,
+              result: execution.result !== null,
+            };
+            const stageDetail = {
+              execution: execution.requested?.detail ?? null,
+              result: execution.result?.detail ?? null,
+            };
+            return (
+              <article class="fs-answer">
+                <div class="fs-section-head">
+                  <h3>{row.approval.actionTemplate}</h3>
+                  <StatusBadge kind="approval" value={row.approval.state} />
+                  <span class="fs-section-head__aside fs-mono">{row.caseId}</span>
+                </div>
+
+                <ol class="fs-lifecycle" style="margin-top:var(--fs-space-2)">
+                  {STAGE_COPY.map((stage) => (
+                    <li class="fs-lifecycle__step" data-state={reached[stage.key] ? 'reached' : 'pending'}>
+                      <span class="fs-lifecycle__marker" aria-hidden="true">
+                        {reached[stage.key] ? '✓' : '·'}
+                      </span>
+                      <span class="fs-lifecycle__body">
+                        <span class="fs-lifecycle__label">
+                          {stage.label}
+                          <span class="fs-visually-hidden">
+                            {reached[stage.key] ? ' — recorded' : ' — not recorded'}
+                          </span>
+                        </span>
+                        <span class="fs-lifecycle__meta">
+                          {reached[stage.key]
+                            ? stage.key === 'execution' || stage.key === 'result'
+                              ? (stageDetail[stage.key] ?? stage.hint)
+                              : stage.hint
+                            : 'No recorded evidence for this stage.'}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+
+                <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-3)">
+                  <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
+                  <dt>Target</dt><dd class="fs-mono">{row.approval.target}</dd>
+                  <dt>Side-effect class</dt><dd class="fs-mono">{row.sideEffect}</dd>
+                  <dt>Approver</dt><dd class="fs-mono"><UnknownOr value={row.approval.approver} /></dd>
+                  <dt>Bound to evidence</dt>
+                  <dd class="fs-mono">Event {row.approval.boundCaseSequence + 1}</dd>
+                  <dt>Expires</dt><dd class="fs-mono">{row.approval.expiresAt}</dd>
+                  <dt>Still authorizes</dt>
+                  <dd>
+                    {row.status.usable
+                      ? 'Yes — the recorded action matches this binding exactly.'
+                      : row.status.reason}
+                  </dd>
+                  <dt>Binding fingerprint</dt>
+                  <dd><CopyableDigest value={row.fingerprint} label="approval binding" truncate /></dd>
+                </dl>
+
+                {evidence.length > 0 && (
+                  <p class="fs-link-row" style="margin-top:var(--fs-space-3)">
+                    {evidence.map((record) => (
+                      <button
+                        type="button"
+                        class="fs-button fs-button--sm"
+                        data-evidence-open={record.eventId}
+                      >{record.type === 'human_escalation.opened' ? 'Request evidence' : 'Decision evidence'}</button>
+                    ))}
+                  </p>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  </div>
+
+  <p class="fs-note">
+    Recomputing the binding fingerprint at the moment of use is what makes a
+    parameter change invalidate an approval rather than silently inherit it.
   </p>
+
+  <EvidenceDrawer records={allRecords} />
 </BaseLayout>

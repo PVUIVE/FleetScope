@@ -1,0 +1,24 @@
+---
+/**
+ * The route header. One line of identity, one of purpose, actions on the right.
+ *
+ * Deliberately compact: at 1280x720 every row spent on chrome is a row not spent
+ * on evidence.
+ */
+interface Props {
+  title: string;
+  lede?: string;
+}
+const { title, lede } = Astro.props;
+---
+
+<header class="fs-page-head">
+  <div class="fs-page-head__text">
+    <div class="fs-row">
+      <h1>{title}</h1>
+      <slot name="badges" />
+    </div>
+    {lede && <p class="fs-page-head__lede">{lede}</p>}
+  </div>
+  <div class="fs-page-head__actions"><slot name="actions" /></div>
+</header>

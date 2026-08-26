@@ -1,0 +1,74 @@
+---
+/**
+ * The Case identity strip, shared by the Workspace and the Cockpit.
+ *
+ * Answers "what am I looking at, and is it live?" in one line, so the two
+ * surfaces cannot drift into describing the same Case differently.
+ */
+import type { CaseSummary } from '../lib/case-summary';
+import ModeBadge from './ModeBadge.astro';
+import StatusBadge from './StatusBadge.astro';
+import type { ExecutionModeKey } from '../lib/status';
+
+interface Props {
+  summary: CaseSummary;
+  compact?: boolean;
+}
+const { summary, compact = false } = Astro.props;
+---
+
+<section class="fs-card fs-case-head">
+  <div style="min-width:0">
+    <div class="fs-case-head__id">
+      <h2>{summary.caseId}</h2>
+      <span class="fs-muted">{summary.vendor ?? 'Vendor not recorded'}</span>
+      <StatusBadge kind="case" value={summary.caseState} />
+      {summary.attention.flags.map((flag) => (
+        <span class="fs-status" data-tone={flag.tone} title={flag.hint}>
+          <span class="fs-status__glyph" aria-hidden="true">{flag.glyph}</span>{flag.label}
+        </span>
+      ))}
+      <ModeBadge mode={summary.executionMode as ExecutionModeKey} compact />
+      <span data-case-live-badge hidden>
+        <ModeBadge mode="live" compact />
+      </span>
+    </div>
+    {!compact && <p class="fs-muted" style="margin:var(--fs-space-1) 0 0">{summary.title}</p>}
+  </div>
+  <dl class="fs-facts">
+    <div class="fs-fact"><dt>Agent Version</dt><dd class="fs-mono">{summary.agentVersionRef ?? '—'}</dd></div>
+    <div class="fs-fact">
+      <dt>Milestone</dt>
+      <dd style="text-transform:capitalize">{summary.currentMilestone ?? 'Not recorded'}</dd>
+    </div>
+    <div class="fs-fact"><dt>Runtime Sessions</dt><dd class="fs-mono">{summary.sessionCount}</dd></div>
+    <div class="fs-fact">
+      <dt>Canonical events</dt>
+      <dd class="fs-mono" data-case-event-count>{summary.eventCount}</dd>
+    </div>
+    <div class="fs-fact"><dt>Owner</dt><dd class="fs-mono">{summary.owner ?? '—'}</dd></div>
+  </dl>
+  <div class="fs-page-head__actions"><slot name="actions" /></div>
+</section>
+
+<script>
+  /**
+   * The header states a fact about the Case, so it must stop being true the
+   * moment the Case changes. A bounded live proof appends canonical evidence;
+   * leaving "60 canonical events" on screen next to a rail showing 63 would be a
+   * surface claiming something the evidence no longer supports.
+   */
+  document.addEventListener('fleetscope:evidence-appended', (event) => {
+    const detail = (event as CustomEvent).detail as {
+      records: { humanIndex: number; mode: string }[];
+    };
+    const count = document.querySelector<HTMLElement>('[data-case-event-count]');
+    const highest = Math.max(...detail.records.map((record) => record.humanIndex));
+    if (count !== null && Number.isFinite(highest)) count.textContent = String(highest);
+
+    if (detail.records.some((record) => record.mode === 'live')) {
+      const badge = document.querySelector<HTMLElement>('[data-case-live-badge]');
+      if (badge !== null) badge.hidden = false;
+    }
+  });
+</script>

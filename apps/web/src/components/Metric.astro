@@ -1,0 +1,27 @@
+---
+/**
+ * One measured number, with its absence handled.
+ *
+ * Wraps UnknownOr so a metric can never render an unmeasured value as 0 — an
+ * agent with no recorded usage has not used zero tokens.
+ */
+import UnknownOr from './UnknownOr.astro';
+
+interface Props {
+  label: string;
+  value: string | number | null | undefined;
+  zeroMeans?: 'unknown' | 'recorded';
+  prefix?: string;
+  suffix?: string;
+  note?: string;
+}
+const { label, value, zeroMeans = 'recorded', prefix = '', suffix = '', note } = Astro.props;
+---
+
+<div class="fs-metric">
+  <span class="fs-metric__label">{label}</span>
+  <span class="fs-metric__value">
+    <UnknownOr value={value} zeroMeans={zeroMeans} prefix={prefix} suffix={suffix} />
+  </span>
+  {note && <span class="fs-metric__note">{note}</span>}
+</div>

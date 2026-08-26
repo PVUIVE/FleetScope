@@ -1,0 +1,91 @@
+---
+/**
+ * One incident, explained.
+ *
+ * An Incident Candidate is a finding, not proof, and it grants no authority. The
+ * panel therefore says what the detector saw, which events it saw it in, what
+ * policy decided, and what the Runtime authoritatively reported — in that order,
+ * because that is the order in which authority is actually established.
+ */
+import type { IncidentView } from '../lib/evidence-view';
+import StatusBadge from './StatusBadge.astro';
+
+interface Props {
+  incident: IncidentView;
+  /** True when a renderer is present and the jump controls can do something. */
+  seekable?: boolean;
+}
+const { incident, seekable = false } = Astro.props;
+
+const jumps = [
+  { label: 'First failure', caseSequence: incident.firstEvidenceCaseSequence },
+  { label: 'Incident opened', caseSequence: incident.incidentCaseSequence },
+].filter((jump) => jump.caseSequence !== null);
+---
+
+<article class="fs-card" data-incident={incident.incidentId}>
+  <div class="fs-section-head">
+    <h3 class="fs-mono" style="font-size:13px">{incident.incidentClass}</h3>
+    <StatusBadge kind="incident" value={incident.state} />
+    <StatusBadge kind="severity" value={incident.severity} size="sm" />
+    <span class="fs-section-head__aside fs-mono">{incident.incidentId}</span>
+  </div>
+
+  <dl class="fs-kv fs-kv--stacked">
+    <dt>Detected because</dt>
+    <dd>{incident.detectedBecause}</dd>
+
+    <dt>Detector</dt>
+    <dd class="fs-mono">{incident.detector}@{incident.detectorVersion}</dd>
+
+    <dt>Evidence</dt>
+    <dd>
+      <ul class="fs-list fs-list--tight" style="margin-top:var(--fs-space-1)">
+        {incident.evidenceEventIds.map((eventId) => (
+          <li>
+            <button
+              type="button"
+              class="fs-button fs-button--sm"
+              data-variant="quiet"
+              data-evidence-open={eventId}
+            >{eventId}</button>
+          </li>
+        ))}
+      </ul>
+    </dd>
+
+    <dt>Policy result</dt>
+    <dd>
+      {incident.policy === null ? (
+        <span class="fs-muted">No policy evaluation is recorded for this incident.</span>
+      ) : (
+        <>
+          <StatusBadge kind="disposition" value={incident.policy.disposition} size="sm" />
+          <span class="fs-mono fs-faint"> {incident.policy.policyVersion}</span>
+          <p class="fs-note" style="margin-top:var(--fs-space-1)">{incident.policy.rationale}</p>
+        </>
+      )}
+    </dd>
+
+    <dt>Recovery</dt>
+    <dd>
+      {incident.interventionIds.length === 0 ? (
+        <span class="fs-muted">No intervention was requested for this incident.</span>
+      ) : (
+        <span class="fs-mono">{incident.interventionIds.join(', ')}</span>
+      )}
+    </dd>
+  </dl>
+
+  {seekable && jumps.length > 0 && (
+    <p class="fs-link-row" style="margin-top:var(--fs-space-3)">
+      {jumps.map((jump) => (
+        <button
+          type="button"
+          class="fs-button fs-button--sm"
+          data-seek-sequence={jump.caseSequence}
+        >Jump to {jump.label}</button>
+      ))}
+    </p>
+  )}
+</article>

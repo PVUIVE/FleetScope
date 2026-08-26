@@ -1,10 +1,35 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import CaseHeader from '../../components/CaseHeader.astro';
+import ModeBadge from '../../components/ModeBadge.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import EvidenceDrawer from '../../components/EvidenceDrawer.astro';
+import CopyableDigest from '../../components/CopyableDigest.astro';
+import Metric from '../../components/Metric.astro';
 import UnknownOr from '../../components/UnknownOr.astro';
-import { getCanonicalEvents, getCaseDescriptor, listCaseIds, projectCase } from '../../lib/fixtures';
+import {
+  getCanonicalEvents,
+  getCaseDescriptor,
+  getRenderManifest,
+  listCaseIds,
+  projectCase,
+} from '../../lib/fixtures';
+import { buildEvidenceRecords } from '../../lib/evidence-view';
+import { summariseCase } from '../../lib/case-summary';
 import { buildAuditExport } from '@fleetscope/projector';
 import { CAPABILITY_TRUTH_ROWS } from '@fleetscope/platform-adapters';
+import { MODE_COPY, type ExecutionModeKey } from '../../lib/status';
 
+/**
+ * The Audit view.
+ *
+ * An evidence product, not a JSON dump: the canonical payload is one expandable
+ * click away from every row rather than the default reading experience. What the
+ * page states about integrity is exactly what the export actually guarantees —
+ * an application-level manifest, not a tamper-proof ledger.
+ */
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
 }
@@ -12,217 +37,318 @@ export function getStaticPaths() {
 const { caseId } = Astro.params;
 const events = getCanonicalEvents(caseId!);
 const descriptor = getCaseDescriptor(caseId!);
+const manifest = getRenderManifest(caseId!);
 const projection = projectCase(caseId!);
 const state = projection?.state ?? null;
 
+const records = manifest === null ? [] : buildEvidenceRecords(events, manifest);
+const summary = summariseCase(caseId!, descriptor, state, records);
+const recordByEventId = new Map(records.map((record) => [record.eventId, record]));
+
+const knownEvidenceGaps = [
+  'The ERP and Logistics systems are synthetic. No real vendor system was contacted.',
+  'Agent Identity, Agent Gateway and Model Armor decisions are enforced by FleetScope-local policy. The ordering is real; the services are not.',
+  'Runtime wait and resume are recorded evidence, not observed live.',
+  'The multi-week span is a simulated day boundary between Runtime Sessions, not elapsed real time.',
+  'Per-agent token usage is recorded only where a usage event exists; elsewhere it is unknown, not zero.',
+];
+
 const exported = buildAuditExport(caseId!, events, {
-  executionModes: Object.fromEntries(
-    CAPABILITY_TRUTH_ROWS.map((row) => [row.service, row.mode]),
-  ),
-  knownEvidenceGaps: [
-    'The ERP and Logistics systems are synthetic. No real vendor system was contacted.',
-    'Runtime wait and resume are recorded, not observed live.',
-    'The multi-week span is a simulated day boundary between Runtime Sessions, not elapsed real time.',
-    'Per-agent token usage is recorded only where a usage event exists; elsewhere it is unknown, not zero.',
-  ],
+  executionModes: Object.fromEntries(CAPABILITY_TRUTH_ROWS.map((row) => [row.service, row.mode])),
+  knownEvidenceGaps,
 });
 
-const badge = (service: string) => state?.platformBadges.filter((b) => b.service === service) ?? [];
+const decisionsFor = (service: string): number =>
+  state?.platformBadges.filter((badge) => badge.service === service).length ?? 0;
+
+/** Filter options, derived from the evidence rather than hard-coded. */
+const sessions = [...new Set(events.map((event) => event.sessionId ?? 'case-level'))];
+const domains = [...new Set(records.map((record) => record.domain))].sort();
+const outcomes = [...new Set(records.map((record) => record.outcome))].sort();
+const modes = [...new Set(records.map((record) => record.mode))].sort();
+const types = [...new Set(events.map((event) => event.type))].sort();
+
+const rows = events.map((event) => {
+  const record = recordByEventId.get(event.eventId);
+  return {
+    event,
+    humanIndex: event.caseSequence + 1,
+    domain: record?.domain ?? 'unknown',
+    outcome: record?.outcome ?? 'informational',
+    mode: (record?.mode ?? 'recorded') as ExecutionModeKey,
+    label: record?.label ?? event.type,
+  };
+});
 ---
 
 <BaseLayout title={`Audit · ${caseId}`}>
-  <p class="fs-lede">
-    The complete recorded evidence for this Case, and the exact inputs needed to
-    reconstruct it. Nothing here is inferred.
-  </p>
+  <PageHeader
+    title={`Audit · ${caseId}`}
+    lede="The complete recorded evidence for this Case, and the exact inputs needed to reconstruct it. Nothing here is inferred."
+  >
+    <ModeBadge slot="badges" mode="recorded" />
+    <a slot="actions" class="fs-button fs-button--sm" href={`/cases/${caseId}`}>Case Workspace</a>
+    <a slot="actions" class="fs-button fs-button--sm" href={`/cockpit/${caseId}`}>Fleet Cockpit</a>
+  </PageHeader>
 
-  <div class="fs-grid fs-grid--2" style="margin-bottom:var(--fs-space-4)">
+  <div class="fs-stack">
+    <CaseHeader summary={summary} compact />
+
     <section class="fs-card">
-      <h2>Replay inputs</h2>
-      <dl class="fs-kv fs-kv--tight">
-        <dt>Case</dt><dd>{caseId}</dd>
-        <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
-        <dt>Stream revision</dt><dd style="word-break:break-all">{exported.integrity.streamRevision}</dd>
-        <dt>Projector version</dt><dd>{exported.generatedFrom.projectorVersion}</dd>
-        <dt>Schema versions</dt><dd>{exported.generatedFrom.schemaVersions.join(', ')}</dd>
-        <dt>Event cursor</dt><dd>{exported.generatedFrom.eventCursor}</dd>
-        <dt>Terminal state hash</dt><dd style="word-break:break-all">{exported.integrity.stateHash}</dd>
-        <dt>Canonical events</dt><dd>{exported.integrity.eventCount}</dd>
-        <dt>Invariant violations</dt><dd>{exported.invariantViolations.length}</dd>
+      <div class="fs-section-head">
+        <h2>Evidence status</h2>
+        <span class="fs-section-head__aside">
+          {exported.invariantViolations.length === 0
+            ? 'No invariant violation recorded'
+            : `${exported.invariantViolations.length} invariant violation(s) recorded`}
+        </span>
+      </div>
+      <div class="fs-metrics">
+        <Metric label="Canonical events" value={exported.integrity.eventCount} />
+        <Metric label="Runtime Sessions" value={summary.sessionCount} />
+        <Metric label="Projector version" value={exported.generatedFrom.projectorVersion} />
+        <Metric label="Event cursor" value={exported.generatedFrom.eventCursor + 1} note="1-based" />
+        <Metric label="Evidence gaps" value={knownEvidenceGaps.length} note="disclosed below" />
+        <Metric
+          label="Invariant violations"
+          value={exported.invariantViolations.length}
+          note="recorded, never suppressed"
+        />
+      </div>
+      <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-4)">
+        <dt>Stream revision</dt>
+        <dd><CopyableDigest value={exported.integrity.streamRevision} label="stream revision" /></dd>
+        <dt>Terminal state hash</dt>
+        <dd><CopyableDigest value={exported.integrity.stateHash} label="state hash" /></dd>
+        <dt>Schema versions</dt><dd class="fs-mono">{exported.generatedFrom.schemaVersions.join(', ')}</dd>
       </dl>
-      <p class="fs-muted fs-note">
+      <p class="fs-note">
         Given the same canonical stream revision, event prefix and projector
         version, FleetScope reconstructs the same Observable Case State.
       </p>
     </section>
 
     <section class="fs-card">
-      <h2>Integrity</h2>
-      <dl class="fs-kv fs-kv--tight">
-        <dt>Algorithm</dt><dd>{exported.integrity.algorithm}</dd>
-        <dt>Export digest</dt><dd style="word-break:break-all">{exported.integrity.exportDigest}</dd>
-      </dl>
-      <p style="margin-top:var(--fs-space-3)">{exported.integrity.guarantee}</p>
-      <p class="fs-muted fs-note"><strong>Not guaranteed:</strong></p>
-      <ul class="fs-muted" style="font-size:12px;margin:var(--fs-space-1) 0 0;padding-left:1.2em">
-        {exported.integrity.notGuaranteed.map((item) => <li>{item}</li>)}
-      </ul>
-      <p style="margin-top:var(--fs-space-4)">
-        <button type="button" class="fs-button" data-variant="primary" data-export-download>
-          Download Case evidence export (JSON)
-        </button>
-      </p>
-    </section>
-
-    <section class="fs-card">
-      <h2>Runtime Sessions</h2>
-      <p class="fs-muted fs-note" style="margin-top:0">
-        A Case spans several Sessions. A Session is not the Case.
-      </p>
-      <ul class="fs-list">
-        {(state?.sessions ?? []).map((session) => (
-          <li class="fs-mono">
-            {session.sessionId} · {session.state} · started {session.startedAt} ·
-            {' '}high-water {session.highWaterMark}
-          </li>
-        ))}
-      </ul>
-    </section>
-
-    <section class="fs-card">
-      <h2>Platform capability modes</h2>
-      <p class="fs-muted fs-note" style="margin-top:0">
+      <h2>Capability truth</h2>
+      <p class="fs-note" style="margin-top:0">
         An interface is not an integration, and a configured service produces no
-        badge. Only recorded evidence does.
+        badge. Only recorded evidence does. A capability that records events but
+        issues no decision badge shows "—", never 0.
       </p>
-      <div class="fs-scroll-x">
+      <table class="fs-table">
+            <thead>
+              <tr>
+                <th>Capability</th><th>Mode</th><th>Decisions</th><th>What this evidence supports</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CAPABILITY_TRUTH_ROWS.map((row) => (
+                <tr>
+                  <td>{row.label}</td>
+                  <td>
+                    <ModeBadge
+                      mode={(row.mode === 'unavailable' ? 'unavailable' : row.mode) as ExecutionModeKey}
+                      compact
+                    />
+                  </td>
+                  <td class="fs-table__mono">
+                    <UnknownOr value={decisionsFor(row.service)} zeroMeans="unknown" />
+                  </td>
+                  <td style="white-space:normal">{row.claim}</td>
+                </tr>
+              ))}
+              <tr>
+                <td>Gemini live proof</td>
+                <td><ModeBadge mode="recorded" compact /></td>
+                <td class="fs-table__mono">
+                  <UnknownOr
+                    value={records.filter((record) => record.mode === 'live').length}
+                    zeroMeans="unknown"
+                  />
+                </td>
+                <td style="white-space:normal">
+                  This export contains no live model evidence. A live proof appends
+                  its own canonical events and is labelled Live Proof where present.
+                </td>
+              </tr>
+            </tbody>
+        </table>
+      </section>
+
+    <div class="fs-grid fs-grid--2">
+      <section class="fs-card">
+        <h2>Integrity and export</h2>
+        <dl class="fs-kv fs-kv--tight">
+          <dt>Algorithm</dt><dd class="fs-mono">{exported.integrity.algorithm}</dd>
+          <dt>Export digest</dt>
+          <dd><CopyableDigest value={exported.integrity.exportDigest} label="export digest" /></dd>
+        </dl>
+        <p style="margin-top:var(--fs-space-3)">{exported.integrity.guarantee}</p>
+        <p class="fs-note"><strong>Not guaranteed:</strong></p>
+        <ul class="fs-muted" style="font-size:12px;margin:var(--fs-space-1) 0 0;padding-left:1.2em">
+          {exported.integrity.notGuaranteed.map((item) => <li>{item}</li>)}
+        </ul>
+        <div class="fs-link-row" style="margin-top:var(--fs-space-4)">
+          <button type="button" class="fs-button" data-variant="primary" data-export-download>
+            Download Case evidence
+          </button>
+          <button type="button" class="fs-button" data-export-verify>Verify export</button>
+        </div>
+        <p class="fs-note" data-export-verify-result aria-live="polite"></p>
+      </section>
+
+      <section class="fs-card">
+        <div class="fs-section-head">
+          <h2>Known evidence gaps</h2>
+          <span class="fs-section-head__aside">{knownEvidenceGaps.length}</span>
+        </div>
+        <details>
+          <summary>What this Case does not prove</summary>
+          <ul class="fs-muted" style="font-size:12px;margin:var(--fs-space-2) 0 0;padding-left:1.2em">
+            {knownEvidenceGaps.map((gap) => <li>{gap}</li>)}
+          </ul>
+        </details>
+      </section>
+
+      <section class="fs-card">
+        <h2>Runtime Sessions</h2>
+        <p class="fs-note" style="margin-top:0">
+          A Case spans several Sessions. A Session is not the Case.
+        </p>
+        {(state?.sessions ?? []).length === 0 ? (
+          <EmptyState title="No Sessions recorded" />
+        ) : (
+          <ul class="fs-list fs-list--tight">
+            {state?.sessions.map((session) => (
+              <li class="fs-mono" style="font-size:12px">
+                {session.sessionId} · {session.state} · started {session.startedAt} · high-water{' '}
+                {session.highWaterMark + 1}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+
+    <section class="fs-card" data-audit-table>
+      <div class="fs-section-head">
+        <h2>Canonical event log</h2>
+        <span class="fs-section-head__aside">
+          <span data-audit-count>{rows.length}</span> of {rows.length} events shown
+        </span>
+      </div>
+
+      <div class="fs-rail__filters">
+        <label class="fs-field">
+          <span>Session</span>
+          <select class="fs-select" data-audit-filter="session">
+            <option value="">All</option>
+            {sessions.map((session) => <option value={session}>{session}</option>)}
+          </select>
+        </label>
+        <label class="fs-field">
+          <span>Capability</span>
+          <select class="fs-select" data-audit-filter="domain">
+            <option value="">All</option>
+            {domains.map((domain) => <option value={domain}>{domain}</option>)}
+          </select>
+        </label>
+        <label class="fs-field">
+          <span>Event type</span>
+          <select class="fs-select" data-audit-filter="type">
+            <option value="">All</option>
+            {types.map((type) => <option value={type}>{type}</option>)}
+          </select>
+        </label>
+        <label class="fs-field">
+          <span>Outcome</span>
+          <select class="fs-select" data-audit-filter="outcome">
+            <option value="">All</option>
+            {outcomes.map((outcome) => <option value={outcome}>{outcome}</option>)}
+          </select>
+        </label>
+        <label class="fs-field">
+          <span>Execution mode</span>
+          <select class="fs-select" data-audit-filter="mode">
+            <option value="">All</option>
+            {modes.map((mode) => <option value={mode}>{MODE_COPY[mode].label}</option>)}
+          </select>
+        </label>
+        <label class="fs-field" style="flex:1 1 200px">
+          <span>Search</span>
+          <input
+            class="fs-input"
+            type="search"
+            data-audit-search
+            placeholder="event id, agent, tool, policy, incident…"
+          />
+        </label>
+      </div>
+
+      <div class="fs-scroll-x fs-scroll-y">
         <table class="fs-table">
           <thead>
-            <tr><th>Capability</th><th>Mode</th><th>Decisions here</th><th>What this evidence supports</th></tr>
+            <tr>
+              <th>#</th><th>Time</th><th>Session</th><th>Capability</th><th>Event</th>
+              <th>Actor</th><th>Outcome</th><th>Mode</th><th>Evidence</th>
+            </tr>
           </thead>
-          <tbody>
-            {CAPABILITY_TRUTH_ROWS.map((row) => (
-              <tr>
-                <td>{row.label}</td>
+          <tbody data-audit-body>
+            {rows.map((row) => (
+              <tr
+                data-session={row.event.sessionId ?? 'case-level'}
+                data-domain={row.domain}
+                data-type={row.event.type}
+                data-outcome={row.outcome}
+                data-mode={row.mode}
+                data-search={`${row.event.eventId} ${row.event.type} ${row.label} ${row.event.actor.id} ${JSON.stringify(row.event.payloadRedacted)}`.toLowerCase()}
+              >
+                <td class="fs-table__num">{row.humanIndex}</td>
+                <td class="fs-table__mono">{row.event.sourceTime}</td>
+                <td class="fs-table__mono">{row.event.sessionId ?? '—'}</td>
+                <td class="fs-table__mono">{row.domain}</td>
                 <td>
-                  <span
-                    class="fs-badge"
-                    data-outcome={row.mode === 'unavailable' ? 'informational' : 'succeeded'}
-                  >
-                    <span class="fs-badge__glyph" aria-hidden="true">·</span>{row.mode}
-                  </span>
+                  <div>{row.label}</div>
+                  <div class="fs-mono fs-faint" style="font-size:10.5px">{row.event.type}</div>
                 </td>
-                <td>{badge(row.service).length === 0 ? '—' : String(badge(row.service).length)}</td>
-                <td style="white-space:normal;max-width:34ch">{row.claim}</td>
+                <td class="fs-table__mono">{row.event.actor.kind}:{row.event.actor.id}</td>
+                <td><StatusBadge kind="control" value={row.outcome} size="sm" /></td>
+                <td><ModeBadge mode={row.mode} compact /></td>
+                <td>
+                  <button
+                    type="button"
+                    class="fs-button fs-button--sm"
+                    data-variant="quiet"
+                    data-evidence-open={row.event.eventId}
+                  >Inspect</button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </section>
-  </div>
-
-  <div class="fs-grid fs-grid--2" style="margin-bottom:var(--fs-space-4)">
-    <section class="fs-card">
-      <h2>Memory provenance</h2>
-      <ul class="fs-list">
-        {(state?.memoryRecords ?? []).map((record) => (
-          <li>
-            <div>{record.summary}</div>
-            <div class="fs-mono fs-muted">
-              {record.memoryRecordId} · scope {record.scope} · from {record.sourceEventId} ·
-              {' '}{record.sensitivity}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-
-    <section class="fs-card">
-      <h2>Intervention lifecycle</h2>
-      <p class="fs-muted fs-note" style="margin-top:0">
-        Requested, acknowledged and succeeded are three separate recorded facts.
+      <p class="fs-note" data-audit-empty hidden>
+        No canonical event matches these filters.
       </p>
-      {(state?.interventions ?? []).length === 0 ? (
-        <p class="fs-placeholder">No interventions recorded.</p>
-      ) : (
-        <ul class="fs-list">
-          {state?.interventions.map((i) => (
-            <li class="fs-mono">
-              {i.interventionId} · {i.actionTemplate} · policy {i.policyVersion} ·
-              {' '}incident {i.incidentId} · <strong>{i.state}</strong> ·
-              {' '}Runtime operation <UnknownOr value={i.runtimeOperationId} />
-              {i.retryOf !== undefined && <> · retry of {i.retryOf}</>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-
-    <section class="fs-card">
-      <h2>Policy decisions</h2>
-      {(state?.policyDecisions ?? []).length === 0 ? (
-        <p class="fs-placeholder">No policy evaluations recorded.</p>
-      ) : (
-        <ul class="fs-list">
-          {state?.policyDecisions.map((decision) => (
-            <li>
-              <div class="fs-mono">
-                {decision.disposition} · {decision.policyVersion} · incident {decision.incidentId}
-              </div>
-              <div class="fs-muted">{decision.rationale}</div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-
-    <section class="fs-card">
-      <h2>Known evidence gaps</h2>
-      <ul style="margin:0;padding-left:1.2em">
-        {exported.knownEvidenceGaps.map((gap) => <li>{gap}</li>)}
-      </ul>
     </section>
   </div>
-
-  <section class="fs-card">
-    <h2>Canonical event log</h2>
-    <div class="fs-scroll-x fs-scroll-y">
-      <table class="fs-table">
-        <thead>
-          <tr>
-            <th>#</th><th>event</th><th>session</th><th>seq</th><th>type</th>
-            <th>actor</th><th>source time</th><th>accepted</th>
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((event) => (
-            <tr>
-              <td>{event.caseSequence}</td>
-              <td>{event.eventId}</td>
-              <td>{event.sessionId ?? '—'}</td>
-              <td>{event.sessionSequence ?? '—'}</td>
-              <td>{event.type}</td>
-              <td>{event.actor.kind}:{event.actor.id}</td>
-              <td>{event.sourceTime}</td>
-              <td>{event.acceptedTime}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </section>
 
   <script type="application/json" data-audit-export set:html={JSON.stringify(exported)} />
+  <EvidenceDrawer records={records} />
 </BaseLayout>
 
 <script>
+  import { verifyAuditExport, type AuditExport } from '@fleetscope/projector';
+
+  // ── Export ────────────────────────────────────────────────────────────────
   // The export is already inlined in the page, so the download works with the
   // network disabled — the same property the whole recorded demo depends on.
   const node = document.querySelector<HTMLScriptElement>('[data-audit-export]');
-  const button = document.querySelector<HTMLButtonElement>('[data-export-download]');
+  const download = document.querySelector<HTMLButtonElement>('[data-export-download]');
+  const verify = document.querySelector<HTMLButtonElement>('[data-export-verify]');
+  const verifyResult = document.querySelector<HTMLElement>('[data-export-verify-result]');
 
-  button?.addEventListener('click', () => {
+  download?.addEventListener('click', () => {
     if (node === null) return;
     const blob = new Blob([node.textContent ?? '{}'], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -235,4 +361,49 @@ const badge = (service: string) => state?.platformBadges.filter((b) => b.service
     link.remove();
     URL.revokeObjectURL(url);
   });
+
+  verify?.addEventListener('click', () => {
+    if (node === null || verifyResult === null) return;
+    // The repository's own verifier, run in the browser against the bundle in
+    // front of you: it recomputes the export digest and the stream revision, and
+    // RE-PROJECTS the exported events to confirm the state hash. That last check
+    // is the replay claim itself, verified from the export alone.
+    const exported = JSON.parse(node.textContent ?? '{}') as AuditExport;
+    const problems = verifyAuditExport(exported);
+    verifyResult.textContent =
+      problems.length === 0
+        ? 'Verified: the export digest, the stream revision and a full re-projection all agree. This is an application-level integrity manifest — it shows the bundle is internally consistent and replayable, not that it is cryptographically non-repudiable.'
+        : `Verification failed: ${problems.join('; ')}.`;
+    verifyResult.style.color = problems.length === 0 ? 'var(--fs-ok)' : 'var(--fs-deny)';
+  });
+
+  // ── Filters ───────────────────────────────────────────────────────────────
+  const table = document.querySelector<HTMLElement>('[data-audit-table]');
+  if (table !== null) {
+    const selects = [...table.querySelectorAll<HTMLSelectElement>('[data-audit-filter]')];
+    const search = table.querySelector<HTMLInputElement>('[data-audit-search]');
+    const count = table.querySelector<HTMLElement>('[data-audit-count]');
+    const empty = table.querySelector<HTMLElement>('[data-audit-empty]');
+    const bodyRows = [...table.querySelectorAll<HTMLTableRowElement>('[data-audit-body] tr')];
+
+    const apply = (): void => {
+      const text = (search?.value ?? '').trim().toLowerCase();
+      let shown = 0;
+      for (const row of bodyRows) {
+        const matches =
+          selects.every((select) => {
+            const key = select.dataset['auditFilter'] ?? '';
+            return select.value === '' || row.dataset[key] === select.value;
+          }) &&
+          (text === '' || (row.dataset['search'] ?? '').includes(text));
+        row.hidden = !matches;
+        if (matches) shown += 1;
+      }
+      if (count !== null) count.textContent = String(shown);
+      if (empty !== null) empty.hidden = shown > 0;
+    };
+
+    for (const select of selects) select.addEventListener('change', apply);
+    search?.addEventListener('input', apply);
+  }
 </script>
