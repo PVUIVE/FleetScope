@@ -15,22 +15,27 @@ merely a graph viewer, and the Cockpit is one surface within it, not the product
 ```mermaid
 graph TD
   subgraph recorded["Recorded path — the default, needs no backend"]
-    FX[Case fixture<br/>CASE-1042] --> CE[Canonical Events]
+    SE[Source Events<br/>duplicated, out of order] --> CZ[Canonicalizer<br/>validate · redact · dedup · order]
+    CZ --> CE[Canonical Events]
     CE --> CW[Case Workspace]
-    CE --> AU[Audit]
-    CE --> PR[Session Projector]
-    PR --> OCS[Observable Case State]
+    CE --> AP[Approvals]
+    CE --> AU[Audit + evidence export]
+    CE --> PR[Session Projector<br/>pure, versioned]
+    PR --> OCS[Observable Case State<br/>+ state hash]
+    CE --> WD[Incident Detector → Policy Engine → Warden]
     CE --> SC[Scenario Compiler]
-    SC --> TR[Cockpit transcript + evidence manifest]
-    TR --> WASM[Rust/WASM Fleet Cockpit]
+    SC --> TR[Zoetrope transcripts]
+    SC --> RM[Render Manifest]
+    TR --> WASM[Rust/WASM Fleet Cockpit<br/>vendored Zoetrope]
+    RM --> WASM
+    RM -.->|caseSequence ↔ renderer index| CUR[FleetScope Event Cursor]
   end
 
   subgraph live["Optional live path — bounded, off by default"]
-    WEB[Astro frontend] --> API[Bounded API]
-    API --> GEM[Gemini / selected platform adapter]
-    GEM --> CANON[Canonical result]
-    CANON --> APPEND[Browser append boundary]
-    APPEND --> WASM
+    WEB[Astro frontend] --> API[Bounded API<br/>allowlisted step, never a prompt]
+    API --> GEM[Gemini, one call, schema-checked]
+    GEM --> SE2[Source Events]
+    SE2 --> CZ
   end
 ```
 
@@ -40,21 +45,24 @@ disabled after first load.
 
 ## Repository map
 
-| Path                         | What it is                                                                               |
-| ---------------------------- | ---------------------------------------------------------------------------------------- |
-| `apps/web`                   | Astro product shell (static output). Catalog, Cases, Approvals, Cockpit mount, Audit.    |
-| `apps/api`                   | One small Hono service: `/health`, `/capability`, one bounded live proof. Optional.      |
-| `packages/domain`            | The FleetScope vocabulary. Framework-independent.                                        |
-| `packages/event-schema`      | Canonical Event envelope, the closed event-type set, JSONL codec, generated JSON Schema. |
-| `packages/projector`         | The versioned **pure** Session Projector and the state-hash contract.                    |
-| `packages/fixtures`          | Recorded Case evidence — a product asset, not a test leftover.                           |
-| `packages/scenario-compiler` | Canonical Events → Cockpit transcript, behind a `RendererAdapter` seam.                  |
-| `packages/platform-adapters` | The seven platform adapter interfaces with explicit `recorded / synthetic / live` modes. |
-| `packages/shared`            | Canonical JSON, SHA-256, `Result`, central config parsing, the live-mode guard.          |
-| `crates/fleet-cockpit`       | Rust: transcript model, Event Cursor, browser ABI (`fleetscope_*`).                      |
-| `vendor/`                    | Reserved for the pinned upstream WASM renderer. **Empty** — see `vendor/README.md`.      |
-| `docs/`                      | Product, requirements, design, plans, decisions, `architecture.md`.                      |
-| `scripts/`                   | `typecheck.sh`, `build-wasm.sh`, `smoke.sh`, `bless-fixtures.ts`.                        |
+| Path                         | What it is                                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`                   | Astro product shell (static output). Catalog, Cases, Approvals, Cockpit mount, Audit.                                  |
+| `apps/api`                   | One small Hono service: `/health`, `/capability`, one bounded live proof. Optional.                                    |
+| `packages/domain`            | The FleetScope vocabulary. Framework-independent.                                                                      |
+| `packages/event-schema`      | Canonical Event envelope, the closed event-type set, JSONL codec, generated JSON Schema.                               |
+| `packages/projector`         | The versioned **pure** Session Projector and the state-hash contract.                                                  |
+| `packages/fixtures`          | Recorded Case evidence — a product asset, not a test leftover.                                                         |
+| `packages/canonicalizer`     | **The primary redaction boundary.** Validate → redact → dedup → order → Canonical Event.                               |
+| `packages/scenario-compiler` | Canonical Events → renderer transcripts **+ the Render Manifest**, behind `RendererAdapter`.                           |
+| `packages/warden`            | Incident Detector, Policy Engine, and the Intervention lifecycle with at-most-once execution.                          |
+| `packages/platform-adapters` | The seven adapter interfaces, their `recorded / synthetic / live / unavailable` modes, and the capability truth table. |
+| `packages/shared`            | Canonical JSON, SHA-256, `Result`, central config parsing, the live-mode guard.                                        |
+| `crates/fleet-cockpit`       | Rust, **host-testable**: Render Manifest, Event Cursor, scene loading over the vendored renderer.                      |
+| `crates/fleet-cockpit-web`   | Rust, **wasm32-only**, its own workspace: the browser shell and the `fleetscope_*` ABI.                                |
+| `vendor/zoetrope`            | The pinned MIT renderer. See `vendor/VENDOR-PATCHES.md` — it is **patched**, not pristine.                             |
+| `docs/`                      | Product, requirements, design, plans, decisions, reports, `architecture.md`.                                           |
+| `scripts/`                   | `typecheck.sh`, `build-wasm.sh`, `smoke.sh`, `bless-fixtures.ts`, `recorded-run.ts`, `recorded-reliability.ts`.        |
 
 Dependency rules and per-package responsibilities: **`docs/architecture.md`**.
 
@@ -97,11 +105,14 @@ pnpm build:web
 pnpm build:wasm               # requires trunk
 
 pnpm scenario:compile CASE-1042   # canonical events → Cockpit transcript
-pnpm fixtures:bless               # regenerate blessed replay hashes
+pnpm fixtures:bless               # regenerate blessed hashes AND renderer artifacts
 pnpm schema:emit                  # regenerate JSON Schema from Zod
 
+pnpm recorded:run             # one complete Recorded Case run, as one JSON line
+pnpm reliability              # ten consecutive cold runs, compared field by field
+
 pnpm check                    # format + lint + typecheck + test + build
-pnpm smoke                    # the above plus the full Rust/WASM toolchain
+pnpm smoke                    # the above plus Rust, the vendored renderer, and WASM
 ```
 
 ## Recorded mode
@@ -124,8 +135,8 @@ mistaken for a live platform result.
 ## Live mode
 
 Optional, bounded, and off unless deliberately enabled. Turning it on requires
-`LIVE_MODE=true` **plus** `GEMINI_MODEL` and `GCP_PROJECT_ID`; the service refuses
-to boot otherwise.
+`LIVE_MODE=true` **plus** `GEMINI_MODEL` and `GEMINI_API_KEY`; the service refuses
+to boot otherwise, naming the missing variable and never a value.
 
 Guardrails, all enforced in code:
 
@@ -135,8 +146,15 @@ Guardrails, all enforced in code:
 - 2,000 input / 300 output tokens, temperature 0, 15 s timeout by default;
 - Cloud Run runs `min-instances=0`, `max-instances=1`, with no worker.
 
-The Gemini call itself is **not implemented yet**: with live mode on, an
-allowlisted step returns `501 not_implemented` rather than a fabricated result.
+One call, no retry, and a response that must satisfy a schema or the call counts
+as failed. `/live/decision` returns **Source Events**, never a rendered result:
+the client canonicalizes them onto its stream, projects, compiles and appends, so
+a live result becomes canonical evidence before it reaches an authoritative
+surface. A failure returns `200` with `mode: "recorded"` and records the attempt
+as evidence — FleetScope never fabricates a live success.
+
+**No live call has ever been made. USD 0.00 spent.** Every test injects a `fetch`
+that stays in-process, which is what lets the bounded path run in CI for free.
 See `docs/decisions/0003-bounded-live-path.md`.
 
 Never boot the normal UI with credentials. It does not need them.
@@ -151,18 +169,37 @@ pnpm typecheck                # every package + astro check
 pnpm lint
 pnpm format:check
 
-cargo test
+cargo test                    # FleetScope Rust, incl. the real Zoetrope integration
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
-cargo build --target wasm32-unknown-unknown -p fleet-cockpit
+
+# The vendored renderer, on its own terms — must stay green after every patch.
+cargo test  --manifest-path vendor/zoetrope/Cargo.toml
+cargo check --manifest-path vendor/zoetrope/Cargo.toml --no-default-features
+
+# The wasm-only browser crate (its own workspace).
+cargo check --manifest-path crates/fleet-cockpit-web/Cargo.toml \
+            --target wasm32-unknown-unknown
 
 pnpm smoke                    # everything above, with explicit PASS/FAIL/SKIP
+pnpm reliability              # ten cold Recorded Case runs, compared field by field
 ```
+
+| Suite                                                 |                                                        Tests |
+| ----------------------------------------------------- | -----------------------------------------------------------: |
+| TypeScript (`pnpm test`)                              |                                      **234** across 14 files |
+| FleetScope Rust (`cargo test`)                        |            **53** — 9 lib, 12 cursor, 23 scene, 9 transcript |
+| Vendored Zoetrope (`cargo test` in `vendor/zoetrope`) | **190** — 182 lib + 8 bin, unchanged by FleetScope's patches |
 
 `pnpm test:replay` is the load-bearing one: it proves that the same canonical
 prefix and projector version yield the same Observable Case State hash, and that
 the fixture upholds the product invariants (blocked input never used downstream,
 intervention states never collapsed, every badge traceable to an event).
+
+`crates/fleet-cockpit/tests/scene.rs` is the other: it folds the real compiled
+CASE-1042 through the real vendored renderer **on the host**, so "the Cockpit
+renders what FleetScope says it does" is checked by `cargo test` rather than
+discovered in a browser.
 
 ## Licensing
 
@@ -170,6 +207,10 @@ FleetScope is MIT licensed — see `LICENSE`.
 
 Third-party attribution lives in **`THIRD-PARTY-NOTICES.md`**, and only there:
 per product decision D8, notices stay in repository licensing files and do not
-appear in product navigation. `vendor/` is currently empty; the fork and
-attribution procedure for the planned upstream WASM renderer is written down in
-`vendor/README.md` and must be completed in the same commit that introduces it.
+appear in product navigation.
+
+The Fleet Cockpit renders on **Zoetrope** (MIT, © 2026 Furkan Kalaycioglu),
+vendored at `vendor/zoetrope/` and pinned to
+`077707da679955c0402c39ca992bf56cdc6b0264`. It is **not unmodified** — FleetScope
+carries a small patchset, recorded in full in **`vendor/VENDOR-PATCHES.md`**.
+Upstream's own suite (182 library + 8 binary tests) passes unchanged after it.

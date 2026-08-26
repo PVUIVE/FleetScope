@@ -46,6 +46,20 @@ and bounded Warden actions visible and auditable.
 
    must capture for judges and for internal acceptance.
 
+10. [Zoetrope audit and implementation plan](plans/zoetrope-audit-and-implementation-plan.md) —
+
+    the renderer decision, and the four points where the plan was wrong.
+
+11. [Implementation report, 2026-08-26](reports/fleetscope-end-to-end-implementation-2026-08-26.md) —
+
+    **what was actually built, with real command output.** Read this before
+
+    trusting any status claim in the plans above.
+
+12. [Decisions](decisions/) — 0001 tooling · 0002 renderer boundary (resolved) ·
+
+    0003 bounded live path · 0004 render manifest · 0005 redaction boundaries.
+
 The requirements use **MUST**, **SHOULD**, and **MAY** as normative terms.
 
 MUST is required for the MVP to conform; SHOULD is the default unless a
