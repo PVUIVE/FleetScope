@@ -1,5 +1,6 @@
 {
   "caseId": "CASE-1042",
+  "fixtureVersion": "1.0.0",
   "title": "Northwind Components onboarding",
   "vendor": "Northwind Components GmbH",
   "owner": "procurement@acme.example",

@@ -14,5 +14,10 @@
   "dependencies": {
     "@fleetscope/domain": "workspace:*",
     "@fleetscope/event-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@fleetscope/scenario-compiler": "workspace:*",
+    "@fleetscope/canonicalizer": "workspace:*",
+    "@fleetscope/projector": "workspace:*"
   }
 }

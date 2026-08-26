@@ -2,6 +2,13 @@ import type { ExecutionMode } from '@fleetscope/domain';
 
 export interface FixtureCaseDescriptor {
   readonly caseId: string;
+  /**
+   * The fixture's own version. Bump it whenever the canonical sequence CHANGES
+   * MEANING — not for a cosmetic edit. A recorded Case is referenced by blessed
+   * state hashes, an evidence manifest and a render manifest, so a silent change
+   * to it invalidates artifacts that look unchanged.
+   */
+  readonly fixtureVersion?: string;
   readonly title: string;
   readonly vendor: string;
   readonly owner: string;

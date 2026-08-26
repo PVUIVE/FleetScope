@@ -36,3 +36,48 @@ export function loadCanonicalEvents(caseId: string): CanonicalEvent[] {
   }
   return events;
 }
+
+// ── Compiled renderer artifacts ─────────────────────────────────────────────
+//
+// Blessed by `pnpm fixtures:bless`. Both the TypeScript suite and the Rust
+// Fleet Cockpit tests read these exact bytes, so a compiler change that breaks
+// the renderer cannot pass one suite while failing the other silently.
+
+export interface RendererSubagentFile {
+  readonly agentId: string;
+  readonly meta: string;
+  readonly transcript: string;
+}
+
+export const rendererDir = (caseId: string): string => join(fixtureCaseDir(caseId), 'renderer');
+
+export function loadRendererMain(caseId: string): string {
+  return readFileSync(join(rendererDir(caseId), 'main.jsonl'), 'utf8');
+}
+
+export function loadRendererSubagents(caseId: string): RendererSubagentFile[] {
+  return JSON.parse(
+    readFileSync(join(rendererDir(caseId), 'subagents.json'), 'utf8'),
+  ) as RendererSubagentFile[];
+}
+
+export function loadRenderManifest<T>(caseId: string): T {
+  return JSON.parse(readFileSync(join(rendererDir(caseId), 'render-manifest.json'), 'utf8')) as T;
+}
+
+/**
+ * The Source Events a recorded Case was canonicalized from.
+ *
+ * Stored in a deliberately adversarial ARRIVAL order — reversed, with one event
+ * delivered twice — so that canonicalizing it and getting the blessed canonical
+ * stream back is a real proof rather than a tautology. Returns raw JSON: these
+ * are untrusted inputs and validating them is the Canonicalizer's job.
+ */
+export function loadSourceEvents(caseId: string): unknown[] {
+  const text = readFileSync(join(fixtureCaseDir(caseId), 'source-events.jsonl'), 'utf8');
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => JSON.parse(line) as unknown);
+}
