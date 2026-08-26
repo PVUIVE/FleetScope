@@ -3,6 +3,10 @@ dist/
 target/
 .astro/
 docs/
+vendor/
+crates/
 packages/fixtures/cases/**/*.jsonl
+packages/fixtures/cases/**/renderer/
 packages/event-schema/schemas/
 pnpm-lock.yaml
+apps/web/public/wasm/

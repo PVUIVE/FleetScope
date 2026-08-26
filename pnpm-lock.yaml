@@ -11,6 +11,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.0
         version: 9.39.5
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:packages/canonicalizer
       '@fleetscope/domain':
         specifier: workspace:*
         version: link:packages/domain
@@ -32,6 +35,9 @@ importers:
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:packages/shared
+      '@fleetscope/warden':
+        specifier: workspace:*
+        version: link:packages/warden
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
@@ -77,9 +83,25 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.23.12
+      zod:
+        specifier: ^4.1.12
+        version: 4.4.3
+    devDependencies:
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:../../packages/canonicalizer
+      '@fleetscope/fixtures':
+        specifier: workspace:*
+        version: link:../../packages/fixtures
+      '@fleetscope/scenario-compiler':
+        specifier: workspace:*
+        version: link:../../packages/scenario-compiler
 
   apps/web:
     dependencies:
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:../../packages/canonicalizer
       '@fleetscope/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -89,6 +111,9 @@ importers:
       '@fleetscope/fixtures':
         specifier: workspace:*
         version: link:../../packages/fixtures
+      '@fleetscope/platform-adapters':
+        specifier: workspace:*
+        version: link:../../packages/platform-adapters
       '@fleetscope/projector':
         specifier: workspace:*
         version: link:../../packages/projector
@@ -98,6 +123,9 @@ importers:
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@fleetscope/warden':
+        specifier: workspace:*
+        version: link:../../packages/warden
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.4
@@ -108,6 +136,15 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+
+  packages/canonicalizer:
+    dependencies:
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
+      '@fleetscope/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/domain: {}
 
@@ -128,6 +165,16 @@ importers:
       '@fleetscope/event-schema':
         specifier: workspace:*
         version: link:../event-schema
+    devDependencies:
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:../canonicalizer
+      '@fleetscope/projector':
+        specifier: workspace:*
+        version: link:../projector
+      '@fleetscope/scenario-compiler':
+        specifier: workspace:*
+        version: link:../scenario-compiler
 
   packages/platform-adapters:
     dependencies:
@@ -161,8 +208,34 @@ importers:
       '@fleetscope/fixtures':
         specifier: workspace:*
         version: link:../fixtures
+      '@fleetscope/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:../canonicalizer
 
   packages/shared: {}
+
+  packages/warden:
+    dependencies:
+      '@fleetscope/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
+      '@fleetscope/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@fleetscope/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
+      '@fleetscope/projector':
+        specifier: workspace:*
+        version: link:../projector
 
 packages:
 

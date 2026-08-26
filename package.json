@@ -2,7 +2,7 @@
   "name": "fleetscope",
   "version": "0.1.0",
   "private": true,
-  "description": "FleetScope \u2014 enterprise agent-fleet control plane (monorepo root)",
+  "description": "FleetScope — enterprise agent-fleet control plane (monorepo root)",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "packageManager": "pnpm@11.24.0",
@@ -31,7 +31,10 @@
     "smoke": "bash scripts/smoke.sh",
     "schema:emit": "tsx packages/event-schema/src/emit-json-schema.ts",
     "fixtures:bless": "tsx scripts/bless-fixtures.ts",
-    "scenario:compile": "tsx packages/scenario-compiler/src/cli.ts"
+    "scenario:compile": "tsx packages/scenario-compiler/src/cli.ts",
+    "check:wasm": "cd crates/fleet-cockpit-web && cargo check",
+    "reliability": "tsx scripts/recorded-reliability.ts",
+    "recorded:run": "tsx scripts/recorded-run.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -48,6 +51,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.46.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@fleetscope/canonicalizer": "workspace:*",
+    "@fleetscope/warden": "workspace:*"
   }
 }

@@ -7,8 +7,16 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/dist/**',
       '**/.astro/**',
-      'target/**',
+      '**/target/**',
       'vendor/**',
+      // The libm / critical-section shim, copied verbatim from the vendored
+      // upstream. Browser JS with no build step; linting it against this
+      // project's Node-flavoured environment reports only false positives.
+      'crates/**/*.js',
+      // Generated wasm-bindgen glue, staged by scripts/build-wasm.sh. It is a
+      // build artifact, not source, and it targets the browser rather than this
+      // project's lint environment.
+      'apps/web/public/wasm/**',
       'packages/fixtures/cases/**',
       'packages/event-schema/schemas/**',
     ],
