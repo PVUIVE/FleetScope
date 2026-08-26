@@ -3,51 +3,267 @@
  * The WASM mounting boundary.
  *
  * The Rust/WASM Cockpit takes over `#fleetscope-cockpit-canvas`. Nothing else in
- * the app writes into that element, so the renderer can own its DOM subtree
+ * the app writes into that element, so the renderer owns its DOM subtree
  * entirely and the Astro shell keeps owning everything around it.
+ *
+ * The transport strip, the Event Cursor readout and the Return-to-live control
+ * are DOM, not renderer: they speak in FleetScope's units (Canonical Events),
+ * which the renderer deliberately does not know.
  */
+import type { RenderManifest } from '@fleetscope/scenario-compiler';
+
 interface Props {
   caseId: string;
-  lastCaseSequence: number;
+  manifest: RenderManifest;
+  main: string;
+  subagentsJson: string;
+  /** Every accepted caseSequence, in order. FleetScope's unit for unread. */
+  caseSequences: readonly number[];
 }
-const { caseId, lastCaseSequence } = Astro.props;
+const { caseId, manifest, main, subagentsJson, caseSequences } = Astro.props;
 ---
 
-<section class="fs-card" style="min-height:360px;display:flex;flex-direction:column;gap:var(--fs-space-3)">
-  <h2>Fleet Cockpit</h2>
+<section class="fs-card fs-cockpit">
+  <header class="fs-cockpit__bar">
+    <h2 id="fs-cockpit-heading">Fleet Cockpit</h2>
+    <span class="fs-transport" data-transport-badge data-transport="idle" role="status" aria-live="polite">
+      <span class="fs-transport__dot" aria-hidden="true"></span>
+      <span data-transport-label>Recorded · at latest event</span>
+    </span>
+    <span class="fs-cursor-readout" data-cursor-readout>
+      Event <strong data-cursor-sequence>—</strong> of {manifest.lastCaseSequence}
+    </span>
+    <button type="button" class="fs-button" data-return-to-live hidden>
+      Return to live<span data-unread-count></span>
+    </button>
+  </header>
+
   <div
     id="fleetscope-cockpit-canvas"
+    class="fs-cockpit__canvas"
+    role="img"
+    aria-labelledby="fs-cockpit-heading"
+    aria-describedby="fs-cockpit-fallback"
     data-case-id={caseId}
-    data-last-case-sequence={lastCaseSequence}
-    style="flex:1;min-height:300px;display:grid;place-items:center"
   >
-    <p class="fs-placeholder" data-cockpit-fallback>
-      Loading Fleet Cockpit…
-    </p>
+    <p class="fs-placeholder" id="fs-cockpit-fallback" data-cockpit-fallback>Loading Fleet Cockpit…</p>
   </div>
+
+  <p class="fs-cockpit__hint">
+    The graph is <strong>secondary evidence</strong>. Every decision below it is recorded
+    independently in the evidence rail and the Audit view.
+    Keys: <kbd>space</kbd> play/pause · <kbd>[</kbd>/<kbd>]</kbd> step · <kbd>g</kbd> latest ·
+    <kbd>o</kbd> overview · <kbd>f</kbd> follow · <kbd>?</kbd> help.
+  </p>
+
+  <!--
+    The compiled Case travels as inert JSON, not as executable script. Inlined at
+    build time so the recorded demo needs no network after first load.
+  -->
+  <script type="application/json" data-cockpit-scene set:html={JSON.stringify({
+    caseId,
+    manifest,
+    main,
+    subagentsJson,
+    caseSequences,
+  })} />
 </section>
 
 <script>
-  import { createCockpit } from './lib/cockpit-adapter';
+  import { createCockpit, canonicalEventFor } from './lib/cockpit-adapter';
+  import {
+    acceptEvents,
+    caseId as toCaseId,
+    createCaseCursor,
+    returnToLive,
+    seekCursor,
+    type CaseCursorState,
+  } from '@fleetscope/domain';
+  import type { RenderManifest, RenderManifestEntry } from '@fleetscope/scenario-compiler';
 
-  const cockpit = createCockpit();
-  const fallback = document.querySelector('[data-cockpit-fallback]');
-
-  if (!cockpit.available && fallback instanceof HTMLElement) {
-    // State the real reason. A demo that shows a fake graph here would be
-    // exactly the "UI invents behavior" failure the product forbids.
-    fallback.textContent = cockpit.unavailableReason ?? 'Fleet Cockpit unavailable.';
+  interface SceneData {
+    caseId: string;
+    manifest: RenderManifest;
+    main: string;
+    subagentsJson: string;
+    caseSequences: number[];
   }
 
-  // Evidence markers drive the Event Cursor. Wired now so the contract is
-  // exercised; it becomes visible the moment the renderer is vendored.
+  const sceneNode = document.querySelector<HTMLScriptElement>('[data-cockpit-scene]');
   const canvas = document.getElementById('fleetscope-cockpit-canvas');
-  const last = Number(canvas?.dataset.lastCaseSequence ?? 0);
+  const fallback = document.querySelector<HTMLElement>('[data-cockpit-fallback]');
 
-  for (const marker of document.querySelectorAll<HTMLElement>('[data-evidence-marker]')) {
-    marker.addEventListener('click', () => {
-      const caseSequence = Number(marker.dataset.caseSequence ?? 0);
-      cockpit.seekToCaseSequence(caseSequence, last);
+  if (sceneNode !== null && canvas !== null) {
+    const scene = JSON.parse(sceneNode.textContent ?? '{}') as SceneData;
+    void mount(scene);
+  }
+
+  async function mount(scene: SceneData): Promise<void> {
+    // FleetScope owns the Event Cursor, the high-water mark and therefore the
+    // canonical unread count. The renderer is never asked for any of them.
+    let cursor: CaseCursorState = createCaseCursor(toCaseId(scene.caseId), scene.caseSequences);
+
+    // The generated wasm-bindgen glue is a build artifact in /public, outside the
+    // Vite module graph and outside TypeScript's view of the project. The
+    // specifier is held in a variable so Vite treats it as a runtime URL rather
+    // than trying to resolve it at build time, and the module's shape is asserted
+    // against the ABI this app actually calls — `createCockpit` then verifies
+    // every required export really is a function before anything is invoked.
+    const specifier = '/wasm/cockpit.js';
+    try {
+      const module = (await import(/* @vite-ignore */ specifier)) as {
+        default: () => Promise<unknown>;
+      } & Record<string, unknown>;
+      await module.default();
+      (globalThis as Record<string, unknown>)['fleetscopeCockpit'] = module;
+    } catch (error) {
+      // Say the real reason. Drawing a fake graph here would be exactly the
+      // "UI invents behavior" failure the product forbids.
+      if (fallback !== null) {
+        fallback.textContent =
+          'The Fleet Cockpit renderer could not be loaded (' +
+          (error instanceof Error ? error.message : 'unknown error') +
+          '). Recorded evidence is still complete in the evidence rail, the Case Workspace and the Audit view.';
+      }
+      wireEvidenceRail(null, scene, () => cursor, (next) => (cursor = next));
+      render(null, cursor, scene.manifest);
+      return;
+    }
+
+    const cockpit = createCockpit();
+    if (!cockpit.available) {
+      if (fallback !== null) fallback.textContent = cockpit.unavailableReason ?? 'Fleet Cockpit unavailable.';
+      wireEvidenceRail(null, scene, () => cursor, (next) => (cursor = next));
+      render(null, cursor, scene.manifest);
+      return;
+    }
+
+    cockpit.load(scene.main, scene.subagentsJson, JSON.stringify(scene.manifest));
+    fallback?.remove();
+
+    wireEvidenceRail(
+      cockpit,
+      scene,
+      () => cursor,
+      (next) => (cursor = next),
+    );
+
+    document.querySelector('[data-return-to-live]')?.addEventListener('click', () => {
+      // Order matters: every accepted event must already be projected before the
+      // cursor moves to the edge, or the edge would omit accepted evidence.
+      cursor = returnToLive(cursor, scene.caseSequences);
+      cockpit.goLive();
+      render(cockpit, cursor, scene.manifest);
     });
+
+    // The renderer has its own transport (the operator can scrub inside the
+    // canvas), so the shell follows it rather than assuming it is the only
+    // thing that moves the view.
+    let lastRendererIndex = -1;
+    const poll = (): void => {
+      const snapshot = cockpit.snapshot();
+      if (snapshot !== null && snapshot.rendererEntryIndex !== lastRendererIndex) {
+        lastRendererIndex = snapshot.rendererEntryIndex;
+        const entry = canonicalEventFor(scene.manifest, snapshot.rendererEntryIndex);
+        if (entry !== null) {
+          cursor = snapshot.atEdge
+            ? returnToLive(cursor, scene.caseSequences)
+            : seekCursor(cursor, scene.caseSequences, entry.caseSequence);
+        }
+      }
+      render(cockpit, cursor, scene.manifest);
+      requestAnimationFrame(poll);
+    };
+    requestAnimationFrame(poll);
+
+    // Exposed for the optional bounded live path: it appends canonical evidence
+    // and the manifest delta together, never one without the other.
+    (globalThis as Record<string, unknown>)['fleetscopeAppend'] = (
+      mainTail: string,
+      subagents: string,
+      entries: RenderManifestEntry[],
+    ): void => {
+      cockpit.append(mainTail, subagents, JSON.stringify(entries));
+      for (const entry of entries) scene.caseSequences.push(entry.caseSequence);
+      cursor = acceptEvents(cursor, scene.caseSequences);
+      render(cockpit, cursor, scene.manifest);
+    };
+  }
+
+  /** Evidence markers drive the Event Cursor — through the manifest, never a ratio. */
+  function wireEvidenceRail(
+    cockpit: ReturnType<typeof createCockpit> | null,
+    scene: SceneData,
+    read: () => CaseCursorState,
+    write: (next: CaseCursorState) => void,
+  ): void {
+    for (const marker of document.querySelectorAll<HTMLElement>('[data-evidence-marker]')) {
+      const activate = (): void => {
+        const caseSequence = Number(marker.dataset['caseSequence'] ?? 0);
+        write(seekCursor(read(), scene.caseSequences, caseSequence));
+        cockpit?.seekToCaseSequence(caseSequence);
+
+        for (const other of document.querySelectorAll('[data-evidence-marker]')) {
+          other.setAttribute('aria-current', String(other === marker));
+        }
+        render(cockpit, read(), scene.manifest);
+      };
+      marker.addEventListener('click', activate);
+      marker.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activate();
+        }
+      });
+    }
+  }
+
+  /**
+   * Paint the FleetScope-owned readouts.
+   *
+   * Historical evidence must never read as live, and an unknown value must never
+   * render as zero — both are handled here rather than left to each caller.
+   */
+  function render(
+    cockpit: ReturnType<typeof createCockpit> | null,
+    cursor: CaseCursorState,
+    manifest: RenderManifest,
+  ): void {
+    const snapshot = cockpit?.snapshot() ?? null;
+    const badge = document.querySelector<HTMLElement>('[data-transport-badge]');
+    const label = document.querySelector<HTMLElement>('[data-transport-label]');
+    const sequence = document.querySelector<HTMLElement>('[data-cursor-sequence]');
+    const button = document.querySelector<HTMLElement>('[data-return-to-live]');
+    const unread = document.querySelector<HTMLElement>('[data-unread-count]');
+
+    const historical = !cursor.atEdge;
+    const transport = snapshot?.transport ?? (historical ? 'history' : 'idle');
+
+    if (badge !== null) {
+      badge.dataset['transport'] = transport;
+      badge.dataset['historical'] = String(historical);
+    }
+    if (label !== null) {
+      label.textContent = historical
+        ? 'Historical · recorded evidence, nothing is executing'
+        : 'Recorded · at latest event';
+    }
+    if (sequence !== null) {
+      sequence.textContent = cursor.eventCursor < 0 ? '—' : String(cursor.eventCursor);
+    }
+    if (button !== null) {
+      button.hidden = !historical;
+    }
+    if (unread !== null) {
+      // Canonical unread is FleetScope's count of accepted Canonical Events after
+      // the cursor — never the number of renderer items, which is a different
+      // unit entirely.
+      unread.textContent = cursor.canonicalUnread > 0 ? ` · +${cursor.canonicalUnread} new` : '';
+    }
+
+    const entry = snapshot === null ? null : canonicalEventFor(manifest, snapshot.rendererEntryIndex);
+    document.dispatchEvent(
+      new CustomEvent('fleetscope:cursor', { detail: { cursor, entry, transport } }),
+    );
   }
 </script>

@@ -17,3 +17,4 @@ export * from './evidence.js';
 export * from './incident.js';
 export * from './intervention.js';
 export * from './state.js';
+export * from './cursor.js';

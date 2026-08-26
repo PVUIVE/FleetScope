@@ -1,6 +1,7 @@
 import { parseCanonicalEventsJsonl, type CanonicalEvent } from '@fleetscope/event-schema';
 import { project, type ProjectionResult } from '@fleetscope/projector';
 import type { EvidenceManifest, FixtureCaseDescriptor } from '@fleetscope/fixtures';
+import type { RenderManifest } from '@fleetscope/scenario-compiler';
 
 /**
  * Fixture loading for the static build.
@@ -25,6 +26,20 @@ const agentVersionFiles = import.meta.glob<{ default: unknown[] }>(
   '../../../../packages/fixtures/cases/*/agent-versions.json',
   { eager: true },
 );
+// The compiled renderer artifacts. Inlined at BUILD time like everything else
+// here, so the Cockpit renders with the network disabled after first load.
+const renderManifestFiles = import.meta.glob<{ default: RenderManifest }>(
+  '../../../../packages/fixtures/cases/*/renderer/render-manifest.json',
+  { eager: true },
+);
+const rendererMainFiles = import.meta.glob<string>(
+  '../../../../packages/fixtures/cases/*/renderer/main.jsonl',
+  { eager: true, query: '?raw', import: 'default' },
+);
+const rendererSubagentFiles = import.meta.glob<string>(
+  '../../../../packages/fixtures/cases/*/renderer/subagents.json',
+  { eager: true, query: '?raw', import: 'default' },
+);
 
 const byCaseId = <T>(files: Record<string, T>): Map<string, T> => {
   const map = new Map<string, T>();
@@ -39,6 +54,9 @@ const cases = byCaseId(caseFiles);
 const manifests = byCaseId(manifestFiles);
 const events = byCaseId(eventFiles);
 const agentVersions = byCaseId(agentVersionFiles);
+const renderManifests = byCaseId(renderManifestFiles);
+const rendererMains = byCaseId(rendererMainFiles);
+const rendererSubagents = byCaseId(rendererSubagentFiles);
 
 export const listCaseIds = (): string[] => [...cases.keys()].sort();
 
@@ -62,6 +80,30 @@ export function getCanonicalEvents(caseId: string): CanonicalEvent[] {
     throw new Error(`Fixture ${caseId} failed to parse at build time: ${failures[0]?.problem}`);
   }
   return parsed;
+}
+
+/**
+ * The compiled renderer scene for a Case.
+ *
+ * Returns null when the Case has not been compiled yet, so a surface can say so
+ * rather than render an empty graph that looks like an empty Case.
+ */
+export interface RendererScene {
+  readonly main: string;
+  readonly subagentsJson: string;
+  readonly manifest: RenderManifest;
+}
+
+export function getRendererScene(caseId: string): RendererScene | null {
+  const manifest = renderManifests.get(caseId)?.default;
+  const main = rendererMains.get(caseId);
+  const subagentsJson = rendererSubagents.get(caseId);
+  if (manifest === undefined || main === undefined || subagentsJson === undefined) return null;
+  return { main, subagentsJson, manifest };
+}
+
+export function getRenderManifest(caseId: string): RenderManifest | null {
+  return renderManifests.get(caseId)?.default ?? null;
 }
 
 /** Project a recorded Case. Pure — safe to call during static rendering. */

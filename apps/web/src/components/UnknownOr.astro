@@ -1,0 +1,46 @@
+---
+/**
+ * Render a value, or say it is unknown.
+ *
+ * `0` and "unknown" are different facts and the product must never conflate
+ * them: an agent with no recorded usage has not used zero tokens, it has an
+ * unmeasured cost. Rendering `0` there invents a measurement FleetScope does not
+ * have — the same class of error as a badge that appears because a service is
+ * configured rather than because it decided something.
+ *
+ * `zeroMeans="recorded"` marks the case where zero really was observed (a
+ * counter that legitimately totalled nothing) and should print as `0`.
+ */
+interface Props {
+  value: string | number | null | undefined;
+  /** Whether a numeric zero is a real measurement or an absent one. */
+  zeroMeans?: 'unknown' | 'recorded';
+  prefix?: string;
+  suffix?: string;
+  /** What to show when the value is absent. */
+  unknownLabel?: string;
+}
+const {
+  value,
+  zeroMeans = 'recorded',
+  prefix = '',
+  suffix = '',
+  unknownLabel = 'Not recorded',
+} = Astro.props;
+
+const isUnknown =
+  value === null ||
+  value === undefined ||
+  value === '' ||
+  (typeof value === 'number' && !Number.isFinite(value)) ||
+  (value === 0 && zeroMeans === 'unknown');
+---
+
+{isUnknown ? (
+  <span class="fs-unknown" title="FleetScope has no recorded value for this.">
+    <span aria-hidden="true">—</span>
+    <span class="fs-visually-hidden">{unknownLabel}</span>
+  </span>
+) : (
+  <span>{prefix}{value}{suffix}</span>
+)}
