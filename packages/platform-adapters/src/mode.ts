@@ -5,12 +5,15 @@
  *   synthetic — deterministic local behavior with real FleetScope-side policy,
  *               standing in for a system we do not have (e.g. the ERP).
  *   live      — calls the actual platform service. Requires LIVE_MODE=true.
+ *   unavailable — the boundary exists and nothing behind it does. A surface
+ *               that depends on it must say so; it must never fall back to a
+ *               plausible value.
  *
  * A `synthetic` or `recorded` response MUST NEVER be labelled or surfaced as a
  * real platform response. That is the one rule in this package that has no
  * exceptions: it is the difference between a demo and a lie.
  */
-export const ADAPTER_MODES = ['recorded', 'synthetic', 'live'] as const;
+export const ADAPTER_MODES = ['recorded', 'synthetic', 'live', 'unavailable'] as const;
 export type AdapterMode = (typeof ADAPTER_MODES)[number];
 
 export interface AdapterDescriptor {

@@ -18,6 +18,12 @@ export interface AgentVersion {
    * Kept explicitly separate so the UI can label its provenance.
    */
   readonly fleetscopeRiskClass?: 'low' | 'medium' | 'high';
+  /**
+   * Protected systems this version may reach. Also FleetScope metadata: the
+   * Registry records capabilities, and which real system a capability touches is
+   * a FleetScope mapping. Labelled as such wherever it is shown.
+   */
+  readonly fleetscopeProtectedSystems?: readonly string[];
 }
 
 export const AGENT_INSTANCE_STATES = [

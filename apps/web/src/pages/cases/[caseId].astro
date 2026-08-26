@@ -1,7 +1,18 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import EvidencePanel from '../../components/EvidencePanel.astro';
-import { getCaseDescriptor, getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+import UnknownOr from '../../components/UnknownOr.astro';
+import {
+  getCanonicalEvents,
+  getCaseDescriptor,
+  listCaseIds,
+  projectCase,
+} from '../../lib/fixtures';
+import {
+  answerCaseQuestions,
+  milestoneRail,
+  recentActivity,
+  simulatedDayBoundaries,
+} from '../../lib/case-view';
 
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
@@ -9,68 +20,149 @@ export function getStaticPaths() {
 
 const { caseId } = Astro.params;
 const descriptor = getCaseDescriptor(caseId!);
-const manifest = getEvidenceManifest(caseId!);
+const events = getCanonicalEvents(caseId!);
 const projection = projectCase(caseId!);
 const state = projection?.state ?? null;
 
-// Case Workspace is a BUSINESS projection of the same Observable Case State the
-// Cockpit uses — milestone, last progress, waiting reason, next action.
-const memory = state?.memoryRecords ?? [];
+const answers = state === null ? [] : answerCaseQuestions(state, events);
+const rail = state === null ? [] : milestoneRail(state);
+const activity = recentActivity(events);
+const boundaries = simulatedDayBoundaries(events);
 const pendingApprovals = (state?.approvals ?? []).filter((a) => a.state === 'pending');
 ---
 
 <BaseLayout title={`Case ${caseId}`}>
+  <section class="fs-card fs-case-head">
+    <div>
+      <h2>{caseId} · {descriptor?.vendor}</h2>
+      <p class="fs-muted">{descriptor?.title}</p>
+    </div>
+    <dl class="fs-kv fs-kv--inline">
+      <dt>Agent Version</dt><dd class="fs-mono">{descriptor?.agentVersionRef}</dd>
+      <dt>Case state</dt><dd><UnknownOr value={state?.caseState} /></dd>
+      <dt>Runtime Sessions</dt><dd class="fs-mono">{state?.sessions.length ?? 0}</dd>
+      <dt>Owner</dt><dd class="fs-mono">{descriptor?.owner}</dd>
+    </dl>
+  </section>
+
+  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
+    <h2>Milestones</h2>
+    <ul class="fs-milestones">
+      {rail.map((step) => (
+        <li class="fs-milestone" data-state={step.state}>
+          <span aria-hidden="true">{step.state === 'done' ? '✓ ' : step.state === 'current' ? '▸ ' : '· '}</span>
+          {step.milestone}
+          <span class="fs-visually-hidden">
+            {step.state === 'done' ? ' (complete)' : step.state === 'current' ? ' (current)' : ' (not reached)'}
+          </span>
+        </li>
+      ))}
+    </ul>
+    {boundaries.length > 0 && (
+      <p class="fs-muted fs-note">
+        {boundaries.map((b) => `Simulated Day ${b.day} · Session ${b.sessionId ?? 'unknown'}`).join(' · ')}
+        {' '}— a separate Runtime invocation in the recorded scenario, not elapsed real time.
+      </p>
+    )}
+  </section>
+
+  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
+    <h2>Where this Case stands</h2>
+    <div class="fs-answers">
+      {answers.map((answer) => (
+        <article class="fs-answer">
+          <p class="fs-answer__q">{answer.question}</p>
+          <p class="fs-answer__a">
+            {answer.unknown ? <UnknownOr value={null} /> : answer.answer}
+          </p>
+          {answer.evidenceEventId !== null && (
+            <p class="fs-mono fs-muted" style="margin:var(--fs-space-2) 0 0">
+              evidence #{answer.caseSequence} · {answer.evidenceEventId}
+            </p>
+          )}
+        </article>
+      ))}
+    </div>
+  </section>
+
   <div class="fs-grid fs-grid--2">
     <section class="fs-card">
-      <h2>Case</h2>
-      <dl class="fs-kv">
-        <dt>Vendor</dt><dd>{descriptor?.vendor}</dd>
-        <dt>Objective</dt><dd>{descriptor?.title}</dd>
-        <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
-        <dt>Memory scope</dt><dd>{descriptor?.memoryScope}</dd>
-        <dt>Milestone</dt><dd>{state?.currentMilestone ?? 'unknown'}</dd>
-        <dt>Case state</dt><dd>{state?.caseState ?? 'unknown'}</dd>
-        <dt>Sessions</dt><dd>{state?.sessions.map((s) => `${s.sessionId} (${s.state})`).join(', ')}</dd>
-        <dt>Projector</dt><dd>{state?.projectorVersion}</dd>
-        <dt>State hash</dt><dd>{projection?.stateHash.slice(0, 16)}…</dd>
-      </dl>
-    </section>
-
-    <section class="fs-card">
       <h2>Trusted context</h2>
-      {memory.length === 0 ? (
-        <p class="fs-placeholder">No Memory Records in this prefix.</p>
+      <p class="fs-muted fs-note" style="margin-top:0">
+        Memory Records are provenance-bearing data, never instructions. Each names
+        the Canonical Event it came from.
+      </p>
+      {(state?.memoryRecords ?? []).length === 0 ? (
+        <p class="fs-placeholder">No Memory Records in this evidence prefix.</p>
       ) : (
-        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:var(--fs-space-3)">
-          {memory.map((record) => (
+        <ul class="fs-list">
+          {state?.memoryRecords.map((record) => (
             <li>
               <div>{record.summary}</div>
-              <div style="color:var(--fs-text-muted);font-size:12px;font-family:var(--fs-mono)">
-                scope {record.scope} · from {record.sourceEventId} · {record.sensitivity}
+              <div class="fs-mono fs-muted">
+                {record.memoryRecordId} · scope {record.scope} · from {record.sourceEventId} ·
+                {' '}{record.sensitivity}
               </div>
             </li>
           ))}
         </ul>
       )}
-      <p style="color:var(--fs-text-muted);font-size:12px;margin-bottom:0">
-        Memory Records are provenance-bearing data, never instructions.
-      </p>
     </section>
 
     <section class="fs-card">
-      <h2>Approvals</h2>
+      <h2>Needs an operator</h2>
       {pendingApprovals.length === 0 ? (
-        <p class="fs-placeholder">No approval is currently outstanding.</p>
+        <p class="fs-placeholder">Nothing is outstanding for an operator.</p>
       ) : (
-        <ul>{pendingApprovals.map((a) => <li>{a.actionTemplate} → {a.target}</li>)}</ul>
+        <ul class="fs-list">
+          {pendingApprovals.map((approval) => (
+            <li>
+              <div>{approval.actionTemplate} → {approval.target}</div>
+              <div class="fs-mono fs-muted">
+                bound to evidence #{approval.boundCaseSequence} · expires {approval.expiresAt}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
-      <p style="margin-bottom:0"><a href="/approvals">Approval Inbox →</a></p>
+      <p style="margin:var(--fs-space-3) 0 0"><a href="/approvals">Approval Inbox →</a></p>
     </section>
 
-    <EvidencePanel markers={manifest?.platformEvidence ?? []} heading="Platform decisions" />
+    <section class="fs-card">
+      <h2>Recent activity</h2>
+      {activity.length === 0 ? (
+        <p class="fs-placeholder">No recorded activity yet.</p>
+      ) : (
+        <ul class="fs-list">
+          {activity.map((row) => (
+            <li>
+              <div>{row.description}</div>
+              <div class="fs-mono fs-muted">
+                #{row.caseSequence} · {row.eventId} · {row.sessionId ?? 'case-level'} · {row.at}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="fs-card">
+      <h2>Replay disclosure</h2>
+      <dl class="fs-kv fs-kv--tight">
+        <dt>Projector version</dt><dd>{state?.projectorVersion}</dd>
+        <dt>Event cursor</dt><dd>{state?.cursor.caseSequence}</dd>
+        <dt>State hash</dt><dd style="word-break:break-all">{projection?.stateHash}</dd>
+        <dt>Invariant violations</dt><dd>{state?.invariantViolations.length ?? 0}</dd>
+      </dl>
+      <p class="fs-muted fs-note">
+        Given the same canonical stream revision, event prefix and projector
+        version, FleetScope reconstructs the same Observable Case State.
+      </p>
+    </section>
   </div>
 
-  <p style="margin-top:var(--fs-space-5)">
+  <p style="margin-top:var(--fs-space-5);display:flex;gap:var(--fs-space-4)">
     <a href={`/cockpit/${caseId}`}>Open Fleet Cockpit →</a>
+    <a href={`/audit/${caseId}`}>Open Audit →</a>
   </p>
 </BaseLayout>

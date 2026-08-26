@@ -1,34 +1,94 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import UnknownOr from '../components/UnknownOr.astro';
 import { listCaseIds, projectCase } from '../lib/fixtures';
+import { approvalRows } from '../lib/approvals';
 
-// An approval binds an EXACT action, target, evidence prefix, and expiry. It is
-// never a reusable "let the agent continue" permission.
-const approvals = listCaseIds().flatMap((caseId) => {
+const rows = listCaseIds().flatMap((caseId) => {
   const state = projectCase(caseId)?.state;
-  return (state?.approvals ?? []).map((approval) => ({ caseId, approval }));
+  return state === undefined ? [] : approvalRows(caseId, state);
 });
+
+const outstanding = rows.filter((row) => row.approval.state === 'pending');
+const decided = rows.filter((row) => row.approval.state !== 'pending');
 ---
 
 <BaseLayout title="Approval Inbox">
-  {approvals.length === 0 ? (
-    <p class="fs-placeholder">No approvals in recorded evidence.</p>
-  ) : (
-    <div class="fs-grid">
-      {approvals.map(({ caseId, approval }) => (
-        <article class="fs-card">
-          <h2>{approval.actionTemplate}</h2>
-          <dl class="fs-kv">
-            <dt>Case</dt><dd><a href={`/cases/${caseId}`}>{caseId}</a></dd>
-            <dt>Target</dt><dd>{approval.target}</dd>
-            <dt>Bound to event</dt><dd>#{approval.boundCaseSequence}</dd>
-            <dt>Expires</dt><dd>{approval.expiresAt}</dd>
-            <dt>State</dt>
-            <dd><span class="fs-badge" data-outcome={approval.state === 'approved' ? 'allowed' : 'flagged'}>{approval.state}</span></dd>
-            <dt>Approver</dt><dd>{approval.approver ?? 'unknown'}</dd>
-          </dl>
-        </article>
-      ))}
-    </div>
-  )}
+  <p class="fs-lede">
+    An approval authorizes <strong>one</strong> action, on one target, with one set
+    of parameters, against one evidence prefix, until one expiry. It is never a
+    standing permission to continue — change any part of the request and the
+    approval no longer applies.
+  </p>
+
+  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
+    <h2>Outstanding</h2>
+    {outstanding.length === 0 ? (
+      <p class="fs-placeholder">Nothing is waiting on an operator.</p>
+    ) : (
+      <div class="fs-grid">
+        {outstanding.map((row) => (
+          <article class="fs-answer">
+            <h3 style="margin:0 0 var(--fs-space-2);font-size:15px">{row.approval.actionTemplate}</h3>
+            <dl class="fs-kv fs-kv--tight">
+              <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
+              <dt>Target</dt><dd>{row.approval.target}</dd>
+              <dt>Side effect</dt><dd>{row.sideEffect}</dd>
+              <dt>Bound to evidence</dt><dd>#{row.approval.boundCaseSequence}</dd>
+              <dt>Expires</dt><dd>{row.approval.expiresAt}</dd>
+              <dt>Binding</dt><dd style="word-break:break-all">{row.fingerprint}</dd>
+            </dl>
+            <p class="fs-muted fs-note">{row.status.usable ? '' : row.status.reason}</p>
+          </article>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <section class="fs-card">
+    <h2>Decided</h2>
+    {decided.length === 0 ? (
+      <p class="fs-placeholder">No approvals in recorded evidence.</p>
+    ) : (
+      <div class="fs-grid">
+        {decided.map((row) => (
+          <article class="fs-answer">
+            <header style="display:flex;align-items:baseline;gap:var(--fs-space-3);flex-wrap:wrap">
+              <h3 style="margin:0;font-size:15px">{row.approval.actionTemplate}</h3>
+              <span
+                class="fs-badge"
+                data-outcome={row.approval.state === 'approved' ? 'succeeded' : 'denied'}
+              >
+                <span class="fs-badge__glyph" aria-hidden="true">
+                  {row.approval.state === 'approved' ? '✓' : '⊘'}
+                </span>
+                {row.approval.state}
+              </span>
+            </header>
+            <dl class="fs-kv fs-kv--tight" style="margin-top:var(--fs-space-2)">
+              <dt>Case</dt><dd><a href={`/cases/${row.caseId}`}>{row.caseId}</a></dd>
+              <dt>Target</dt><dd>{row.approval.target}</dd>
+              <dt>Side effect</dt><dd>{row.sideEffect}</dd>
+              <dt>Approver</dt><dd><UnknownOr value={row.approval.approver} /></dd>
+              <dt>Bound to evidence</dt><dd>#{row.approval.boundCaseSequence}</dd>
+              <dt>Expires</dt><dd>{row.approval.expiresAt}</dd>
+              <dt>Binding</dt><dd style="word-break:break-all">{row.fingerprint}</dd>
+              <dt>Still authorizes</dt>
+              <dd>
+                {row.status.usable
+                  ? 'yes — the recorded action matches this binding exactly'
+                  : row.status.reason}
+              </dd>
+            </dl>
+          </article>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <p class="fs-muted fs-note">
+    The binding fingerprint covers the Case, action, target, parameters and the
+    exact evidence prefix. Recomputing it at the moment of use is what makes a
+    parameter change invalidate the approval rather than silently inherit it.
+  </p>
 </BaseLayout>

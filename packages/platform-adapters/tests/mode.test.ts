@@ -11,8 +11,11 @@ import {
 const srcDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 
 describe('adapter modes', () => {
-  it('declares exactly the three documented modes', () => {
-    expect([...ADAPTER_MODES]).toEqual(['recorded', 'synthetic', 'live']);
+  it('declares exactly the four documented modes', () => {
+    // `unavailable` is the honest fourth state: the boundary exists and nothing
+    // behind it does. A surface that depends on it must say so rather than fall
+    // back to a plausible value.
+    expect([...ADAPTER_MODES]).toEqual(['recorded', 'synthetic', 'live', 'unavailable']);
   });
 
   it('forces a descriptor to state its upstream, even when there is none', () => {

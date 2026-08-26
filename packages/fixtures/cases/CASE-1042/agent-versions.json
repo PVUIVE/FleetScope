@@ -24,7 +24,8 @@
     "allowedCallers": ["procurement_manager", "fleet_administrator"],
     "approvalState": "approved",
     "publishedAt": "2026-08-14T00:00:00.000Z",
-    "fleetscopeRiskClass": "high"
+    "fleetscopeRiskClass": "high",
+    "fleetscopeProtectedSystems": ["erp.acme.internal/inventory", "erp.acme.internal/vendors"]
   },
   {
     "ref": "logistics-checker@0.9",
@@ -38,6 +39,7 @@
     "allowedCallers": ["vendor-onboarding"],
     "approvalState": "approved",
     "publishedAt": "2026-08-02T00:00:00.000Z",
-    "fleetscopeRiskClass": "low"
+    "fleetscopeRiskClass": "low",
+    "fleetscopeProtectedSystems": []
   }
 ]

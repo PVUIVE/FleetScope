@@ -38,6 +38,11 @@
 
 body {
   margin: 0;
+  /*
+   * Belt and braces for the supported sizes (1440x900 and 1280x720): wide
+   * content must scroll inside its own container, never take the page with it.
+   */
+  overflow-x: hidden;
   background: var(--fs-bg);
   color: var(--fs-text);
   font-family: var(--fs-font);
@@ -111,11 +116,19 @@ a {
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius);
   padding: var(--fs-space-4);
+  /*
+   * A grid or flex item defaults to `min-width: auto`, which refuses to shrink
+   * below its content. One long digest inside a card would then widen the whole
+   * layout. Wide content scrolls inside its own container (.fs-scroll-x); the
+   * page itself never scrolls sideways.
+   */
+  min-width: 0;
 }
 
 .fs-grid {
   display: grid;
   gap: var(--fs-space-4);
+  min-width: 0;
 }
 .fs-grid--2 {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -172,6 +185,15 @@ a {
   margin: 0;
   font-family: var(--fs-mono);
   font-size: 13px;
+  /*
+   * A stream revision and a state hash are 64 unbreakable hex characters. In a
+   * `max-content 1fr` grid they set the column's intrinsic width, which pushes
+   * the page past the viewport and gives the BODY a horizontal scrollbar —
+   * forbidden at the supported sizes. Breaking anywhere is correct for a digest:
+   * it has no words to preserve.
+   */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .fs-placeholder {
@@ -191,4 +213,370 @@ h2 {
   color: var(--fs-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+/* ── Shared utilities ──────────────────────────────────────────────────────── */
+
+.fs-mono {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+}
+.fs-muted {
+  color: var(--fs-text-muted);
+}
+.fs-note {
+  font-size: 12px;
+  margin: var(--fs-space-2) 0 0;
+}
+.fs-lede {
+  color: var(--fs-text-muted);
+  max-width: 72ch;
+  margin: 0 0 var(--fs-space-4);
+}
+.fs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--fs-space-2);
+}
+.fs-kv--tight {
+  gap: var(--fs-space-1) var(--fs-space-3);
+}
+.fs-kv--inline {
+  grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+  gap: var(--fs-space-1) var(--fs-space-5);
+}
+.fs-kv--inline dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/*
+ * Screen-reader-only text. Every state that is signalled with a glyph or a hue
+ * also carries a word here, so nothing depends on colour alone.
+ */
+.fs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* An absent measurement. Never rendered as 0 — see components/UnknownOr.astro. */
+.fs-unknown {
+  color: var(--fs-unknown);
+  font-family: var(--fs-mono);
+}
+
+.fs-button {
+  background: var(--fs-surface-raised);
+  color: var(--fs-text);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-1) var(--fs-space-3);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.fs-button:hover {
+  border-color: var(--fs-info);
+}
+.fs-button[data-variant='primary'] {
+  border-color: var(--fs-info);
+  color: var(--fs-info);
+}
+
+kbd {
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  border: 1px solid var(--fs-border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--fs-text-muted);
+}
+
+/* ── Outcome badges ────────────────────────────────────────────────────────── */
+/*
+ * Semantic outcomes, kept apart on purpose. `sanitized` and `flagged` are
+ * SUCCESSES with a finding; `denied` and `blocked` are policy decisions;
+ * `failed` is an execution failure. Each pairs its hue with a glyph and the
+ * outcome word, so the distinction survives without colour.
+ */
+.fs-badge__glyph {
+  font-weight: 700;
+}
+.fs-badge[data-outcome='succeeded'] {
+  border-color: var(--fs-ok);
+  color: var(--fs-ok);
+}
+.fs-badge[data-outcome='failed'] {
+  border-color: var(--fs-deny);
+  color: var(--fs-deny);
+}
+.fs-badge[data-outcome='pending'] {
+  border-color: var(--fs-info);
+  color: var(--fs-info);
+}
+.fs-badge[data-outcome='informational'] {
+  border-color: var(--fs-border);
+  color: var(--fs-text-muted);
+}
+
+/* ── Fleet Cockpit ─────────────────────────────────────────────────────────── */
+
+.fs-cockpit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr);
+  gap: var(--fs-space-4);
+  align-items: start;
+}
+/* 1280x720 is a supported size; below it the rail stacks under the graph. */
+@media (max-width: 1180px) {
+  .fs-cockpit-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.fs-cockpit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-3);
+  min-height: 520px;
+}
+.fs-cockpit__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  flex-wrap: wrap;
+}
+.fs-cockpit__bar h2 {
+  margin: 0;
+  flex: 0 0 auto;
+}
+.fs-cockpit__canvas {
+  flex: 1;
+  min-height: 440px;
+  display: grid;
+  place-items: center;
+  background: #121212;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  overflow: hidden;
+}
+.fs-cockpit__hint {
+  font-size: 12px;
+  color: var(--fs-text-muted);
+  margin: 0;
+}
+
+.fs-cursor-readout {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  color: var(--fs-text-muted);
+  margin-left: auto;
+}
+
+/*
+ * The transport strip.
+ *
+ * Historical mode must not look live. The live dot pulses; the historical dot is
+ * a static hollow ring and the label says so in words, so the distinction never
+ * rests on the animation.
+ */
+.fs-transport {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: 2px var(--fs-space-2);
+  color: var(--fs-text-muted);
+}
+.fs-transport__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fs-unknown);
+}
+.fs-transport[data-transport='live'] .fs-transport__dot {
+  background: var(--fs-ok);
+  animation: fs-pulse 1.6s ease-in-out infinite;
+}
+.fs-transport[data-transport='playing'] .fs-transport__dot {
+  background: var(--fs-info);
+}
+.fs-transport[data-historical='true'] {
+  border-color: var(--fs-warn);
+  color: var(--fs-warn);
+}
+.fs-transport[data-historical='true'] .fs-transport__dot {
+  background: transparent;
+  border: 2px solid var(--fs-warn);
+  animation: none;
+}
+@keyframes fs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-transport[data-transport='live'] .fs-transport__dot {
+    animation: none;
+  }
+}
+
+/* ── Evidence rail ─────────────────────────────────────────────────────────── */
+
+.fs-rail {
+  display: grid;
+  gap: var(--fs-space-4);
+  min-width: 0;
+}
+.fs-drawer__head p {
+  margin: 0 0 var(--fs-space-3);
+  font-size: 12px;
+}
+.fs-drawer__body {
+  max-height: 420px;
+  overflow-y: auto;
+  margin-top: var(--fs-space-3);
+  border-top: 1px solid var(--fs-border);
+}
+.fs-evidence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fs-evidence-row {
+  display: grid;
+  grid-template-columns: 3.5rem max-content 1fr;
+  gap: var(--fs-space-2);
+  align-items: baseline;
+  padding: var(--fs-space-2);
+  border-bottom: 1px solid var(--fs-border);
+  cursor: pointer;
+}
+.fs-evidence-row:hover {
+  background: var(--fs-surface-raised);
+}
+.fs-evidence-row[aria-current='true'] {
+  background: var(--fs-surface-raised);
+  box-shadow: inset 3px 0 0 var(--fs-info);
+}
+.fs-evidence-row__seq {
+  color: var(--fs-text-muted);
+}
+.fs-evidence-row__label {
+  font-size: 13px;
+}
+.fs-evidence-row__meta {
+  grid-column: 1 / -1;
+  color: var(--fs-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Case surfaces ─────────────────────────────────────────────────────────── */
+
+.fs-case-head {
+  display: flex;
+  gap: var(--fs-space-5);
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: var(--fs-space-4);
+}
+.fs-case-head h2 {
+  color: var(--fs-text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 17px;
+}
+
+.fs-answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--fs-space-3);
+}
+.fs-answer {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-3);
+  background: var(--fs-surface-raised);
+}
+.fs-answer__q {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-muted);
+  margin: 0 0 var(--fs-space-2);
+}
+.fs-answer__a {
+  margin: 0;
+  font-size: 14px;
+}
+
+.fs-milestones {
+  display: flex;
+  gap: var(--fs-space-2);
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.fs-milestone {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-1) var(--fs-space-3);
+  font-size: 12px;
+  color: var(--fs-text-muted);
+}
+.fs-milestone[data-state='done'] {
+  border-color: var(--fs-ok);
+  color: var(--fs-ok);
+}
+.fs-milestone[data-state='current'] {
+  border-color: var(--fs-info);
+  color: var(--fs-info);
+  font-weight: 600;
+}
+
+.fs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fs-mono);
+  font-size: 12px;
+}
+.fs-table th {
+  text-align: left;
+  color: var(--fs-text-muted);
+  font-weight: 500;
+  padding: var(--fs-space-1) var(--fs-space-2);
+  position: sticky;
+  top: 0;
+  background: var(--fs-surface);
+}
+.fs-table td {
+  padding: var(--fs-space-1) var(--fs-space-2);
+  border-top: 1px solid var(--fs-border);
+  vertical-align: top;
+}
+.fs-scroll-x {
+  overflow-x: auto;
+}
+.fs-scroll-y {
+  max-height: 520px;
+  overflow-y: auto;
 }

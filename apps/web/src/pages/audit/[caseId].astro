@@ -1,6 +1,9 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getCanonicalEvents, getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+import UnknownOr from '../../components/UnknownOr.astro';
+import { getCanonicalEvents, getCaseDescriptor, listCaseIds, projectCase } from '../../lib/fixtures';
+import { buildAuditExport } from '@fleetscope/projector';
+import { CAPABILITY_TRUTH_ROWS } from '@fleetscope/platform-adapters';
 
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
@@ -8,50 +11,228 @@ export function getStaticPaths() {
 
 const { caseId } = Astro.params;
 const events = getCanonicalEvents(caseId!);
-const manifest = getEvidenceManifest(caseId!);
+const descriptor = getCaseDescriptor(caseId!);
 const projection = projectCase(caseId!);
+const state = projection?.state ?? null;
+
+const exported = buildAuditExport(caseId!, events, {
+  executionModes: Object.fromEntries(
+    CAPABILITY_TRUTH_ROWS.map((row) => [row.service, row.mode]),
+  ),
+  knownEvidenceGaps: [
+    'The ERP and Logistics systems are synthetic. No real vendor system was contacted.',
+    'Runtime wait and resume are recorded, not observed live.',
+    'The multi-week span is a simulated day boundary between Runtime Sessions, not elapsed real time.',
+    'Per-agent token usage is recorded only where a usage event exists; elsewhere it is unknown, not zero.',
+  ],
+});
+
+const badge = (service: string) => state?.platformBadges.filter((b) => b.service === service) ?? [];
 ---
 
 <BaseLayout title={`Audit · ${caseId}`}>
-  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
-    <h2>Integrity</h2>
-    <dl class="fs-kv">
-      <dt>Canonical events</dt><dd>{events.length}</dd>
-      <dt>Schema versions</dt><dd>{manifest?.schemaVersions.join(', ')}</dd>
-      <dt>Projector version</dt><dd>{projection?.state.projectorVersion}</dd>
-      <dt>Terminal state hash</dt><dd>{projection?.stateHash}</dd>
-      <dt>Invariant violations</dt><dd>{projection?.state.invariantViolations.length ?? 0}</dd>
-    </dl>
-    <p style="color:var(--fs-text-muted);font-size:12px;margin-bottom:0">{manifest?.integrity.note}</p>
-  </section>
+  <p class="fs-lede">
+    The complete recorded evidence for this Case, and the exact inputs needed to
+    reconstruct it. Nothing here is inferred.
+  </p>
+
+  <div class="fs-grid fs-grid--2" style="margin-bottom:var(--fs-space-4)">
+    <section class="fs-card">
+      <h2>Replay inputs</h2>
+      <dl class="fs-kv fs-kv--tight">
+        <dt>Case</dt><dd>{caseId}</dd>
+        <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
+        <dt>Stream revision</dt><dd style="word-break:break-all">{exported.integrity.streamRevision}</dd>
+        <dt>Projector version</dt><dd>{exported.generatedFrom.projectorVersion}</dd>
+        <dt>Schema versions</dt><dd>{exported.generatedFrom.schemaVersions.join(', ')}</dd>
+        <dt>Event cursor</dt><dd>{exported.generatedFrom.eventCursor}</dd>
+        <dt>Terminal state hash</dt><dd style="word-break:break-all">{exported.integrity.stateHash}</dd>
+        <dt>Canonical events</dt><dd>{exported.integrity.eventCount}</dd>
+        <dt>Invariant violations</dt><dd>{exported.invariantViolations.length}</dd>
+      </dl>
+      <p class="fs-muted fs-note">
+        Given the same canonical stream revision, event prefix and projector
+        version, FleetScope reconstructs the same Observable Case State.
+      </p>
+    </section>
+
+    <section class="fs-card">
+      <h2>Integrity</h2>
+      <dl class="fs-kv fs-kv--tight">
+        <dt>Algorithm</dt><dd>{exported.integrity.algorithm}</dd>
+        <dt>Export digest</dt><dd style="word-break:break-all">{exported.integrity.exportDigest}</dd>
+      </dl>
+      <p style="margin-top:var(--fs-space-3)">{exported.integrity.guarantee}</p>
+      <p class="fs-muted fs-note"><strong>Not guaranteed:</strong></p>
+      <ul class="fs-muted" style="font-size:12px;margin:var(--fs-space-1) 0 0;padding-left:1.2em">
+        {exported.integrity.notGuaranteed.map((item) => <li>{item}</li>)}
+      </ul>
+      <p style="margin-top:var(--fs-space-4)">
+        <button type="button" class="fs-button" data-variant="primary" data-export-download>
+          Download Case evidence export (JSON)
+        </button>
+      </p>
+    </section>
+
+    <section class="fs-card">
+      <h2>Runtime Sessions</h2>
+      <p class="fs-muted fs-note" style="margin-top:0">
+        A Case spans several Sessions. A Session is not the Case.
+      </p>
+      <ul class="fs-list">
+        {(state?.sessions ?? []).map((session) => (
+          <li class="fs-mono">
+            {session.sessionId} · {session.state} · started {session.startedAt} ·
+            {' '}high-water {session.highWaterMark}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="fs-card">
+      <h2>Platform capability modes</h2>
+      <p class="fs-muted fs-note" style="margin-top:0">
+        An interface is not an integration, and a configured service produces no
+        badge. Only recorded evidence does.
+      </p>
+      <div class="fs-scroll-x">
+        <table class="fs-table">
+          <thead>
+            <tr><th>Capability</th><th>Mode</th><th>Decisions here</th><th>What this evidence supports</th></tr>
+          </thead>
+          <tbody>
+            {CAPABILITY_TRUTH_ROWS.map((row) => (
+              <tr>
+                <td>{row.label}</td>
+                <td>
+                  <span
+                    class="fs-badge"
+                    data-outcome={row.mode === 'unavailable' ? 'informational' : 'succeeded'}
+                  >
+                    <span class="fs-badge__glyph" aria-hidden="true">·</span>{row.mode}
+                  </span>
+                </td>
+                <td>{badge(row.service).length === 0 ? '—' : String(badge(row.service).length)}</td>
+                <td style="white-space:normal;max-width:34ch">{row.claim}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="fs-grid fs-grid--2" style="margin-bottom:var(--fs-space-4)">
+    <section class="fs-card">
+      <h2>Memory provenance</h2>
+      <ul class="fs-list">
+        {(state?.memoryRecords ?? []).map((record) => (
+          <li>
+            <div>{record.summary}</div>
+            <div class="fs-mono fs-muted">
+              {record.memoryRecordId} · scope {record.scope} · from {record.sourceEventId} ·
+              {' '}{record.sensitivity}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="fs-card">
+      <h2>Intervention lifecycle</h2>
+      <p class="fs-muted fs-note" style="margin-top:0">
+        Requested, acknowledged and succeeded are three separate recorded facts.
+      </p>
+      {(state?.interventions ?? []).length === 0 ? (
+        <p class="fs-placeholder">No interventions recorded.</p>
+      ) : (
+        <ul class="fs-list">
+          {state?.interventions.map((i) => (
+            <li class="fs-mono">
+              {i.interventionId} · {i.actionTemplate} · policy {i.policyVersion} ·
+              {' '}incident {i.incidentId} · <strong>{i.state}</strong> ·
+              {' '}Runtime operation <UnknownOr value={i.runtimeOperationId} />
+              {i.retryOf !== undefined && <> · retry of {i.retryOf}</>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="fs-card">
+      <h2>Policy decisions</h2>
+      {(state?.policyDecisions ?? []).length === 0 ? (
+        <p class="fs-placeholder">No policy evaluations recorded.</p>
+      ) : (
+        <ul class="fs-list">
+          {state?.policyDecisions.map((decision) => (
+            <li>
+              <div class="fs-mono">
+                {decision.disposition} · {decision.policyVersion} · incident {decision.incidentId}
+              </div>
+              <div class="fs-muted">{decision.rationale}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="fs-card">
+      <h2>Known evidence gaps</h2>
+      <ul style="margin:0;padding-left:1.2em">
+        {exported.knownEvidenceGaps.map((gap) => <li>{gap}</li>)}
+      </ul>
+    </section>
+  </div>
 
   <section class="fs-card">
     <h2>Canonical event log</h2>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-family:var(--fs-mono);font-size:12px">
+    <div class="fs-scroll-x fs-scroll-y">
+      <table class="fs-table">
         <thead>
-          <tr style="text-align:left;color:var(--fs-text-muted)">
-            <th style="padding:4px 8px">#</th>
-            <th style="padding:4px 8px">event</th>
-            <th style="padding:4px 8px">session</th>
-            <th style="padding:4px 8px">type</th>
-            <th style="padding:4px 8px">actor</th>
-            <th style="padding:4px 8px">source time</th>
+          <tr>
+            <th>#</th><th>event</th><th>session</th><th>seq</th><th>type</th>
+            <th>actor</th><th>source time</th><th>accepted</th>
           </tr>
         </thead>
         <tbody>
           {events.map((event) => (
-            <tr style="border-top:1px solid var(--fs-border)">
-              <td style="padding:4px 8px">{event.caseSequence}</td>
-              <td style="padding:4px 8px">{event.eventId}</td>
-              <td style="padding:4px 8px">{event.sessionId ?? '—'}</td>
-              <td style="padding:4px 8px">{event.type}</td>
-              <td style="padding:4px 8px">{event.actor.kind}:{event.actor.id}</td>
-              <td style="padding:4px 8px">{event.sourceTime}</td>
+            <tr>
+              <td>{event.caseSequence}</td>
+              <td>{event.eventId}</td>
+              <td>{event.sessionId ?? '—'}</td>
+              <td>{event.sessionSequence ?? '—'}</td>
+              <td>{event.type}</td>
+              <td>{event.actor.kind}:{event.actor.id}</td>
+              <td>{event.sourceTime}</td>
+              <td>{event.acceptedTime}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   </section>
+
+  <script type="application/json" data-audit-export set:html={JSON.stringify(exported)} />
 </BaseLayout>
+
+<script>
+  // The export is already inlined in the page, so the download works with the
+  // network disabled — the same property the whole recorded demo depends on.
+  const node = document.querySelector<HTMLScriptElement>('[data-audit-export]');
+  const button = document.querySelector<HTMLButtonElement>('[data-export-download]');
+
+  button?.addEventListener('click', () => {
+    if (node === null) return;
+    const blob = new Blob([node.textContent ?? '{}'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const parsed = JSON.parse(node.textContent ?? '{}') as { caseId?: string };
+    link.download = `${parsed.caseId ?? 'case'}-evidence-export.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  });
+</script>

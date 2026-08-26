@@ -1,56 +1,137 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import EvidencePanel from '../../components/EvidencePanel.astro';
 import CockpitMount from '../../features/cockpit/CockpitMount.astro';
-import { getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+import DecisionEvidence from '../../components/DecisionEvidence.astro';
+import UnknownOr from '../../components/UnknownOr.astro';
+import {
+  getCanonicalEvents,
+  getCaseDescriptor,
+  getRendererScene,
+  listCaseIds,
+  projectCase,
+} from '../../lib/fixtures';
+import { streamRevisionOf } from '@fleetscope/canonicalizer';
 
 export function getStaticPaths() {
   return listCaseIds().map((caseId) => ({ params: { caseId } }));
 }
 
 const { caseId } = Astro.params;
-const manifest = getEvidenceManifest(caseId!);
-const state = projectCase(caseId!)?.state ?? null;
+const events = getCanonicalEvents(caseId!);
+const projection = projectCase(caseId!);
+const state = projection?.state ?? null;
+const descriptor = getCaseDescriptor(caseId!);
+const scene = getRendererScene(caseId!);
+const caseSequences = events.map((event) => event.caseSequence);
 ---
 
 <BaseLayout title={`Fleet Cockpit · ${caseId}`}>
-  <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:var(--fs-space-4)">
-    <CockpitMount caseId={caseId!} lastCaseSequence={manifest?.lastCaseSequence ?? 0} />
-    <div class="fs-grid">
-      <EvidencePanel markers={manifest?.platformEvidence ?? []} />
+  <p class="fs-lede">
+    The expert operations surface. The graph is derived from the same Canonical Events
+    the Case Workspace and the Audit view read — it explains them, it does not
+    replace them.
+  </p>
+
+  <section class="fs-card fs-case-head">
+    <div>
+      <h2>{caseId} · {descriptor?.vendor}</h2>
+      <p class="fs-muted">{descriptor?.title}</p>
+    </div>
+    <dl class="fs-kv fs-kv--inline">
+      <dt>Agent Version</dt><dd class="fs-mono">{descriptor?.agentVersionRef}</dd>
+      <dt>Case state</dt><dd><UnknownOr value={state?.caseState} /></dd>
+      <dt>Milestone</dt><dd><UnknownOr value={state?.currentMilestone} /></dd>
+      <dt>Sessions</dt><dd class="fs-mono">{state?.sessions.length ?? 0}</dd>
+    </dl>
+  </section>
+
+  <div class="fs-cockpit-layout">
+    {scene === null ? (
+      <section class="fs-card">
+        <h2>Fleet Cockpit</h2>
+        <p class="fs-placeholder">
+          This Case has not been compiled for the renderer. Run <code>pnpm fixtures:bless</code>.
+          Recorded evidence is unaffected and remains complete below.
+        </p>
+      </section>
+    ) : (
+      <CockpitMount
+        caseId={caseId!}
+        manifest={scene.manifest}
+        main={scene.main}
+        subagentsJson={scene.subagentsJson}
+        caseSequences={caseSequences}
+      />
+    )}
+
+    <div class="fs-rail">
+      {scene !== null && (
+        <DecisionEvidence
+          manifest={scene.manifest}
+          events={events}
+          streamRevision={streamRevisionOf(events)}
+          projectorVersion={state?.projectorVersion ?? 'unknown'}
+          stateHash={projection?.stateHash ?? 'unknown'}
+        />
+      )}
+
       <section class="fs-card">
         <h2>Incidents</h2>
         {(state?.incidents ?? []).length === 0 ? (
-          <p class="fs-placeholder">No incidents recorded.</p>
+          <p class="fs-placeholder">No incidents in this evidence prefix.</p>
         ) : (
-          <ul style="list-style:none;padding:0;margin:0;display:grid;gap:var(--fs-space-2)">
+          <ul class="fs-list">
             {state?.incidents.map((incident) => (
               <li>
-                <span class="fs-badge" data-outcome={incident.state === 'resolved' ? 'allowed' : 'flagged'}>
+                <span class="fs-badge" data-outcome={incident.state === 'resolved' ? 'succeeded' : 'flagged'}>
+                  <span class="fs-badge__glyph" aria-hidden="true">{incident.state === 'resolved' ? '✓' : '!'}</span>
                   {incident.incidentClass}
                 </span>
-                <span style="color:var(--fs-text-muted);font-size:12px;font-family:var(--fs-mono)">
+                <span class="fs-mono fs-muted">
                   {' '}{incident.incidentId} · {incident.state} · {incident.severity}
+                  {' '}· detector {incident.detectorId}@{incident.detectorVersion}
                 </span>
               </li>
             ))}
           </ul>
         )}
       </section>
+
       <section class="fs-card">
         <h2>Interventions</h2>
+        <p class="fs-muted fs-note">
+          Requested is not acknowledged, and acknowledged is not succeeded. Each step
+          is a separate recorded fact.
+        </p>
         {(state?.interventions ?? []).length === 0 ? (
-          <p class="fs-placeholder">No interventions recorded.</p>
+          <p class="fs-placeholder">No interventions in this evidence prefix.</p>
         ) : (
-          <ul style="list-style:none;padding:0;margin:0">
-            {state?.interventions.map((i) => (
-              <li style="font-family:var(--fs-mono);font-size:12px">
-                {i.interventionId} · {i.actionTemplate} · <strong>{i.state}</strong>
-                {' '}· runtime {i.runtimeOperationId ?? 'unknown'}
+          <ul class="fs-list">
+            {state?.interventions.map((intervention) => (
+              <li>
+                <div class="fs-mono">{intervention.interventionId} · {intervention.actionTemplate}</div>
+                <div class="fs-mono fs-muted">
+                  state <strong>{intervention.state}</strong> ·
+                  target {intervention.target} ·
+                  Runtime operation <UnknownOr value={intervention.runtimeOperationId} />
+                </div>
               </li>
             ))}
           </ul>
         )}
+      </section>
+
+      <section class="fs-card">
+        <h2>Usage</h2>
+        <dl class="fs-kv fs-kv--tight">
+          <dt>Output tokens</dt>
+          <dd><UnknownOr value={state?.usage.outputTokens} zeroMeans="recorded" /></dd>
+          <dt>Estimated cost</dt>
+          <dd><UnknownOr value={state?.usage.estimatedCostUsd} zeroMeans="recorded" prefix="USD " /></dd>
+          <dt>Tool calls</dt>
+          <dd><UnknownOr value={state?.usage.toolCalls} zeroMeans="recorded" /></dd>
+        </dl>
+        <p class="fs-muted fs-note">Totals of recorded usage events only.</p>
       </section>
     </div>
   </div>

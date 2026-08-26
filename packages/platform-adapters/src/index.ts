@@ -7,6 +7,7 @@
  * an interface plus recorded fixture evidence.
  */
 export * from './mode.js';
+export * from './capability-truth.js';
 export * from './registry/index.js';
 export * from './runtime/index.js';
 export * from './memory/index.js';
