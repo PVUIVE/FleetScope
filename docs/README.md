@@ -56,7 +56,13 @@ and bounded Warden actions visible and auditable.
 
     trusting any status claim in the plans above.
 
-12. [Decisions](decisions/) — 0001 tooling · 0002 renderer boundary (resolved) ·
+12. [UI completion report, 2026-08-26](reports/fleetscope-ui-completion-2026-08-26.md) —
+
+    the product-UI audit, what was changed route by route, the browser QA and
+
+    accessibility results, and the executed live-proof-from-the-UI evidence.
+
+13. [Decisions](decisions/) — 0001 tooling · 0002 renderer boundary (resolved) ·
 
     0003 bounded live path · 0004 render manifest · 0005 redaction boundaries.
 

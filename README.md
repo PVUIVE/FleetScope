@@ -163,6 +163,27 @@ If the API reports `API_KEY_INVALID` on a key you know is good, check for a
 `GEMINI_API_KEY` exported in your shell profile: Node's `--env-file` does not
 override an already-set variable, so an ambient value silently shadows `.env`.
 
+### Running the live proof from the UI
+
+The Cockpit carries a **Run Live Proof** control. It reads `GET /capability` and
+stays disabled unless the API reports `liveMode: true` _and_ lists the step —
+frontend configuration is never treated as evidence of a capability.
+
+Because the static site and the API are separate origins, the browser call needs
+an explicit CORS grant. `WEB_ORIGINS` is an exact-match allowlist and is **empty
+by default**: with no entry the service sends no CORS header at all.
+
+```bash
+LIVE_MODE=true WEB_ORIGINS=http://localhost:4321 \
+GEMINI_MODEL=gemini-2.5-flash GEMINI_API_KEY=…    npx tsx apps/api/src/server.ts
+
+PUBLIC_API_BASE_URL=http://localhost:8080 PUBLIC_LIVE_MODE=true pnpm build:web
+```
+
+The browser canonicalizes the returned Source Events onto its own stream,
+projects, compiles and appends — refusing the append outright if the recorded
+prefix would recompile differently. The raw model response is never rendered.
+
 Never boot the normal UI with credentials. It does not need them.
 
 ## Testing
@@ -189,11 +210,23 @@ cargo check --manifest-path crates/fleet-cockpit-web/Cargo.toml \
 
 pnpm smoke                    # everything above, with explicit PASS/FAIL/SKIP
 pnpm reliability              # ten cold Recorded Case runs, compared field by field
+
+# Real Chromium against the built site. Requires `pnpm build:web` first.
+pnpm qa:browser               # 82 checks: every route at 1440x900, 1280x720, 1180x800
+FLEETSCOPE_QA_SHOTS=/tmp/shots pnpm qa:browser    # also writes screenshots
+FLEETSCOPE_QA_LIVE=true pnpm qa:browser           # +6 checks; spends one real model call
 ```
+
+`pnpm qa:browser` covers what no unit test can: that the WASM renderer
+instantiated, that clicking an evidence row moved the renderer to the **manifest
+range** for that Canonical Event (not a ratio), that historical mode says nothing
+is executing, that the evidence export verifies in the browser, that primary
+navigation is keyboard reachable, and that no route gives the BODY a horizontal
+scrollbar at any supported size.
 
 | Suite                                                 |                                                        Tests |
 | ----------------------------------------------------- | -----------------------------------------------------------: |
-| TypeScript (`pnpm test`)                              |                                      **234** across 14 files |
+| TypeScript (`pnpm test`)                              |                                      **271** across 15 files |
 | FleetScope Rust (`cargo test`)                        |            **53** — 9 lib, 12 cursor, 23 scene, 9 transcript |
 | Vendored Zoetrope (`cargo test` in `vendor/zoetrope`) | **190** — 182 lib + 8 bin, unchanged by FleetScope's patches |
 
