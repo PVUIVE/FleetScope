@@ -13,7 +13,7 @@ const recorded = config();
 const live = config({
   LIVE_MODE: 'true',
   GEMINI_MODEL: 'gemini-2.5-flash',
-  GCP_PROJECT_ID: 'demo-project',
+  GEMINI_API_KEY: 'not-a-real-key',
 });
 
 beforeEach(resetLiveCallCounters);
@@ -96,14 +96,20 @@ describe('POST /live/decision — LIVE_MODE=true', () => {
     expect(((await res.json()) as Record<string, unknown>).error).toBe('step_not_allowlisted');
   });
 
-  it('refuses to fabricate a platform response for an allowlisted step', async () => {
-    const res = await createApp(live, 'silent').request('/live/decision', {
+  it('falls back to recorded rather than fabricating a platform response', async () => {
+    // With no credential the bounded call cannot happen. The endpoint records
+    // the attempt as evidence and tells the client to serve recorded — it never
+    // invents a result and labels it live.
+    const res = await createApp(live, 'silent', { apiKey: null }).request('/live/decision', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ caseId: 'CASE-1042', stepId: 'warden-incident-advice' }),
     });
-    expect(res.status).toBe(501);
-    expect(((await res.json()) as Record<string, unknown>).error).toBe('not_implemented');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body['mode']).toBe('recorded');
+    expect(body['fellBackToRecorded']).toBe(true);
+    expect(body['modelReference']).toBeUndefined();
   });
 
   it('exposes no free-form prompt surface', async () => {

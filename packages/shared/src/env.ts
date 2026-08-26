@@ -22,6 +22,12 @@ export interface FleetScopeConfig {
   readonly gcp: { readonly projectId: string | null; readonly region: string | null };
   readonly gemini: {
     readonly model: string | null;
+    /**
+     * The model API credential. Never logged, never echoed, and never included
+     * in the `/capability` description — a deployment says whether live mode is
+     * ON, never what it is holding.
+     */
+    readonly apiKey: string | null;
     readonly maxInputTokens: number;
     readonly maxOutputTokens: number;
     readonly maxCallsPerCase: number;
@@ -99,6 +105,7 @@ export function parseConfig(source: EnvSource): Result<FleetScopeConfig, string[
     },
     gemini: {
       model: nullable(source['GEMINI_MODEL']),
+      apiKey: nullable(source['GEMINI_API_KEY']),
       maxInputTokens: parseInt_(
         source['GEMINI_MAX_INPUT_TOKENS'],
         2000,
@@ -126,7 +133,9 @@ export function parseConfig(source: EnvSource): Result<FleetScopeConfig, string[
   // validated at boot rather than discovered at call time.
   if (config.liveMode) {
     if (config.gemini.model === null) problems.push('LIVE_MODE=true requires GEMINI_MODEL');
-    if (config.gcp.projectId === null) problems.push('LIVE_MODE=true requires GCP_PROJECT_ID');
+    // The message names the VARIABLE, never a value: a config error must not be
+    // the thing that prints a credential into a log.
+    if (config.gemini.apiKey === null) problems.push('LIVE_MODE=true requires GEMINI_API_KEY');
     if (config.gemini.maxCallsPerCase < 1) {
       problems.push('LIVE_MODE=true requires GEMINI_MAX_CALLS_PER_CASE >= 1');
     }

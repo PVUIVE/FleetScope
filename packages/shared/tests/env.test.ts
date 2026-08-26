@@ -26,17 +26,25 @@ describe('parseConfig', () => {
     const config = unwrap({
       LIVE_MODE: 'true',
       GEMINI_MODEL: 'gemini-2.5-flash',
-      GCP_PROJECT_ID: 'demo-project',
+      GEMINI_API_KEY: 'not-a-real-key',
     });
     expect(config.liveMode).toBe(true);
   });
 
-  it('rejects live mode without a model or project', () => {
+  it('rejects live mode without a model or a credential', () => {
     const result = parseConfig({ LIVE_MODE: 'true' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toContain('LIVE_MODE=true requires GEMINI_MODEL');
-    expect(result.error).toContain('LIVE_MODE=true requires GCP_PROJECT_ID');
+    expect(result.error).toContain('LIVE_MODE=true requires GEMINI_API_KEY');
+  });
+
+  it('names the missing variable and never a value', () => {
+    // A configuration error must not be the thing that prints a credential.
+    const result = parseConfig({ LIVE_MODE: 'true', GEMINI_API_KEY: 'super-secret-value' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.join(' ')).not.toContain('super-secret-value');
   });
 
   it('reports invalid numeric and enum values', () => {
@@ -65,7 +73,7 @@ describe('assertLiveModeEnabled', () => {
     const config = unwrap({
       LIVE_MODE: 'true',
       GEMINI_MODEL: 'gemini-2.5-flash',
-      GCP_PROJECT_ID: 'demo-project',
+      GEMINI_API_KEY: 'not-a-real-key',
     });
     expect(() => assertLiveModeEnabled(config, 'gemini.generate')).not.toThrow();
   });
