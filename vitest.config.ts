@@ -10,7 +10,11 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
-          include: ['packages/*/tests/**/*.test.ts', 'apps/api/tests/**/*.test.ts'],
+          include: [
+            'packages/*/tests/**/*.test.ts',
+            'apps/api/tests/**/*.test.ts',
+            'apps/web/tests/**/*.test.ts',
+          ],
           exclude: ['packages/projector/tests/**', 'packages/fixtures/tests/**'],
         },
       },
