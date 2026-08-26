@@ -16,7 +16,17 @@ export const sourceEventSchema = z
     caseId: z.string().min(1),
     sessionId: z.string().min(1).nullable(),
     type: z.enum(EVENT_TYPES),
+    /** When the OWNING SYSTEM says it happened, in that system's own frame. */
     sourceTime: z.string().min(1),
+    /**
+     * When the receiving edge actually took delivery, in real time.
+     *
+     * Kept separate from `sourceTime` on purpose. For a Recorded Case running a
+     * simulated timeline the two genuinely differ, and collapsing them would
+     * either misdate the evidence inside the Case or misreport when FleetScope
+     * received it. Optional: not every emitter records one.
+     */
+    ingestionTime: z.string().min(1).optional(),
     actor: actorRefSchema,
     correlations: correlationsSchema,
     payload: z.record(z.string(), z.unknown()),

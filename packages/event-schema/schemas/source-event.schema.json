@@ -74,6 +74,10 @@
       "type": "string",
       "minLength": 1
     },
+    "ingestionTime": {
+      "type": "string",
+      "minLength": 1
+    },
     "actor": {
       "type": "object",
       "properties": {
