@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCanonicalEvents, getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+
+export function getStaticPaths() {
+  return listCaseIds().map((caseId) => ({ params: { caseId } }));
+}
+
+const { caseId } = Astro.params;
+const events = getCanonicalEvents(caseId!);
+const manifest = getEvidenceManifest(caseId!);
+const projection = projectCase(caseId!);
+---
+
+<BaseLayout title={`Audit · ${caseId}`}>
+  <section class="fs-card" style="margin-bottom:var(--fs-space-4)">
+    <h2>Integrity</h2>
+    <dl class="fs-kv">
+      <dt>Canonical events</dt><dd>{events.length}</dd>
+      <dt>Schema versions</dt><dd>{manifest?.schemaVersions.join(', ')}</dd>
+      <dt>Projector version</dt><dd>{projection?.state.projectorVersion}</dd>
+      <dt>Terminal state hash</dt><dd>{projection?.stateHash}</dd>
+      <dt>Invariant violations</dt><dd>{projection?.state.invariantViolations.length ?? 0}</dd>
+    </dl>
+    <p style="color:var(--fs-text-muted);font-size:12px;margin-bottom:0">{manifest?.integrity.note}</p>
+  </section>
+
+  <section class="fs-card">
+    <h2>Canonical event log</h2>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--fs-mono);font-size:12px">
+        <thead>
+          <tr style="text-align:left;color:var(--fs-text-muted)">
+            <th style="padding:4px 8px">#</th>
+            <th style="padding:4px 8px">event</th>
+            <th style="padding:4px 8px">session</th>
+            <th style="padding:4px 8px">type</th>
+            <th style="padding:4px 8px">actor</th>
+            <th style="padding:4px 8px">source time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => (
+            <tr style="border-top:1px solid var(--fs-border)">
+              <td style="padding:4px 8px">{event.caseSequence}</td>
+              <td style="padding:4px 8px">{event.eventId}</td>
+              <td style="padding:4px 8px">{event.sessionId ?? '—'}</td>
+              <td style="padding:4px 8px">{event.type}</td>
+              <td style="padding:4px 8px">{event.actor.kind}:{event.actor.id}</td>
+              <td style="padding:4px 8px">{event.sourceTime}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</BaseLayout>

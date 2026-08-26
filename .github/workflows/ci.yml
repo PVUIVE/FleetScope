@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI must never be able to spend credit or reach a model.
+  LIVE_MODE: 'false'
+  APP_ENV: test
+
+jobs:
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run format:check
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm run build:web
+
+  rust:
+    name: Rust / WASM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+      # Compiling for wasm32 proves the ABI is buildable for the browser without
+      # requiring the trunk bundler in CI.
+      - name: Build for wasm32
+        run: cargo build --target wasm32-unknown-unknown -p fleet-cockpit
+
+  fixtures:
+    name: Fixture determinism
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:replay
+
+      # An un-blessed fixture change is a silent replay regression; fail loudly.
+      - name: Blessed state is up to date
+        run: |
+          pnpm run fixtures:bless
+          git diff --exit-code -- packages/fixtures/cases

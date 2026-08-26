@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Native/postinstall build scripts we explicitly permit. Everything else stays
+# blocked by default — an unreviewed postinstall is a supply-chain foothold.
+allowBuilds:
+  esbuild: true
+  sharp: true

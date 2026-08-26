@@ -1,0 +1,43 @@
+[
+  {
+    "ref": "vendor-onboarding@1.4",
+    "name": "vendor-onboarding",
+    "displayName": "Vendor Onboarding Orchestrator",
+    "version": "1.4",
+    "owner": "platform-agents@acme.example",
+    "purpose": "Coordinate multi-week vendor onboarding across negotiation, compliance, logistics, and ERP activation.",
+    "capabilities": [
+      "case.orchestrate",
+      "memory.read_write_scoped",
+      "erp.inventory.read",
+      "erp.vendor.write",
+      "delegation.logistics"
+    ],
+    "tools": [
+      "AgentIdentity.authorize",
+      "ERP.inventory.read",
+      "ERP.vendor.activate",
+      "MemoryBank.write",
+      "MemoryBank.recall",
+      "AgentGateway.route"
+    ],
+    "allowedCallers": ["procurement_manager", "fleet_administrator"],
+    "approvalState": "approved",
+    "publishedAt": "2026-08-14T00:00:00.000Z",
+    "fleetscopeRiskClass": "high"
+  },
+  {
+    "ref": "logistics-checker@0.9",
+    "name": "logistics-checker",
+    "displayName": "Logistics Checker",
+    "version": "0.9",
+    "owner": "platform-agents@acme.example",
+    "purpose": "Check supplier lead times and shipping constraints on behalf of an orchestrating agent.",
+    "capabilities": ["logistics.leadtime.check"],
+    "tools": ["Logistics.leadtime.check"],
+    "allowedCallers": ["vendor-onboarding"],
+    "approvalState": "approved",
+    "publishedAt": "2026-08-02T00:00:00.000Z",
+    "fleetscopeRiskClass": "low"
+  }
+]

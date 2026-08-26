@@ -1,0 +1,45 @@
+---
+import type { EvidenceMarker } from '@fleetscope/fixtures';
+
+/**
+ * Evidence panel boundary.
+ *
+ * Renders platform decision markers derived from recorded evidence. Every entry
+ * carries the event id that produced it — a badge may never appear because a
+ * service is merely configured (Invariant 6).
+ *
+ * Wiring the click target to the Cockpit Event Cursor is the next slice; the
+ * markup already carries the caseSequence needed to do it.
+ */
+interface Props {
+  markers: readonly EvidenceMarker[];
+  heading?: string;
+}
+const { markers, heading = 'Decision Evidence' } = Astro.props;
+
+const outcomeOf = (eventType: string): string => eventType.split('.')[1] ?? 'recorded';
+---
+
+<section class="fs-card">
+  <h2>{heading}</h2>
+  {markers.length === 0 ? (
+    <p class="fs-placeholder">No recorded platform decisions in this prefix.</p>
+  ) : (
+    <ul style="list-style:none;margin:0;padding:0;display:grid;gap:var(--fs-space-2)">
+      {markers.map((marker) => (
+        <li
+          data-evidence-marker={marker.id}
+          data-case-sequence={marker.caseSequence}
+          data-event-id={marker.eventId}
+          style="display:flex;align-items:baseline;gap:var(--fs-space-3)"
+        >
+          <span class="fs-badge" data-outcome={outcomeOf(marker.eventType)}>{marker.label}</span>
+          <span style="color:var(--fs-text-muted);font-size:12px;font-family:var(--fs-mono)">
+            #{marker.caseSequence} · {marker.eventId} · {marker.eventType}
+          </span>
+          {marker.note && <span style="color:var(--fs-text-muted);font-size:12px">{marker.note}</span>}
+        </li>
+      ))}
+    </ul>
+  )}
+</section>

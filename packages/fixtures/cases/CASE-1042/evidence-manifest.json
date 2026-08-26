@@ -1,0 +1,267 @@
+{
+  "manifestVersion": "1.0.0",
+  "caseId": "CASE-1042",
+  "eventCount": 60,
+  "firstCaseSequence": 0,
+  "lastCaseSequence": 59,
+  "schemaVersions": ["1.0.0"],
+  "sessions": [
+    {
+      "sessionId": "sess-001",
+      "eventCount": 11,
+      "firstCaseSequence": 1,
+      "lastCaseSequence": 12,
+      "startedAt": "2026-08-26T09:01:00.000Z",
+      "endedAt": "2026-08-26T09:08:00.000Z"
+    },
+    {
+      "sessionId": "sess-002",
+      "eventCount": 31,
+      "firstCaseSequence": 14,
+      "lastCaseSequence": 45,
+      "startedAt": "2026-09-07T09:00:00.000Z",
+      "endedAt": "2026-09-07T09:18:00.000Z"
+    },
+    {
+      "sessionId": "sess-003",
+      "eventCount": 12,
+      "firstCaseSequence": 46,
+      "lastCaseSequence": 59,
+      "startedAt": "2026-09-08T10:20:00.000Z",
+      "endedAt": "2026-09-08T10:28:00.000Z"
+    }
+  ],
+  "milestones": [
+    {
+      "milestone": "review",
+      "caseSequence": 5,
+      "eventId": "evt-0006",
+      "fraction": 0.084746,
+      "at": "2026-08-26T09:02:00.000Z"
+    },
+    {
+      "milestone": "negotiation",
+      "caseSequence": 13,
+      "eventId": "evt-0014",
+      "fraction": 0.220339,
+      "at": "2026-08-26T09:09:00.000Z"
+    },
+    {
+      "milestone": "compliance",
+      "caseSequence": 42,
+      "eventId": "evt-0043",
+      "fraction": 0.711864,
+      "at": "2026-09-07T09:16:00.000Z"
+    },
+    {
+      "milestone": "logistics",
+      "caseSequence": 55,
+      "eventId": "evt-0056",
+      "fraction": 0.932203,
+      "at": "2026-09-08T10:25:00.000Z"
+    },
+    {
+      "milestone": "activation",
+      "caseSequence": 56,
+      "eventId": "evt-0057",
+      "fraction": 0.949153,
+      "at": "2026-09-08T10:26:00.000Z"
+    }
+  ],
+  "platformEvidence": [
+    {
+      "id": "registry-resolved",
+      "label": "REG v1.4 approved",
+      "service": "registry",
+      "caseSequence": 1,
+      "eventId": "evt-0002",
+      "sessionId": "sess-001",
+      "eventType": "registry.version_resolved",
+      "fraction": 0.016949
+    },
+    {
+      "id": "identity-allowed",
+      "label": "ID allowed",
+      "service": "identity",
+      "caseSequence": 7,
+      "eventId": "evt-0008",
+      "sessionId": "sess-001",
+      "eventType": "identity.allowed",
+      "fraction": 0.118644
+    },
+    {
+      "id": "identity-denied",
+      "label": "ID denied",
+      "service": "identity",
+      "caseSequence": 50,
+      "eventId": "evt-0051",
+      "sessionId": "sess-003",
+      "eventType": "identity.denied",
+      "fraction": 0.847458,
+      "note": "Wrong role for the delegated agent version."
+    },
+    {
+      "id": "memory-written",
+      "label": "MEM written",
+      "service": "memory",
+      "caseSequence": 10,
+      "eventId": "evt-0011",
+      "sessionId": "sess-001",
+      "eventType": "memory.written",
+      "fraction": 0.169492
+    },
+    {
+      "id": "memory-recalled",
+      "label": "MEM recalled",
+      "service": "memory",
+      "caseSequence": 19,
+      "eventId": "evt-0020",
+      "sessionId": "sess-002",
+      "eventType": "memory.recalled",
+      "fraction": 0.322034,
+      "note": "Survives the simulated 12-day boundary and influences a later step."
+    },
+    {
+      "id": "memory-rejected",
+      "label": "MEM rejected",
+      "service": "memory",
+      "caseSequence": 17,
+      "eventId": "evt-0018",
+      "sessionId": "sess-002",
+      "eventType": "memory.rejected",
+      "fraction": 0.288136,
+      "note": "Blocked input refused persistence."
+    },
+    {
+      "id": "gateway-routed",
+      "label": "GW routed",
+      "service": "gateway",
+      "caseSequence": 21,
+      "eventId": "evt-0022",
+      "sessionId": "sess-002",
+      "eventType": "gateway.routed",
+      "fraction": 0.355932
+    },
+    {
+      "id": "gateway-denied",
+      "label": "GW denied",
+      "service": "gateway",
+      "caseSequence": 48,
+      "eventId": "evt-0049",
+      "sessionId": "sess-003",
+      "eventType": "gateway.denied",
+      "fraction": 0.813559
+    },
+    {
+      "id": "armor-blocked",
+      "label": "ARMOR blocked",
+      "service": "armor",
+      "caseSequence": 15,
+      "eventId": "evt-0016",
+      "sessionId": "sess-002",
+      "eventType": "armor.blocked",
+      "fraction": 0.254237,
+      "note": "Screened before any context, memory, or tool use."
+    },
+    {
+      "id": "armor-allowed",
+      "label": "ARMOR allowed",
+      "service": "armor",
+      "caseSequence": 18,
+      "eventId": "evt-0019",
+      "sessionId": "sess-002",
+      "eventType": "armor.allowed",
+      "fraction": 0.305085
+    },
+    {
+      "id": "runtime-waiting",
+      "label": "Waiting for vendor",
+      "service": "runtime",
+      "caseSequence": 12,
+      "eventId": "evt-0013",
+      "sessionId": "sess-001",
+      "eventType": "runtime.waiting",
+      "fraction": 0.20339
+    },
+    {
+      "id": "runtime-resumed",
+      "label": "Resumed (simulated day 12)",
+      "service": "runtime",
+      "caseSequence": 14,
+      "eventId": "evt-0015",
+      "sessionId": "sess-002",
+      "eventType": "runtime.resumed",
+      "fraction": 0.237288
+    },
+    {
+      "id": "runtime-completed",
+      "label": "Completed",
+      "service": "runtime",
+      "caseSequence": 59,
+      "eventId": "evt-0060",
+      "sessionId": "sess-003",
+      "eventType": "runtime.completed",
+      "fraction": 1
+    }
+  ],
+  "incidents": [
+    {
+      "incidentId": "inc-001",
+      "incidentClass": "context_drift",
+      "caseSequence": 16,
+      "fraction": 0.271186
+    },
+    {
+      "incidentId": "inc-002",
+      "incidentClass": "repeated_tool_failure",
+      "caseSequence": 29,
+      "fraction": 0.491525
+    }
+  ],
+  "interventions": [
+    {
+      "interventionId": "itv-001",
+      "actionTemplate": "retry_idempotent_read",
+      "lifecycle": [
+        {
+          "state": "proposed",
+          "caseSequence": 31,
+          "eventId": "evt-0032"
+        },
+        {
+          "state": "authorized",
+          "caseSequence": 32,
+          "eventId": "evt-0033"
+        },
+        {
+          "state": "requested",
+          "caseSequence": 33,
+          "eventId": "evt-0034"
+        },
+        {
+          "state": "acknowledged",
+          "caseSequence": 34,
+          "eventId": "evt-0035"
+        },
+        {
+          "state": "succeeded",
+          "caseSequence": 36,
+          "eventId": "evt-0037"
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "approvalId": "apr-001",
+      "openedAtCaseSequence": 44,
+      "resolvedAtCaseSequence": 46
+    }
+  ],
+  "blockedInputIds": ["input-101"],
+  "integrity": {
+    "note": "Application-level immutability only. This bundle is not cryptographically signed and makes no WORM/regulatory claim.",
+    "canonicalEventsFile": "canonical-events.jsonl",
+    "expectedStateFile": "expected-state.json"
+  }
+}

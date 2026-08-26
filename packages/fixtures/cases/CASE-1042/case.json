@@ -1,0 +1,17 @@
+{
+  "caseId": "CASE-1042",
+  "title": "Northwind Components onboarding",
+  "vendor": "Northwind Components GmbH",
+  "owner": "procurement@acme.example",
+  "agentVersionRef": "vendor-onboarding@1.4",
+  "memoryScope": "tenant/acme-procurement/case-1042",
+  "createdAt": "2026-08-26T09:00:00.000Z",
+  "sessions": ["sess-001", "sess-002", "sess-003"],
+  "executionMode": "recorded",
+  "provenance": {
+    "note": "Synthetic scenario. No real vendor, ERP record, person, or credential is represented.",
+    "syntheticSystems": ["synthetic-erp", "synthetic-vendor-mailbox"],
+    "containsPii": false,
+    "containsSecrets": false
+  }
+}

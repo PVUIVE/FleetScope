@@ -1,0 +1,16 @@
+{
+  "name": "@fleetscope/event-schema",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fleetscope/domain": "workspace:*",
+    "zod": "^4.1.12"
+  }
+}

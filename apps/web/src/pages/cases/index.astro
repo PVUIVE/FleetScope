@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCaseDescriptor, listCaseIds, projectCase } from '../../lib/fixtures';
+
+const rows = listCaseIds().map((caseId) => {
+  const descriptor = getCaseDescriptor(caseId);
+  const projection = projectCase(caseId);
+  return { caseId, descriptor, state: projection?.state ?? null };
+});
+---
+
+<BaseLayout title="Cases">
+  <div class="fs-grid">
+    {rows.map(({ caseId, descriptor, state }) => (
+      <article class="fs-card">
+        <h2>{caseId} · {descriptor?.vendor}</h2>
+        <dl class="fs-kv">
+          <dt>Milestone</dt><dd>{state?.currentMilestone ?? 'unknown'}</dd>
+          <dt>Case state</dt><dd>{state?.caseState ?? 'unknown'}</dd>
+          <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
+          <dt>Sessions</dt><dd>{descriptor?.sessions.join(', ')}</dd>
+          <dt>Canonical events</dt><dd>{state === null ? 'unknown' : state.cursor.caseSequence + 1}</dd>
+        </dl>
+        <p style="margin-bottom:0;display:flex;gap:var(--fs-space-4)">
+          <a href={`/cases/${caseId}`}>Case Workspace →</a>
+          <a href={`/cockpit/${caseId}`}>Fleet Cockpit →</a>
+          <a href={`/audit/${caseId}`}>Audit →</a>
+        </p>
+      </article>
+    ))}
+  </div>
+</BaseLayout>

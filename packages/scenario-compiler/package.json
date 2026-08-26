@@ -1,0 +1,17 @@
+{
+  "name": "@fleetscope/scenario-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fleetscope/domain": "workspace:*",
+    "@fleetscope/event-schema": "workspace:*",
+    "@fleetscope/fixtures": "workspace:*"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@fleetscope/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fleetscope/domain": "workspace:*",
+    "@fleetscope/event-schema": "workspace:*",
+    "@fleetscope/platform-adapters": "workspace:*",
+    "@fleetscope/shared": "workspace:*",
+    "@hono/node-server": "^1.14.0",
+    "hono": "^4.6.16",
+    "tsx": "^4.19.2"
+  }
+}

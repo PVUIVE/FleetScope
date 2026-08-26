@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { listCaseIds, projectCase } from '../lib/fixtures';
+
+// An approval binds an EXACT action, target, evidence prefix, and expiry. It is
+// never a reusable "let the agent continue" permission.
+const approvals = listCaseIds().flatMap((caseId) => {
+  const state = projectCase(caseId)?.state;
+  return (state?.approvals ?? []).map((approval) => ({ caseId, approval }));
+});
+---
+
+<BaseLayout title="Approval Inbox">
+  {approvals.length === 0 ? (
+    <p class="fs-placeholder">No approvals in recorded evidence.</p>
+  ) : (
+    <div class="fs-grid">
+      {approvals.map(({ caseId, approval }) => (
+        <article class="fs-card">
+          <h2>{approval.actionTemplate}</h2>
+          <dl class="fs-kv">
+            <dt>Case</dt><dd><a href={`/cases/${caseId}`}>{caseId}</a></dd>
+            <dt>Target</dt><dd>{approval.target}</dd>
+            <dt>Bound to event</dt><dd>#{approval.boundCaseSequence}</dd>
+            <dt>Expires</dt><dd>{approval.expiresAt}</dd>
+            <dt>State</dt>
+            <dd><span class="fs-badge" data-outcome={approval.state === 'approved' ? 'allowed' : 'flagged'}>{approval.state}</span></dd>
+            <dt>Approver</dt><dd>{approval.approver ?? 'unknown'}</dd>
+          </dl>
+        </article>
+      ))}
+    </div>
+  )}
+</BaseLayout>

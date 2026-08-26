@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getAgentVersions, listCaseIds } from '../lib/fixtures';
+import { webConfig } from '../lib/config';
+
+const config = webConfig();
+const caseIds = listCaseIds();
+// Registry metadata comes from recorded evidence; FleetScope never invents an
+// approval state or a version.
+const versions = getAgentVersions(config.defaultCaseId) as Array<{
+  ref: string;
+  displayName: string;
+  version: string;
+  owner: string;
+  purpose: string;
+  approvalState: string;
+  capabilities: string[];
+  tools: string[];
+  fleetscopeRiskClass?: string;
+}>;
+---
+
+<BaseLayout title="Agent Catalog">
+  <div class="fs-grid fs-grid--2">
+    {versions.map((agent) => (
+      <article class="fs-card">
+        <h2>{agent.displayName}</h2>
+        <p style="margin-top:0">{agent.purpose}</p>
+        <dl class="fs-kv">
+          <dt>Agent Version</dt><dd>{agent.ref}</dd>
+          <dt>Owner</dt><dd>{agent.owner}</dd>
+          <dt>Registry state</dt>
+          <dd><span class="fs-badge" data-outcome={agent.approvalState === 'approved' ? 'allowed' : 'flagged'}>{agent.approvalState}</span></dd>
+          <dt>Risk class</dt>
+          <dd>{agent.fleetscopeRiskClass ?? 'unknown'} <span style="color:var(--fs-text-muted)">(FleetScope metadata, not Registry)</span></dd>
+          <dt>Capabilities</dt><dd>{agent.capabilities.join(', ')}</dd>
+          <dt>Tools</dt><dd>{agent.tools.join(', ')}</dd>
+        </dl>
+        {caseIds.length > 0 && (
+          <p style="margin-bottom:0">
+            <a href={`/cases/${caseIds[0]}`}>Open recorded Case {caseIds[0]} →</a>
+          </p>
+        )}
+      </article>
+    ))}
+  </div>
+</BaseLayout>

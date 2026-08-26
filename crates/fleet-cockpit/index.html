@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Trunk entry point for standalone Cockpit development only.
+  In the product, the Cockpit is mounted by apps/web into
+  #fleetscope-cockpit-canvas through src/features/cockpit/lib/cockpit-adapter.ts.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FleetScope Fleet Cockpit (dev)</title>
+    <link data-trunk rel="rust" data-wasm-opt="z" />
+  </head>
+  <body>
+    <div id="fleetscope-cockpit-canvas"></div>
+  </body>
+</html>

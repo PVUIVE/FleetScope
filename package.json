@@ -1,0 +1,53 @@
+{
+  "name": "fleetscope",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FleetScope \u2014 enterprise agent-fleet control plane (monorepo root)",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @fleetscope/web dev",
+    "dev:web": "pnpm --filter @fleetscope/web dev",
+    "dev:api": "pnpm --filter @fleetscope/api dev",
+    "build": "pnpm run build:web",
+    "build:web": "pnpm --filter @fleetscope/web build",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:replay": "vitest run --project replay",
+    "test:watch": "vitest",
+    "test:rust": "cargo test --manifest-path crates/fleet-cockpit/Cargo.toml",
+    "typecheck": "bash scripts/typecheck.sh",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build:web",
+    "smoke": "bash scripts/smoke.sh",
+    "schema:emit": "tsx packages/event-schema/src/emit-json-schema.ts",
+    "fixtures:bless": "tsx scripts/bless-fixtures.ts",
+    "scenario:compile": "tsx packages/scenario-compiler/src/cli.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@fleetscope/domain": "workspace:*",
+    "@fleetscope/event-schema": "workspace:*",
+    "@fleetscope/fixtures": "workspace:*",
+    "@fleetscope/platform-adapters": "workspace:*",
+    "@fleetscope/projector": "workspace:*",
+    "@fleetscope/scenario-compiler": "workspace:*",
+    "@fleetscope/shared": "workspace:*",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.39.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
+  }
+}

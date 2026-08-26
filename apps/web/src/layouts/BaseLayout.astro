@@ -1,0 +1,41 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import ModeLabel from '../components/ModeLabel.astro';
+import { webConfig } from '../lib/config';
+
+interface Props {
+  title: string;
+  /** Execution mode of the evidence on this page. Always shown, never guessed. */
+  mode?: 'recorded' | 'live' | 'synthetic' | 'simulated';
+}
+
+const { title, mode = 'recorded' } = Astro.props;
+const config = webConfig();
+const path = Astro.url.pathname;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · FleetScope</title>
+  </head>
+  <body>
+    <div class="fs-shell">
+      <Nav path={path} defaultCaseId={config.defaultCaseId} />
+      <main class="fs-main">
+        <header style="display:flex;align-items:baseline;gap:var(--fs-space-3);margin-bottom:var(--fs-space-5)">
+          <h1>{title}</h1>
+          <ModeLabel mode={mode} />
+        </header>
+        <slot />
+      </main>
+      <footer class="fs-footer">
+        FleetScope · recorded evidence ·
+        {config.liveMode ? 'live proof enabled' : 'live mode disabled'} ·
+        third-party attribution in THIRD-PARTY-NOTICES.md
+      </footer>
+    </div>
+  </body>
+</html>

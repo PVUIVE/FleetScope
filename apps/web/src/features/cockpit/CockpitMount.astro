@@ -1,0 +1,53 @@
+---
+/**
+ * The WASM mounting boundary.
+ *
+ * The Rust/WASM Cockpit takes over `#fleetscope-cockpit-canvas`. Nothing else in
+ * the app writes into that element, so the renderer can own its DOM subtree
+ * entirely and the Astro shell keeps owning everything around it.
+ */
+interface Props {
+  caseId: string;
+  lastCaseSequence: number;
+}
+const { caseId, lastCaseSequence } = Astro.props;
+---
+
+<section class="fs-card" style="min-height:360px;display:flex;flex-direction:column;gap:var(--fs-space-3)">
+  <h2>Fleet Cockpit</h2>
+  <div
+    id="fleetscope-cockpit-canvas"
+    data-case-id={caseId}
+    data-last-case-sequence={lastCaseSequence}
+    style="flex:1;min-height:300px;display:grid;place-items:center"
+  >
+    <p class="fs-placeholder" data-cockpit-fallback>
+      Loading Fleet Cockpit…
+    </p>
+  </div>
+</section>
+
+<script>
+  import { createCockpit } from './lib/cockpit-adapter';
+
+  const cockpit = createCockpit();
+  const fallback = document.querySelector('[data-cockpit-fallback]');
+
+  if (!cockpit.available && fallback instanceof HTMLElement) {
+    // State the real reason. A demo that shows a fake graph here would be
+    // exactly the "UI invents behavior" failure the product forbids.
+    fallback.textContent = cockpit.unavailableReason ?? 'Fleet Cockpit unavailable.';
+  }
+
+  // Evidence markers drive the Event Cursor. Wired now so the contract is
+  // exercised; it becomes visible the moment the renderer is vendored.
+  const canvas = document.getElementById('fleetscope-cockpit-canvas');
+  const last = Number(canvas?.dataset.lastCaseSequence ?? 0);
+
+  for (const marker of document.querySelectorAll<HTMLElement>('[data-evidence-marker]')) {
+    marker.addEventListener('click', () => {
+      const caseSequence = Number(marker.dataset.caseSequence ?? 0);
+      cockpit.seekToCaseSequence(caseSequence, last);
+    });
+  }
+</script>

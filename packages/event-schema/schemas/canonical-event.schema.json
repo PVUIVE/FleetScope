@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fleetscope.dev/schemas/canonical-event.schema.json",
+  "title": "CanonicalEvent",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "caseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "caseSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "sessionId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sessionSequence": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "registry.version_resolved",
+        "case.created",
+        "case.milestone_changed",
+        "runtime.started",
+        "runtime.waiting",
+        "runtime.resumed",
+        "runtime.completed",
+        "runtime.failed",
+        "runtime.controlled",
+        "memory.written",
+        "memory.recalled",
+        "memory.rejected",
+        "identity.allowed",
+        "identity.denied",
+        "gateway.routed",
+        "gateway.denied",
+        "armor.allowed",
+        "armor.blocked",
+        "armor.sanitized",
+        "armor.flagged",
+        "agent.spawned",
+        "agent.started",
+        "agent.completed",
+        "agent.failed",
+        "tool.requested",
+        "tool.succeeded",
+        "tool.failed",
+        "usage.recorded",
+        "incident.opened",
+        "incident.updated",
+        "incident.resolved",
+        "policy.evaluated",
+        "intervention.proposed",
+        "intervention.authorized",
+        "intervention.rejected",
+        "intervention.requested",
+        "intervention.acknowledged",
+        "intervention.succeeded",
+        "intervention.failed",
+        "intervention.timed_out",
+        "human_escalation.opened",
+        "human_escalation.resolved"
+      ]
+    },
+    "sourceTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "ingestionTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "acceptedTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "user",
+            "service"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentVersionRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ]
+    },
+    "correlations": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "payloadRedacted": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "payloadDigest": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "caseId",
+    "caseSequence",
+    "sessionId",
+    "sessionSequence",
+    "schemaVersion",
+    "type",
+    "sourceTime",
+    "acceptedTime",
+    "actor",
+    "correlations",
+    "payloadRedacted"
+  ],
+  "additionalProperties": false
+}

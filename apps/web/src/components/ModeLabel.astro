@@ -1,0 +1,20 @@
+---
+/**
+ * Execution-mode label. Required on every surface: the demo must never let a
+ * viewer mistake recorded or synthetic evidence for a live platform result.
+ */
+interface Props {
+  mode: 'recorded' | 'live' | 'synthetic' | 'simulated';
+}
+const { mode } = Astro.props;
+
+const copy = {
+  recorded: { label: 'Recorded Case', note: 'deterministic bundled evidence' },
+  live: { label: 'Live proof', note: 'bounded backend call' },
+  synthetic: { label: 'Synthetic system', note: 'local data, real policy path' },
+  simulated: { label: 'Simulated day boundary', note: 'separate invocation, not elapsed time' },
+} as const;
+
+const { label, note } = copy[mode];
+---
+<span class="fs-mode" title={note}>{label} · {note}</span>

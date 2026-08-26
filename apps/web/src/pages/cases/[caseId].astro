@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EvidencePanel from '../../components/EvidencePanel.astro';
+import { getCaseDescriptor, getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+
+export function getStaticPaths() {
+  return listCaseIds().map((caseId) => ({ params: { caseId } }));
+}
+
+const { caseId } = Astro.params;
+const descriptor = getCaseDescriptor(caseId!);
+const manifest = getEvidenceManifest(caseId!);
+const projection = projectCase(caseId!);
+const state = projection?.state ?? null;
+
+// Case Workspace is a BUSINESS projection of the same Observable Case State the
+// Cockpit uses — milestone, last progress, waiting reason, next action.
+const memory = state?.memoryRecords ?? [];
+const pendingApprovals = (state?.approvals ?? []).filter((a) => a.state === 'pending');
+---
+
+<BaseLayout title={`Case ${caseId}`}>
+  <div class="fs-grid fs-grid--2">
+    <section class="fs-card">
+      <h2>Case</h2>
+      <dl class="fs-kv">
+        <dt>Vendor</dt><dd>{descriptor?.vendor}</dd>
+        <dt>Objective</dt><dd>{descriptor?.title}</dd>
+        <dt>Agent Version</dt><dd>{descriptor?.agentVersionRef}</dd>
+        <dt>Memory scope</dt><dd>{descriptor?.memoryScope}</dd>
+        <dt>Milestone</dt><dd>{state?.currentMilestone ?? 'unknown'}</dd>
+        <dt>Case state</dt><dd>{state?.caseState ?? 'unknown'}</dd>
+        <dt>Sessions</dt><dd>{state?.sessions.map((s) => `${s.sessionId} (${s.state})`).join(', ')}</dd>
+        <dt>Projector</dt><dd>{state?.projectorVersion}</dd>
+        <dt>State hash</dt><dd>{projection?.stateHash.slice(0, 16)}…</dd>
+      </dl>
+    </section>
+
+    <section class="fs-card">
+      <h2>Trusted context</h2>
+      {memory.length === 0 ? (
+        <p class="fs-placeholder">No Memory Records in this prefix.</p>
+      ) : (
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:var(--fs-space-3)">
+          {memory.map((record) => (
+            <li>
+              <div>{record.summary}</div>
+              <div style="color:var(--fs-text-muted);font-size:12px;font-family:var(--fs-mono)">
+                scope {record.scope} · from {record.sourceEventId} · {record.sensitivity}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p style="color:var(--fs-text-muted);font-size:12px;margin-bottom:0">
+        Memory Records are provenance-bearing data, never instructions.
+      </p>
+    </section>
+
+    <section class="fs-card">
+      <h2>Approvals</h2>
+      {pendingApprovals.length === 0 ? (
+        <p class="fs-placeholder">No approval is currently outstanding.</p>
+      ) : (
+        <ul>{pendingApprovals.map((a) => <li>{a.actionTemplate} → {a.target}</li>)}</ul>
+      )}
+      <p style="margin-bottom:0"><a href="/approvals">Approval Inbox →</a></p>
+    </section>
+
+    <EvidencePanel markers={manifest?.platformEvidence ?? []} heading="Platform decisions" />
+  </div>
+
+  <p style="margin-top:var(--fs-space-5)">
+    <a href={`/cockpit/${caseId}`}>Open Fleet Cockpit →</a>
+  </p>
+</BaseLayout>

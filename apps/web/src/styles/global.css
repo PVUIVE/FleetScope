@@ -1,0 +1,194 @@
+/*
+ * Visual direction: enterprise control room, not sci-fi command center.
+ * Dense but calm — evidence state must read faster than decorative detail.
+ *
+ * State is never communicated by color alone (accessibility requirement in
+ * docs/requirements/fleetscope/fleet-cockpit.md); every state token pairs a hue
+ * with a text label or glyph at the call site.
+ */
+:root {
+  --fs-bg: #0f1216;
+  --fs-surface: #171b21;
+  --fs-surface-raised: #1e242c;
+  --fs-border: #2b323c;
+  --fs-text: #e6eaf0;
+  --fs-text-muted: #9aa5b4;
+
+  --fs-ok: #4ea87a;
+  --fs-warn: #d8a03a;
+  --fs-deny: #cf5c5c;
+  --fs-info: #5b8fd6;
+  --fs-unknown: #6c7684;
+
+  --fs-space-1: 4px;
+  --fs-space-2: 8px;
+  --fs-space-3: 12px;
+  --fs-space-4: 16px;
+  --fs-space-5: 24px;
+  --fs-space-6: 32px;
+
+  --fs-radius: 6px;
+  --fs-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fs-bg);
+  color: var(--fs-text);
+  font-family: var(--fs-font);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fs-info);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.fs-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.fs-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  padding: var(--fs-space-3) var(--fs-space-5);
+  background: var(--fs-surface);
+  border-bottom: 1px solid var(--fs-border);
+}
+.fs-nav__brand {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-right: var(--fs-space-4);
+}
+.fs-nav__link {
+  color: var(--fs-text-muted);
+  text-decoration: none;
+  padding: var(--fs-space-1) 0;
+}
+.fs-nav__link[aria-current='page'] {
+  color: var(--fs-text);
+  box-shadow: inset 0 -2px 0 var(--fs-info);
+}
+
+.fs-main {
+  flex: 1;
+  padding: var(--fs-space-5);
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+.fs-footer {
+  padding: var(--fs-space-3) var(--fs-space-5);
+  color: var(--fs-text-muted);
+  border-top: 1px solid var(--fs-border);
+  font-size: 12px;
+}
+
+.fs-card {
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-4);
+}
+
+.fs-grid {
+  display: grid;
+  gap: var(--fs-space-4);
+}
+.fs-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.fs-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  font-size: 12px;
+  font-family: var(--fs-mono);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: 2px var(--fs-space-2);
+  color: var(--fs-text-muted);
+}
+
+.fs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-1);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: 1px var(--fs-space-2);
+}
+.fs-badge[data-outcome='allowed'],
+.fs-badge[data-outcome='routed'],
+.fs-badge[data-outcome='resolved'] {
+  border-color: var(--fs-ok);
+  color: var(--fs-ok);
+}
+.fs-badge[data-outcome='denied'],
+.fs-badge[data-outcome='blocked'] {
+  border-color: var(--fs-deny);
+  color: var(--fs-deny);
+}
+.fs-badge[data-outcome='sanitized'],
+.fs-badge[data-outcome='flagged'] {
+  border-color: var(--fs-warn);
+  color: var(--fs-warn);
+}
+
+.fs-kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--fs-space-2) var(--fs-space-4);
+}
+.fs-kv dt {
+  color: var(--fs-text-muted);
+}
+.fs-kv dd {
+  margin: 0;
+  font-family: var(--fs-mono);
+  font-size: 13px;
+}
+
+.fs-placeholder {
+  border: 1px dashed var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-5);
+  color: var(--fs-text-muted);
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 var(--fs-space-2);
+}
+h2 {
+  font-size: 15px;
+  margin: 0 0 var(--fs-space-3);
+  color: var(--fs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@fleetscope/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check --minimumSeverity error"
+  },
+  "dependencies": {
+    "@fleetscope/domain": "workspace:*",
+    "@fleetscope/event-schema": "workspace:*",
+    "@fleetscope/fixtures": "workspace:*",
+    "@fleetscope/projector": "workspace:*",
+    "@fleetscope/scenario-compiler": "workspace:*",
+    "@fleetscope/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "astro": "^5.16.0",
+    "typescript": "^5.7.3"
+  }
+}

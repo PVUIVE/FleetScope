@@ -1,0 +1,98 @@
+{
+  "caseId": "CASE-1042",
+  "projectorVersion": "1.0.0",
+  "eventCount": 60,
+  "terminalStateHash": "cb99db39d2006718578741775950fb639d160bf726997ae51c4785c4b759735a",
+  "prefixHashes": [
+    {
+      "caseSequence": 1,
+      "eventId": "evt-0002",
+      "stateHash": "8ec398fdb639266e0c3162158726bc54b3971b240860d60919c3e6c1c63ec93e"
+    },
+    {
+      "caseSequence": 5,
+      "eventId": "evt-0006",
+      "stateHash": "11a786ba1eccc59ac5f2f6d7a8512f1feb85e13493e9478f6802b978d8a88155"
+    },
+    {
+      "caseSequence": 7,
+      "eventId": "evt-0008",
+      "stateHash": "a63469c1aecf2dabae9368fa332a131430b704977aed0c56579dd2f011970c1b"
+    },
+    {
+      "caseSequence": 10,
+      "eventId": "evt-0011",
+      "stateHash": "68893b0c10007198275e90b286633a227be1a63c2bef03d1e60d6660f746ae96"
+    },
+    {
+      "caseSequence": 12,
+      "eventId": "evt-0013",
+      "stateHash": "57642c1bd69d3799e9232317cc6b581d3a72027b3fabc75ef281bf96e7076160"
+    },
+    {
+      "caseSequence": 13,
+      "eventId": "evt-0014",
+      "stateHash": "00ba6f23f048b0c1ee38c1a60d5beca388f78d87952777dca8a58d933f41c5f1"
+    },
+    {
+      "caseSequence": 14,
+      "eventId": "evt-0015",
+      "stateHash": "609f3b30bb7353e7167bb8f0a9dce443b292df4f0118ce5abf31075074e17cd4"
+    },
+    {
+      "caseSequence": 15,
+      "eventId": "evt-0016",
+      "stateHash": "6a00b1cf5baf30380a5a02c2125f7e1577031764b6b1f236de59acddada27122"
+    },
+    {
+      "caseSequence": 17,
+      "eventId": "evt-0018",
+      "stateHash": "2d747dfd0182574f2fab9e16c2e6a6f12f075e20557415e701764d3b2ae22172"
+    },
+    {
+      "caseSequence": 18,
+      "eventId": "evt-0019",
+      "stateHash": "39678c602e1722281ddbe89f4980ad27e39d028721d8f24fc7bf600bc667a2f2"
+    },
+    {
+      "caseSequence": 19,
+      "eventId": "evt-0020",
+      "stateHash": "56866b431c52bccc4e0efe6f6f9b5e73f26da9a1208133febbef8b55f7990100"
+    },
+    {
+      "caseSequence": 21,
+      "eventId": "evt-0022",
+      "stateHash": "30bdc292c994e926c147baa173d64292ee58a9cba1fb8338db70361c6ac90b23"
+    },
+    {
+      "caseSequence": 42,
+      "eventId": "evt-0043",
+      "stateHash": "39bade13a36dfba63a763e441f039013e1f31df15047bd1e7960d873d0ea3f5a"
+    },
+    {
+      "caseSequence": 48,
+      "eventId": "evt-0049",
+      "stateHash": "6d9e637fa665ee91f3d88cc73380abac7dadc2e23099e7f194bc6e47e70b30a7"
+    },
+    {
+      "caseSequence": 50,
+      "eventId": "evt-0051",
+      "stateHash": "4661cfb035b24050b36112d477c31a4c0dd5925a915f1f05f4b52a6cfa6c1ad2"
+    },
+    {
+      "caseSequence": 55,
+      "eventId": "evt-0056",
+      "stateHash": "e71a7863a4bb3fdb26c72d6e4e2ae4d5680fe7c4e73f9b3619d29b28abd93382"
+    },
+    {
+      "caseSequence": 56,
+      "eventId": "evt-0057",
+      "stateHash": "0542716f7963ac388fbfb5a7300c2a8c3ef8a77f3f0d16089452d8af1e3ef4bb"
+    },
+    {
+      "caseSequence": 59,
+      "eventId": "evt-0060",
+      "stateHash": "cb99db39d2006718578741775950fb639d160bf726997ae51c4785c4b759735a"
+    }
+  ]
+}

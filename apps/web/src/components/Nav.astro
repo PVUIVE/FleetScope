@@ -1,0 +1,28 @@
+---
+interface Props {
+  path: string;
+  defaultCaseId: string;
+}
+const { path, defaultCaseId } = Astro.props;
+
+// Order follows the product surface hierarchy: Catalog -> Cases -> Approvals
+// -> Cockpit -> Audit. The Cockpit is an expert surface, not the entry point.
+const links = [
+  { href: '/catalog', label: 'Catalog' },
+  { href: '/cases', label: 'Cases' },
+  { href: '/approvals', label: 'Approvals' },
+  { href: `/cockpit/${defaultCaseId}`, label: 'Fleet Cockpit' },
+  { href: `/audit/${defaultCaseId}`, label: 'Audit' },
+];
+
+const isCurrent = (href: string) => path === href || path.startsWith(href + '/');
+---
+
+<nav class="fs-nav" aria-label="Primary">
+  <span class="fs-nav__brand">FleetScope</span>
+  {links.map((link) => (
+    <a class="fs-nav__link" href={link.href} aria-current={isCurrent(link.href) ? 'page' : undefined}>
+      {link.label}
+    </a>
+  ))}
+</nav>

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+target/
+.astro/
+docs/
+packages/fixtures/cases/**/*.jsonl
+packages/event-schema/schemas/
+pnpm-lock.yaml

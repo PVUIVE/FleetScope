@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EvidencePanel from '../../components/EvidencePanel.astro';
+import CockpitMount from '../../features/cockpit/CockpitMount.astro';
+import { getEvidenceManifest, listCaseIds, projectCase } from '../../lib/fixtures';
+
+export function getStaticPaths() {
+  return listCaseIds().map((caseId) => ({ params: { caseId } }));
+}
+
+const { caseId } = Astro.params;
+const manifest = getEvidenceManifest(caseId!);
+const state = projectCase(caseId!)?.state ?? null;
+---
+
+<BaseLayout title={`Fleet Cockpit · ${caseId}`}>
+  <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:var(--fs-space-4)">
+    <CockpitMount caseId={caseId!} lastCaseSequence={manifest?.lastCaseSequence ?? 0} />
+    <div class="fs-grid">
+      <EvidencePanel markers={manifest?.platformEvidence ?? []} />
+      <section class="fs-card">
+        <h2>Incidents</h2>
+        {(state?.incidents ?? []).length === 0 ? (
+          <p class="fs-placeholder">No incidents recorded.</p>
+        ) : (
+          <ul style="list-style:none;padding:0;margin:0;display:grid;gap:var(--fs-space-2)">
+            {state?.incidents.map((incident) => (
+              <li>
+                <span class="fs-badge" data-outcome={incident.state === 'resolved' ? 'allowed' : 'flagged'}>
+                  {incident.incidentClass}
+                </span>
+                <span style="color:var(--fs-text-muted);font-size:12px;font-family:var(--fs-mono)">
+                  {' '}{incident.incidentId} · {incident.state} · {incident.severity}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section class="fs-card">
+        <h2>Interventions</h2>
+        {(state?.interventions ?? []).length === 0 ? (
+          <p class="fs-placeholder">No interventions recorded.</p>
+        ) : (
+          <ul style="list-style:none;padding:0;margin:0">
+            {state?.interventions.map((i) => (
+              <li style="font-family:var(--fs-mono);font-size:12px">
+                {i.interventionId} · {i.actionTemplate} · <strong>{i.state}</strong>
+                {' '}· runtime {i.runtimeOperationId ?? 'unknown'}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  </div>
+</BaseLayout>
