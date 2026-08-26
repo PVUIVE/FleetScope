@@ -1,0 +1,18 @@
+# Builds the Fleet Cockpit browser frontend into apps/web/public/wasm/ so the
+# Astro static build serves it without a second hosting surface.
+#
+# filehash = false keeps the artifact names stable (cockpit.js / cockpit_bg.wasm)
+# so the mount script can import them without a build-time hash lookup.
+[build]
+target = "index.html"
+dist = "../../apps/web/public/wasm"
+public_url = "/wasm/"
+filehash = false
+release = true
+
+[watch]
+ignore = ["../../apps/web/public/wasm"]
+
+[serve]
+port = 8081
+open = false

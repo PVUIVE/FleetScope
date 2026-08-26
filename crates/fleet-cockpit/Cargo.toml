@@ -4,16 +4,18 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "FleetScope Fleet Cockpit — transcript model, event cursor, and the browser ABI."
+description = "FleetScope Fleet Cockpit core — render manifest, event cursor, and the Zoetrope scene builder."
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+# rlib only. The wasm `cdylib` is `fleet-cockpit-web`; exporting from two crates
+# would produce two wasm-bindgen surfaces for one page.
+crate-type = ["rlib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2"
-
-[dev-dependencies]
+# The vendored rendering substrate, portable core only: model, timeline, graph
+# projection, UI rendering, parser. `default-features = false` drops the native
+# frontend (tokio / crossterm / filesystem tailing), which has no meaning here
+# and is what keeps this crate host-testable.
+zoetrope = { path = "../../vendor/zoetrope", default-features = false }

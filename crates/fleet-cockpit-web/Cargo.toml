@@ -1,0 +1,68 @@
+# Its own workspace, deliberately not a member of the one at the repository root.
+#
+# This crate can only be COMPILED for wasm32, not merely targeted at it: rataflow
+# gates its ratzilla `From` impls on `all(feature = "ratzilla", target_arch =
+# "wasm32")`, so a host-target check fails to typecheck. As a root member that
+# failure would land in `cargo check --workspace` and, worse, in rust-analyzer as
+# permanent phantom errors. The root manifest excludes it to match, exactly as
+# upstream Zoetrope excludes its own `web/wasm`.
+[workspace]
+
+[package]
+name = "fleet-cockpit-web"
+# Inert on purpose: nothing resolves this crate by version. It is deployed, not
+# depended on.
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+description = "FleetScope Fleet Cockpit — the browser frontend."
+publish = false
+
+[[bin]]
+# Trunk names its artifacts after the bin (`cockpit.js` / `cockpit_bg.wasm`), and
+# apps/web imports those exact paths. Keep this name stable.
+name = "cockpit"
+path = "src/main.rs"
+
+[dependencies]
+# The FleetScope Cockpit core: Render Manifest, scene loading, snapshot contract.
+# Host-testable, and tested — this crate adds only the browser shell around it.
+fleet-cockpit = { path = "../fleet-cockpit" }
+# The vendored rendering substrate, portable core only.
+zoetrope = { path = "../../vendor/zoetrope", default-features = false }
+# ratatui's wasm WebGl2 backend plus mouse/key events.
+ratzilla = "0.3.1"
+# The `ratzilla` feature supplies the ratzilla -> rataflow event `From` impls and
+# `Flow::handle_wheel`. Resolved from crates.io, matching upstream.
+rataflow = { version = "0.1.0", default-features = false, features = [
+  "sugiyama",
+  "ratzilla",
+] }
+ratatui = { version = "0.30", default-features = false }
+web-time = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+  "Window",
+  "Document",
+  "Element",
+  "EventTarget",
+  "WheelEvent",
+] }
+# ratzilla force-enables ratatui's `layout-cache`, whose global cache is guarded
+# by `critical-section`. wasm32-unknown-unknown has no default impl, so linking
+# fails on `_critical_section_1_0_acquire`; the `std` feature registers one
+# (single-threaded wasm never contends). The impl must be picked by the final
+# binary, which is this crate.
+critical-section = { version = "1", features = ["std"] }
+
+[package.metadata.cargo-machete]
+ignored = ["critical-section"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1

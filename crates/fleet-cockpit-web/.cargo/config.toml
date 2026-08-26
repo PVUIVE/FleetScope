@@ -1,0 +1,10 @@
+# The whole cargo configuration for the browser frontend, in one place: trunk runs
+# from this directory, so discovery starts here and no mirrored copies are needed.
+#
+# This crate can only be compiled for wasm32 (see the manifest comment). Cargo has
+# no stable way for a package to declare that — `per-package-target` is
+# nightly-only — so the default target is set here. `cargo build` / `cargo check`
+# need no `--target`, and an editor analyzing the crate picks up the same default
+# instead of host-checking it.
+[build]
+target = "wasm32-unknown-unknown"

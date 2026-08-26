@@ -2,9 +2,19 @@
 resolver = "2"
 members = ["crates/fleet-cockpit"]
 
+# `vendor/zoetrope` carries its own `[workspace]` table and its own lockfile; a
+# path dependency needs no membership. `crates/fleet-cockpit-web` can only be
+# *compiled* for wasm32 — rataflow gates its ratzilla `From` impls on
+# `all(feature = "ratzilla", target_arch = "wasm32")` — so a host check of it
+# fails to typecheck. Membership would put that failure into
+# `cargo check --workspace` and into rust-analyzer. Both stay excluded.
+exclude = ["vendor/zoetrope", "crates/fleet-cockpit-web"]
+
 [workspace.package]
 edition = "2021"
-rust-version = "1.82"
+# Floor set by the vendored Zoetrope portable core (its own `rust-version` is
+# 1.88, inherited from ratatui 0.30). `fleet-cockpit` depends on it.
+rust-version = "1.88"
 license = "MIT"
 
 [profile.release]

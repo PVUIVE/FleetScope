@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Trunk entry point. This page is NOT the product surface — Trunk's own
+  index.html is deleted by scripts/build-wasm.sh after the build. What ships is
+  cockpit.js, cockpit_bg.wasm and env.js, which apps/web mounts into
+  #fleetscope-cockpit-canvas from src/features/cockpit/CockpitMount.astro.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Resolve the wasm module's libm `env` imports (fmod / round) and the
+      critical-section shims to a JS file. wasm32-unknown-unknown provides no
+      math intrinsics, so without this the module does not instantiate. Must
+      precede the wasm script so the specifier resolves.
+    -->
+    <script type="importmap">
+      { "imports": { "env": "/wasm/env.js" } }
+    </script>
+    <link data-trunk rel="copy-file" href="env.js" />
+    <link data-trunk rel="rust" href="Cargo.toml" data-bin="cockpit" data-wasm-opt="z" />
+    <title>FleetScope Fleet Cockpit</title>
+  </head>
+  <body>
+    <div id="fleetscope-cockpit-canvas"></div>
+  </body>
+</html>
