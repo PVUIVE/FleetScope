@@ -11,6 +11,11 @@ server {
     return 200 "ok\n";
   }
 
+  # Avoid Astro's static meta-refresh redirect page at the public root.
+  location = / {
+    return 302 /cases/;
+  }
+
   location ^~ /_astro/ {
     try_files $uri =404;
     expires 1y;
