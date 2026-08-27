@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CockpitMount from '../../features/cockpit/CockpitMount.astro';
+import CockpitStory from '../../components/CockpitStory.astro';
 import CaseHeader from '../../components/CaseHeader.astro';
 import EvidenceRail from '../../components/EvidenceRail.astro';
 import EvidenceDrawer from '../../components/EvidenceDrawer.astro';
@@ -23,6 +24,7 @@ import { buildEvidenceRecords, incidentViews } from '../../lib/evidence-view';
 import { summariseCase } from '../../lib/case-summary';
 import { agentTree } from '../../lib/agent-tree';
 import { demoPhases } from '../../lib/demo-phases';
+import { cockpitStory } from '../../lib/cockpit-story';
 import { webConfig } from '../../lib/config';
 
 /**
@@ -48,6 +50,7 @@ const evidenceManifest = getEvidenceManifest(caseId!);
 const caseSequences = events.map((event) => event.caseSequence);
 
 const records = scene === null ? [] : buildEvidenceRecords(events, scene.manifest);
+const story = scene === null ? null : cockpitStory(records, scene.manifest);
 const summary = summariseCase(caseId!, descriptor, state, records);
 const phases = scene === null ? [] : demoPhases(events, scene.manifest);
 const agents = state === null ? [] : agentTree(state, events);
@@ -76,8 +79,11 @@ const LIVE_STEP_ID = 'orchestrator-compliance-decision';
     <a slot="actions" class="fs-button fs-button--sm" href={`/audit/${caseId}`}>Audit</a>
   </CaseHeader>
 
-  <div class="fs-cockpit-layout">
-    <div class="fs-rail">
+  <div class="fs-cockpit-shell" data-cockpit-shell data-mode="story">
+    {story !== null && <CockpitStory story={story} />}
+
+    <div class="fs-cockpit-layout">
+    <div class="fs-rail" data-cockpit-expert hidden>
       <AgentTree nodes={agents} />
 
       <section class="fs-card">
@@ -119,7 +125,7 @@ const LIVE_STEP_ID = 'orchestrator-compliance-decision';
       />
     )}
 
-    <div class="fs-rail">
+    <div class="fs-rail" data-cockpit-expert hidden>
       {scene !== null && (
         <EvidenceRail
           records={records}
@@ -141,7 +147,7 @@ const LIVE_STEP_ID = 'orchestrator-compliance-decision';
     </div>
   </div>
 
-  <div class="fs-grid fs-grid--2" style="margin-top:var(--fs-space-4)">
+  <div class="fs-grid fs-grid--2" style="margin-top:var(--fs-space-4)" data-cockpit-expert hidden>
     <section class="fs-card">
       <div class="fs-section-head">
         <h2>Incidents</h2>
@@ -196,4 +202,5 @@ const LIVE_STEP_ID = 'orchestrator-compliance-decision';
   </div>
 
   <EvidenceDrawer records={records} seekable={scene !== null} />
+  </div>
 </BaseLayout>

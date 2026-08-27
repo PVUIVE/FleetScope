@@ -54,7 +54,7 @@ const { caseId, manifest, main, subagentsJson, caseSequences, phases } = Astro.p
   </header>
 
   {phases.length > 0 && (
-    <nav aria-label="Case walkthrough">
+    <nav aria-label="Case walkthrough" data-cockpit-expert hidden>
       <ol class="fs-phases">
         {phases.map((phase) => (
           <li>

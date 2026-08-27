@@ -1,0 +1,30 @@
+---
+import type { StoryClaim, StoryEvidence } from '../lib/cockpit-story';
+
+interface Props {
+  claim: StoryClaim;
+}
+const { claim } = Astro.props;
+
+const evidenceLabel = (evidence: StoryEvidence): string =>
+  `Event ${String(evidence.humanIndex)} · ${evidence.label}${
+    evidence.rendererEntryStart === null
+      ? ' · not drawn in graph'
+      : ` · renderer ${String(evidence.rendererEntryStart)}–${String(evidence.rendererEntryEnd)}`
+  }`;
+---
+
+<div class="fs-story__evidence" aria-label={`Evidence for ${claim.label}`}>
+  {claim.available ? (
+    claim.evidence.map((evidence) => (
+      <button
+        type="button"
+        class="fs-story__evidence-link"
+        data-seek-sequence={evidence.caseSequence}
+        title={evidence.summary}
+      >{evidenceLabel(evidence)}</button>
+    ))
+  ) : (
+    <span class="fs-status" data-tone="unknown">? Evidence unavailable</span>
+  )}
+</div>

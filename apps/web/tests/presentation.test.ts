@@ -3,6 +3,7 @@ import { loadCanonicalEvents } from '@fleetscope/fixtures/node';
 import { project } from '@fleetscope/projector';
 import { compileZoetropeScene } from '@fleetscope/scenario-compiler';
 import { buildEvidenceRecords, incidentViews, narrativeActivity } from '../src/lib/evidence-view';
+import { cockpitStory } from '../src/lib/cockpit-story';
 import { caseRail, nextAction, summariseCase } from '../src/lib/case-summary';
 import { demoPhases } from '../src/lib/demo-phases';
 import { agentTree } from '../src/lib/agent-tree';
@@ -102,6 +103,41 @@ describe('evidence records', () => {
     expect(activity.some((row) => row.type === 'tool.requested')).toBe(false);
     // Newest first.
     expect(activity[0]!.caseSequence).toBeGreaterThan(activity.at(-1)!.caseSequence);
+  });
+});
+
+describe('Cockpit Story Mode projection', () => {
+  const story = cockpitStory(records, manifest);
+
+  it('orders five chapters and four evidence-backed proof cards', () => {
+    expect(story.chapters.map((chapter) => chapter.id)).toEqual([
+      'start',
+      'security',
+      'failure',
+      'warden',
+      'result',
+    ]);
+    expect(story.proofs).toHaveLength(4);
+  });
+
+  it('limits each chapter to three supporting events with exact manifest ranges', () => {
+    for (const chapter of story.chapters) {
+      expect(chapter.evidence.length).toBeLessThanOrEqual(3);
+      for (const evidence of chapter.evidence) {
+        expect(events.some((event) => event.eventId === evidence.eventId)).toBe(true);
+        expect(evidence.rendererEntryStart).not.toBeNull();
+        expect(evidence.rendererEntryEnd).not.toBeNull();
+      }
+    }
+  });
+
+  it('renders missing evidence as unavailable instead of inventing a result', () => {
+    const missing = cockpitStory(
+      records.filter((record) => record.type !== 'runtime.completed'),
+      manifest,
+    );
+    expect(missing.outcome.available).toBe(false);
+    expect(missing.outcome.summary).toContain('Not recorded');
   });
 });
 

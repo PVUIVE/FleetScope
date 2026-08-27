@@ -174,6 +174,41 @@ async function main(): Promise<void> {
     );
     const atEdge = await page.locator('[data-cursor-sequence]').innerText();
     check('cockpit: the event count is 1-based', atEdge !== '0' && atEdge !== '—', atEdge);
+    check(
+      'cockpit: Story Mode is the default',
+      (await page.locator('[data-cockpit-shell]').getAttribute('data-mode')) === 'story',
+    );
+    check(
+      'cockpit: Story Mode shows outcome, four proofs, and five chapters',
+      (await page.locator('.fs-story__outcome').count()) === 1 &&
+        (await page.locator('.fs-story__proof').count()) === 4 &&
+        (await page.locator('[data-story-chapter]').count()) === 5,
+    );
+    check(
+      'cockpit: technical evidence is hidden until Expert Mode',
+      await page
+        .locator('[data-evidence-rail]')
+        .evaluate((rail) => rail.closest<HTMLElement>('[data-cockpit-expert]')?.hidden === true),
+    );
+
+    const wardenChapter = page.locator('[data-story-chapter="warden"]');
+    const wardenSequence = await wardenChapter.getAttribute('data-seek-sequence');
+    await wardenChapter.click();
+    await page.waitForTimeout(500);
+    check(
+      'cockpit: Story chapter seeks through the Render Manifest',
+      (await page.locator('[data-cursor-sequence]').innerText()) ===
+        String(Number(wardenSequence) + 1),
+      await page.locator('[data-cursor-readout]').innerText(),
+    );
+    const cursorBeforeExpert = await page.locator('[data-cursor-sequence]').innerText();
+    await page.getByRole('button', { name: 'Open technical evidence', exact: true }).click();
+    check(
+      'cockpit: Expert Mode reveals full evidence without moving the cursor',
+      (await page.locator('[data-cockpit-shell]').getAttribute('data-mode')) === 'expert' &&
+        (await page.locator('[data-evidence-rail]').isVisible()) &&
+        (await page.locator('[data-cursor-sequence]').innerText()) === cursorBeforeExpert,
+    );
 
     // Selecting Armor evidence must move the graph through the Render Manifest.
     const armor = page.locator('[data-evidence-marker]').filter({ hasText: 'Armor' }).first();

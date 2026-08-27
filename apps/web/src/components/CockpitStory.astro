@@ -1,0 +1,104 @@
+---
+import type { CockpitStory } from '../lib/cockpit-story';
+import StoryEvidence from './StoryEvidence.astro';
+
+interface Props {
+  story: CockpitStory;
+}
+const { story } = Astro.props;
+---
+
+<section class="fs-story" data-cockpit-story aria-labelledby="fs-story-heading">
+  <div class="fs-story__head">
+    <div>
+      <p class="fs-eyebrow">Fleet Cockpit · Recorded Case</p>
+      <h2 id="fs-story-heading" class="fs-story__title">What happened?</h2>
+    </div>
+    <div class="fs-story__modes" role="group" aria-label="Cockpit presentation">
+      <button type="button" class="fs-button fs-button--sm" data-cockpit-mode-toggle="story" aria-pressed="true">
+        Story
+      </button>
+      <button type="button" class="fs-button fs-button--sm" data-cockpit-mode-toggle="expert" aria-pressed="false">
+        Open technical evidence
+      </button>
+    </div>
+  </div>
+
+  <section class="fs-story__outcome" data-available={String(story.outcome.available)}>
+    <p class="fs-eyebrow">Outcome</p>
+    <h3>{story.outcome.label}</h3>
+    <p>{story.outcome.summary}</p>
+    <StoryEvidence claim={story.outcome} />
+  </section>
+
+  <div class="fs-story__proofs" aria-label="Recorded proof">
+    {story.proofs.map((proof) => (
+      <article class="fs-story__proof" data-available={String(proof.available)}>
+        <h3>{proof.label}</h3>
+        <p>{proof.summary}</p>
+        <StoryEvidence claim={proof} />
+      </article>
+    ))}
+  </div>
+
+  <nav class="fs-story__chapters" aria-label="Case story">
+    {story.chapters.map((chapter, index) => (
+      <button
+        type="button"
+        class="fs-story__chapter"
+        data-story-chapter={chapter.id}
+        data-seek-sequence={chapter.evidence[0]?.caseSequence}
+        aria-pressed={index === 0 ? 'true' : 'false'}
+      >
+        <span aria-hidden="true">{index + 1}</span>{chapter.title}
+      </button>
+    ))}
+  </nav>
+
+  {story.chapters.map((chapter, index) => (
+    <article class="fs-story__explanation" data-story-explanation={chapter.id} hidden={index !== 0}>
+      <p class="fs-eyebrow">{chapter.title}</p>
+      <dl>
+        <dt>Problem</dt><dd>{chapter.problem}</dd>
+        <dt>Action</dt><dd>{chapter.action}</dd>
+        <dt>Result</dt><dd>{chapter.result}</dd>
+      </dl>
+      <StoryEvidence claim={chapter} />
+    </article>
+  ))}
+</section>
+
+<script>
+  const story = document.querySelector<HTMLElement>('[data-cockpit-story]');
+  const shell = document.querySelector<HTMLElement>('[data-cockpit-shell]');
+
+  if (story !== null && shell !== null) {
+    const setMode = (mode: 'story' | 'expert'): void => {
+      shell.dataset['mode'] = mode;
+      for (const control of story.querySelectorAll<HTMLButtonElement>('[data-cockpit-mode-toggle]')) {
+        control.setAttribute('aria-pressed', String(control.dataset['cockpitModeToggle'] === mode));
+      }
+      for (const section of shell.querySelectorAll<HTMLElement>('[data-cockpit-expert]')) {
+        section.hidden = mode !== 'expert';
+      }
+    };
+
+    story.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null;
+      const mode = target?.closest<HTMLButtonElement>('[data-cockpit-mode-toggle]');
+      if (mode !== null && mode !== undefined) {
+        setMode(mode.dataset['cockpitModeToggle'] === 'expert' ? 'expert' : 'story');
+        return;
+      }
+      const chapter = target?.closest<HTMLButtonElement>('[data-story-chapter]');
+      if (chapter === null || chapter === undefined) return;
+      const id = chapter.dataset['storyChapter'];
+      for (const button of story.querySelectorAll<HTMLButtonElement>('[data-story-chapter]')) {
+        button.setAttribute('aria-pressed', String(button === chapter));
+      }
+      for (const explanation of story.querySelectorAll<HTMLElement>('[data-story-explanation]')) {
+        explanation.hidden = explanation.dataset['storyExplanation'] !== id;
+      }
+    });
+  }
+</script>
