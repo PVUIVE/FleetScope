@@ -14,11 +14,11 @@ interface Props {
 const { path, defaultCaseId, liveMode } = Astro.props;
 
 const links = [
-  { href: '/cases', label: 'Cases' },
-  { href: '/catalog', label: 'Agent Catalog' },
-  { href: '/approvals', label: 'Approvals' },
-  { href: `/cockpit/${defaultCaseId}`, label: 'Fleet Cockpit', section: '/cockpit' },
-  { href: `/audit/${defaultCaseId}`, label: 'Audit', section: '/audit' },
+  { href: '/cases/', label: 'Cases', section: '/cases' },
+  { href: '/catalog/', label: 'Agent Catalog' },
+  { href: '/approvals/', label: 'Approvals' },
+  { href: `/cockpit/${defaultCaseId}/`, label: 'Fleet Cockpit', section: '/cockpit' },
+  { href: `/audit/${defaultCaseId}/`, label: 'Audit', section: '/audit' },
 ];
 
 const isCurrent = (link: { href: string; section?: string }): boolean => {
@@ -28,7 +28,7 @@ const isCurrent = (link: { href: string; section?: string }): boolean => {
 ---
 
 <nav class="fs-nav" aria-label="Primary">
-  <a class="fs-nav__brand" href="/cases">
+  <a class="fs-nav__brand" href="/cases/">
     <span class="fs-nav__brand-name">FleetScope</span>
     <span class="fs-nav__brand-sub">Governed Agent Operations</span>
   </a>
