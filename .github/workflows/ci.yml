@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -79,3 +80,24 @@ jobs:
         run: |
           pnpm run fixtures:bless
           git diff --exit-code -- packages/fixtures/cases
+
+  deploy:
+    name: Deploy to Railway
+    needs: [typescript, rust, fixtures]
+    # Deploy only validated main commits; workflow_dispatch remains available for
+    # an intentional re-deploy of main through the protected production environment.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy documented static web service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          docker run --rm \
+            --env RAILWAY_TOKEN \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            ghcr.io/railwayapp/cli:latest \
+            railway up --ci --service fleetscope-web

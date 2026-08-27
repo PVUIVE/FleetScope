@@ -15,12 +15,24 @@ The `railway/web.Dockerfile` build performs three stages:
 ## Railway setup
 
 1. Create a Railway project and a single service named `fleetscope-web`.
-2. Connect the FleetScope GitHub repository. Keep the service **Root Directory empty**: this is a shared pnpm workspace and the Docker build needs repository-root `apps/`, `packages/`, `crates/`, and `vendor/` paths.
+2. Do **not** enable Railway GitHub Autodeploy for this service: the GitHub Actions workflow uploads the repository only after all CI checks pass. If the service is already connected to GitHub, disable its automatic deploy trigger. The deploy source must remain the repository root; do not set a Root Directory because the Docker build needs `apps/`, `packages/`, `crates/`, and `vendor/` paths.
 3. Railway reads `railway.json` from the repository root. If the dashboard does not detect it, set the service variable `RAILWAY_DOCKERFILE_PATH=railway/web.Dockerfile`.
 4. Do **not** configure `PUBLIC_LIVE_MODE=true`, `PUBLIC_API_BASE_URL`, `LIVE_MODE=true`, `GEMINI_API_KEY`, or any Gemini credential for this initial public deployment.
 5. Deploy, wait for the `/health` check, then generate a public domain.
 
 No custom environment variables are required for this recorded-only service. Railway supplies `PORT`; the image provides `8080` only as a local default.
+
+## GitHub Actions deployment
+
+`.github/workflows/ci.yml` runs the full TypeScript, Rust/WASM, and fixture-determinism CI suite for pull requests and pushes to `main`. Its `Deploy to Railway` job runs only after all three CI jobs pass on `main` (or a manual dispatch from `main`).
+
+Configure the GitHub `production` environment before enabling deployment:
+
+1. Create a Railway **project token** scoped to the production environment for the FleetScope project.
+2. Add it as the `RAILWAY_TOKEN` secret in the GitHub `production` environment, not as a repository-wide secret.
+3. Optionally require reviewers on that environment to add a production approval gate.
+
+The job deploys the documented `fleetscope-web` service with `railway up --ci`. The project token already selects the Railway project and production environment, so no project identifier is stored in the repository. The Dockerfile remains the source of truth for the static Recorded Mode build.
 
 ## Post-deploy validation
 
