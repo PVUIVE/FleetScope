@@ -1,4 +1,5 @@
 import type {
+  ActionIntent,
   Intervention,
   InterventionId,
   InterventionState,
@@ -12,6 +13,7 @@ import {
 } from '@fleetscope/domain';
 import { canonicalJson, sha256Hex } from '@fleetscope/shared';
 import { ACTION_TEMPLATES, type PolicyEvaluation } from './policy.js';
+import { validateApprovalBinding } from './approval.js';
 
 /**
  * The Intervention lifecycle.
@@ -72,6 +74,7 @@ export type InterventionFailure =
   | { readonly reason: 'illegal_transition'; readonly detail: string }
   | { readonly reason: 'already_executed'; readonly detail: string }
   | { readonly reason: 'attempt_budget_exhausted'; readonly detail: string }
+  | { readonly reason: 'approval_binding_invalid'; readonly detail: string }
   | { readonly reason: 'control_adapter_unavailable'; readonly detail: string };
 
 /**
@@ -98,6 +101,10 @@ export interface ProposeInput {
   readonly caseId: string;
   readonly evaluation: PolicyEvaluation;
   readonly target: string;
+  /** Exact parameters to bind into an operator approval, if one is required. */
+  readonly parameters?: Readonly<Record<string, string>>;
+  /** Exact Case evidence prefix the action will run against. */
+  readonly boundCaseSequence?: number;
   readonly attempt: number;
   readonly proposedAt: string;
   /** Set when this is a retry of an earlier, failed Intervention. */
@@ -139,6 +146,25 @@ export function propose(input: ProposeInput): Proposal {
     };
   }
 
+  const intent: ActionIntent = {
+    caseId: input.caseId as Intervention['caseId'],
+    actionTemplate: template,
+    target: input.target,
+    parameters: input.parameters ?? {},
+    boundCaseSequence: input.boundCaseSequence ?? 0,
+  };
+  const approvalRequired =
+    evaluation.disposition === 'approval_required' || evaluation.approvalBinding !== undefined;
+  if (evaluation.approvalBinding !== undefined) {
+    const approval = validateApprovalBinding(evaluation.approvalBinding, intent, input.proposedAt);
+    if (!approval.ok) {
+      return {
+        ok: false,
+        failure: { reason: 'approval_binding_invalid', detail: approval.detail },
+      };
+    }
+  }
+
   return {
     ok: true,
     intervention: {
@@ -148,12 +174,18 @@ export function propose(input: ProposeInput): Proposal {
         template,
         input.attempt,
       ),
-      caseId: input.caseId as Intervention['caseId'],
+      caseId: intent.caseId,
       incidentId: evaluation.incidentId,
       policyVersion: evaluation.policyVersion,
       actionTemplate: template,
       operation: ACTION_TEMPLATES[template]!.operation as RuntimeOperation,
-      target: input.target,
+      target: intent.target,
+      parameters: intent.parameters,
+      boundCaseSequence: intent.boundCaseSequence,
+      approvalRequired,
+      ...(evaluation.approvalBinding !== undefined
+        ? { approvalBinding: evaluation.approvalBinding }
+        : {}),
       state: 'proposed',
       proposedAt: input.proposedAt,
       ...(input.retryOf !== undefined ? { retryOf: input.retryOf } : {}),
@@ -224,6 +256,8 @@ export function retryOf(
     caseId: original.caseId,
     evaluation,
     target: original.target,
+    parameters: original.parameters ?? {},
+    boundCaseSequence: original.boundCaseSequence ?? 0,
     attempt,
     proposedAt,
     retryOf: original.interventionId,
@@ -236,6 +270,22 @@ export interface ExecutionOutcome {
   readonly result: ControlResult | null;
   /** True when this call was a redelivery and the adapter was not touched again. */
   readonly deduplicated: boolean;
+}
+
+/** Current Case facts required when executing an operator-approved action. */
+export interface ApprovalExecutionContext {
+  readonly currentCaseSequence: number;
+  readonly executedAt: string;
+}
+
+function intentOf(intervention: Intervention): ActionIntent {
+  return {
+    caseId: intervention.caseId,
+    actionTemplate: intervention.actionTemplate,
+    target: intervention.target,
+    parameters: intervention.parameters ?? {},
+    boundCaseSequence: intervention.boundCaseSequence ?? -1,
+  };
 }
 
 /**
@@ -273,6 +323,7 @@ export class Warden {
    */
   async execute(
     intervention: Intervention,
+    approvalContext?: ApprovalExecutionContext,
   ): Promise<
     { ok: true; outcome: ExecutionOutcome } | { ok: false; failure: InterventionFailure }
   > {
@@ -290,6 +341,38 @@ export class Warden {
           detail: `an Intervention in "${intervention.state}" may not be requested`,
         },
       };
+    }
+    if (intervention.approvalRequired) {
+      if (approvalContext === undefined) {
+        return {
+          ok: false,
+          failure: {
+            reason: 'approval_binding_invalid',
+            detail:
+              'operator-approved execution requires the current Case evidence prefix and time',
+          },
+        };
+      }
+      if (approvalContext.currentCaseSequence !== intervention.boundCaseSequence) {
+        return {
+          ok: false,
+          failure: {
+            reason: 'approval_binding_invalid',
+            detail: 'Case evidence advanced or rewound after operator approval',
+          },
+        };
+      }
+      const approval = validateApprovalBinding(
+        intervention.approvalBinding,
+        intentOf(intervention),
+        approvalContext.executedAt,
+      );
+      if (!approval.ok) {
+        return {
+          ok: false,
+          failure: { reason: 'approval_binding_invalid', detail: approval.detail },
+        };
+      }
     }
     if (this.#adapter.mode === 'unavailable') {
       return {

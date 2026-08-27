@@ -110,7 +110,7 @@ if (failureIncident !== undefined) {
   const decision = evaluate(
     {
       incident: failureIncident,
-      authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 1 },
+      authorization: { attemptsUsed: 0, attemptBudget: 1 },
     },
     failureIncident.openedAt,
   );

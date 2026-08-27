@@ -1,3 +1,4 @@
+import type { ApprovalBinding } from './approval.js';
 import type {
   CaseId,
   IncidentId,
@@ -49,6 +50,14 @@ export interface Intervention {
   readonly actionTemplate: string;
   readonly operation: RuntimeOperation;
   readonly target: string;
+  /** Exact parameters the Control Adapter will receive when present on a new proposal. */
+  readonly parameters?: Readonly<Record<string, string>>;
+  /** Exact evidence prefix the action was proposed against when present on a new proposal. */
+  readonly boundCaseSequence?: number;
+  /** True when policy required operator authorization for this action. */
+  readonly approvalRequired?: boolean;
+  /** Present only when policy validated a specific operator approval. */
+  readonly approvalBinding?: ApprovalBinding;
   readonly state: InterventionState;
   readonly proposedAt: Instant;
   /** Present only once Runtime has acknowledged; this is the authoritative handle. */

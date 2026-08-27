@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CanonicalEvent } from '@fleetscope/event-schema';
 import { loadCanonicalEvents } from '@fleetscope/fixtures/node';
 import { project } from '@fleetscope/projector';
-import type { Intervention } from '@fleetscope/domain';
+import type { ApprovalBinding, Intervention } from '@fleetscope/domain';
 import {
   DEFAULT_DETECTOR_CONFIG,
   DETECTOR_VERSION,
@@ -212,7 +212,7 @@ describe('context drift is advisory only', () => {
     const decision = evaluate(
       {
         incident,
-        authorization: { operatorApprovalRecorded: true, attemptsUsed: 0, attemptBudget: 3 },
+        authorization: { attemptsUsed: 0, attemptBudget: 3 },
       },
       AT,
     );
@@ -237,7 +237,7 @@ describe('the Policy Engine returns exactly one disposition', () => {
     const decision = evaluate(
       {
         incident: failureIncident(),
-        authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 1 },
+        authorization: { attemptsUsed: 0, attemptBudget: 1 },
       },
       AT,
     );
@@ -252,7 +252,7 @@ describe('the Policy Engine returns exactly one disposition', () => {
     const decision = evaluate(
       {
         incident: failureIncident(),
-        authorization: { operatorApprovalRecorded: false, attemptsUsed: 1, attemptBudget: 1 },
+        authorization: { attemptsUsed: 1, attemptBudget: 1 },
       },
       AT,
     );
@@ -263,9 +263,64 @@ describe('the Policy Engine returns exactly one disposition', () => {
   it('is deterministic for the same input', () => {
     const input = {
       incident: failureIncident(),
-      authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 1 },
+      authorization: { attemptsUsed: 0, attemptBudget: 1 },
     };
     expect(evaluate(input, AT)).toEqual(evaluate(input, AT));
+  });
+
+  it('elevates an approval-required action only with a full matching binding', () => {
+    const incident = failureIncident();
+    const binding: ApprovalBinding = {
+      caseId: incident.caseId,
+      actionTemplate: 'retry_idempotent_read',
+      target: 'agent-logistics-1',
+      parameters: { retryScope: 'one_tool_call' },
+      boundCaseSequence: 17,
+      expiresAt: '2026-09-07T10:00:00.000Z',
+      decision: 'approved',
+      approver: 'operator-7',
+    };
+    const accepted = evaluate(
+      {
+        incident,
+        authorization: {
+          attemptsUsed: 1,
+          attemptBudget: 1,
+          operatorApproval: binding,
+          proposedAction: {
+            caseId: incident.caseId,
+            actionTemplate: 'retry_idempotent_read',
+            target: 'agent-logistics-1',
+            parameters: { retryScope: 'one_tool_call' },
+            boundCaseSequence: 17,
+          },
+        },
+      },
+      AT,
+    );
+    expect(accepted.disposition).toBe('auto_act');
+    expect(accepted.approvalBinding).toEqual(binding);
+
+    const changedTarget = evaluate(
+      {
+        incident,
+        authorization: {
+          attemptsUsed: 1,
+          attemptBudget: 1,
+          operatorApproval: binding,
+          proposedAction: {
+            caseId: incident.caseId,
+            actionTemplate: 'retry_idempotent_read',
+            target: 'agent-other',
+            parameters: { retryScope: 'one_tool_call' },
+            boundCaseSequence: 17,
+          },
+        },
+      },
+      AT,
+    );
+    expect(changedTarget.disposition).toBe('approval_required');
+    expect(changedTarget.approvalBinding).toBeUndefined();
   });
 });
 
@@ -306,7 +361,7 @@ describe('model advice is untrusted advisory data', () => {
     const decision = evaluate(
       {
         incident: incident(),
-        authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 1 },
+        authorization: { attemptsUsed: 0, attemptBudget: 1 },
         advice: {
           model: 'gemini',
           responseRef: 'resp-1',
@@ -327,7 +382,7 @@ describe('model advice is untrusted advisory data', () => {
     const withAdvice = evaluate(
       {
         incident: { ...incident(), incidentClass: 'context_drift' },
-        authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 3 },
+        authorization: { attemptsUsed: 0, attemptBudget: 3 },
         advice: {
           model: 'gemini',
           responseRef: 'resp-1',
@@ -356,7 +411,7 @@ function authorizedIntervention(): { intervention: Intervention; evaluation: Pol
   const evaluation = evaluate(
     {
       incident,
-      authorization: { operatorApprovalRecorded: false, attemptsUsed: 0, attemptBudget: 1 },
+      authorization: { attemptsUsed: 0, attemptBudget: 1 },
     },
     AT,
   );
@@ -378,6 +433,106 @@ function authorizedIntervention(): { intervention: Intervention; evaluation: Pol
     evaluation,
   };
 }
+
+function operatorApprovedIntervention(): Intervention {
+  const { intervention } = authorizedIntervention();
+  const parameters = { retryScope: 'one_tool_call' };
+  const approvalBinding: ApprovalBinding = {
+    caseId: intervention.caseId,
+    actionTemplate: intervention.actionTemplate,
+    target: intervention.target,
+    parameters,
+    boundCaseSequence: 42,
+    expiresAt: '2026-09-07T10:00:00.000Z',
+    decision: 'approved',
+    approver: 'operator-7',
+  };
+  return {
+    ...intervention,
+    parameters,
+    boundCaseSequence: 42,
+    approvalRequired: true,
+    approvalBinding,
+  };
+}
+
+describe('operator approval binding at the Control Adapter boundary', () => {
+  it('executes a fully matched, unexpired operator approval', async () => {
+    const adapter = recordingAdapter();
+    const result = await new Warden(adapter).execute(operatorApprovedIntervention(), {
+      currentCaseSequence: 42,
+      executedAt: AT,
+    });
+    expect(result.ok).toBe(true);
+    expect(adapter.requests).toHaveLength(1);
+    expect(adapter.observations).toHaveLength(1);
+  });
+
+  const mutations: readonly {
+    readonly name: string;
+    readonly apply: (binding: ApprovalBinding) => ApprovalBinding;
+  }[] = [
+    {
+      name: 'Case',
+      apply: (binding) => ({ ...binding, caseId: 'CASE-OTHER' as typeof binding.caseId }),
+    },
+    {
+      name: 'action template',
+      apply: (binding) => ({ ...binding, actionTemplate: 'reroute_delegation' }),
+    },
+    { name: 'target', apply: (binding) => ({ ...binding, target: 'agent-other' }) },
+    { name: 'parameters', apply: (binding) => ({ ...binding, parameters: { retryScope: 'all' } }) },
+    { name: 'evidence prefix', apply: (binding) => ({ ...binding, boundCaseSequence: 41 }) },
+    { name: 'expiry', apply: (binding) => ({ ...binding, expiresAt: AT }) },
+    { name: 'malformed expiry', apply: (binding) => ({ ...binding, expiresAt: 'not-a-time' }) },
+    { name: 'decision', apply: (binding) => ({ ...binding, decision: 'rejected' }) },
+    { name: 'approver', apply: (binding) => ({ ...binding, approver: ' ' }) },
+  ];
+
+  for (const mutation of mutations) {
+    it(`rejects a changed ${mutation.name} before any Control Adapter call`, async () => {
+      const intervention = operatorApprovedIntervention();
+      const adapter = recordingAdapter();
+      const result = await new Warden(adapter).execute(
+        { ...intervention, approvalBinding: mutation.apply(intervention.approvalBinding!) },
+        { currentCaseSequence: 42, executedAt: AT },
+      );
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.failure.reason).toBe('approval_binding_invalid');
+      expect(adapter.requests).toEqual([]);
+      expect(adapter.observations).toEqual([]);
+    });
+  }
+
+  it('rejects an advanced Case cursor and a missing execution context before any adapter call', async () => {
+    const intervention = operatorApprovedIntervention();
+    const changedEvidenceAdapter = recordingAdapter();
+    const changedEvidence = await new Warden(changedEvidenceAdapter).execute(intervention, {
+      currentCaseSequence: 43,
+      executedAt: AT,
+    });
+    expect(changedEvidence.ok).toBe(false);
+    expect(changedEvidenceAdapter.requests).toEqual([]);
+    expect(changedEvidenceAdapter.observations).toEqual([]);
+
+    const missingContextAdapter = recordingAdapter();
+    const missingContext = await new Warden(missingContextAdapter).execute(intervention);
+    expect(missingContext.ok).toBe(false);
+    expect(missingContextAdapter.requests).toEqual([]);
+    expect(missingContextAdapter.observations).toEqual([]);
+
+    const missingBindingAdapter = recordingAdapter();
+    const { approvalBinding: removedBinding, ...withoutBinding } = intervention;
+    expect(removedBinding).toBeDefined();
+    const missingBinding = await new Warden(missingBindingAdapter).execute(withoutBinding, {
+      currentCaseSequence: 42,
+      executedAt: AT,
+    });
+    expect(missingBinding.ok).toBe(false);
+    expect(missingBindingAdapter.requests).toEqual([]);
+    expect(missingBindingAdapter.observations).toEqual([]);
+  });
+});
 
 describe('the lifecycle cannot be short-circuited', () => {
   it('refuses an illegal transition instead of coercing it', () => {

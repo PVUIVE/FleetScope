@@ -14,5 +14,6 @@
  * rather than an assurance.
  */
 export * from './detector.js';
+export * from './approval.js';
 export * from './policy.js';
 export * from './intervention.js';

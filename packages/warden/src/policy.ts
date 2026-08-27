@@ -1,6 +1,12 @@
-import type { PolicyDecision, PolicyDisposition } from '@fleetscope/domain';
+import type {
+  ActionIntent,
+  ApprovalBinding,
+  PolicyDecision,
+  PolicyDisposition,
+} from '@fleetscope/domain';
 import { policyVersion as toPolicyVersion } from '@fleetscope/domain';
 import type { DetectedIncident, SuggestedActionClass } from './detector.js';
+import { validateApprovalBinding } from './approval.js';
 
 /**
  * The Policy Engine.
@@ -60,8 +66,10 @@ export const ACTION_TEMPLATES: Readonly<
 };
 
 export interface AuthorizationContext {
-  /** Whether an operator approval is already recorded and still bound to this evidence. */
-  readonly operatorApprovalRecorded: boolean;
+  /** Full operator authority, never a boolean capability. */
+  readonly operatorApproval?: ApprovalBinding;
+  /** The exact action policy is being asked to authorize. */
+  readonly proposedAction?: ActionIntent;
   /** Interventions already attempted for this incident. */
   readonly attemptsUsed: number;
   readonly attemptBudget: number;
@@ -85,6 +93,8 @@ export interface PolicyInput {
 
 export interface PolicyEvaluation extends PolicyDecision {
   readonly sideEffectClass: SideEffectClass;
+  /** Present only when policy validated this exact operator binding. */
+  readonly approvalBinding?: ApprovalBinding;
   /** Why the advice was not used, when it was not. Recorded, never hidden. */
   readonly adviceRejectedReason?: string;
   /** Whether the advice, if any, influenced the outcome. Always false today. */
@@ -176,6 +186,7 @@ export function evaluate(input: PolicyInput, evaluatedAt: string): PolicyEvaluat
 
   let disposition: PolicyDisposition = 'auto_act';
   const reasons: string[] = [];
+  let approvalBinding: ApprovalBinding | undefined;
 
   const incidentCeiling = ceilingForIncident(incident);
   if (DISPOSITION_RANK[incidentCeiling] < DISPOSITION_RANK[disposition]) {
@@ -207,11 +218,31 @@ export function evaluate(input: PolicyInput, evaluatedAt: string): PolicyEvaluat
     disposition = weakest(disposition, 'approval_required');
   }
 
-  // An operator approval already on record satisfies an approval requirement,
-  // but only for an action the policy would otherwise have permitted.
-  if (disposition === 'approval_required' && authorization.operatorApprovalRecorded) {
-    reasons.push('operator approval is recorded and bound to this evidence');
-    disposition = template === null ? 'recommend' : 'auto_act';
+  // A human approval only satisfies an approval requirement after it is matched
+  // against the exact action intent. A recorded boolean would fail open if any
+  // parameter, target, evidence prefix, decision, expiry, or approver changed.
+  if (disposition === 'approval_required' && template !== null) {
+    const approval = validateApprovalBinding(
+      authorization.operatorApproval,
+      authorization.proposedAction ?? {
+        caseId: incident.caseId,
+        actionTemplate: template,
+        target: '',
+        parameters: {},
+        boundCaseSequence: -1,
+      },
+      evaluatedAt,
+    );
+    if (approval.ok) {
+      reasons.push('operator approval was verified against the exact action and evidence prefix');
+      approvalBinding = authorization.operatorApproval;
+      disposition = 'auto_act';
+    } else if (
+      authorization.operatorApproval !== undefined ||
+      authorization.proposedAction !== undefined
+    ) {
+      reasons.push(`operator approval is not executable: ${approval.detail}`);
+    }
   }
 
   return {
@@ -225,6 +256,7 @@ export function evaluate(input: PolicyInput, evaluatedAt: string): PolicyEvaluat
         ? `${incident.incidentClass}: an allowlisted ${sideEffect} action is permitted without operator approval`
         : reasons.join('; '),
     sideEffectClass: sideEffect,
+    ...(approvalBinding !== undefined ? { approvalBinding } : {}),
     ...(adviceRejectedReason !== null ? { adviceRejectedReason } : {}),
     // Always false. Advice is recorded as evidence and never raises a
     // disposition; if this ever needs to become true it is a governance change,

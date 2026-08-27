@@ -9,6 +9,7 @@
  */
 export * from './ids.js';
 export * from './case.js';
+export * from './approval.js';
 export * from './session.js';
 export * from './agent.js';
 export * from './memory.js';
