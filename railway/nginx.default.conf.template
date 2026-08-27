@@ -2,6 +2,8 @@ server {
   listen ${PORT};
   listen [::]:${PORT};
   server_name _;
+  # Keep redirect targets relative so Railway's reverse proxy cannot expose its internal port.
+  absolute_redirect off;
 
   root /usr/share/nginx/html;
   index index.html;
