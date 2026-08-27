@@ -1,0 +1,32 @@
+server {
+  listen ${PORT};
+  listen [::]:${PORT};
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+  types {
+    application/wasm wasm;
+  }
+
+  location = /health {
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  location ^~ /_astro/ {
+    try_files $uri =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  location ~* \.wasm$ {
+    try_files $uri =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  location / {
+    try_files $uri $uri/ $uri/index.html =404;
+  }
+}

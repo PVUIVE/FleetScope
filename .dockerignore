@@ -1,0 +1,25 @@
+.git
+.github
+node_modules
+**/node_modules
+.pnpm-store
+
+# Generated frontend and WASM output is rebuilt in the container.
+apps/web/dist/
+apps/web/public/wasm/
+apps/web/public/transcripts/
+dist/
+build/
+out/
+.astro/
+target/
+**/target/
+
+# Local credentials and test artifacts must never enter the image context.
+.env
+.env.*
+coverage/
+*.log
+.DS_Store
+docs/reports/assets/
+docs/reports/*.portable.html
