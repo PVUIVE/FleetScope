@@ -11,6 +11,8 @@ RUN rustup target add wasm32-unknown-unknown \
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+# The Cockpit embeds these recorded renderer artifacts with include_str!.
+COPY packages/fixtures ./packages/fixtures
 COPY vendor ./vendor
 
 RUN mkdir -p apps/web/public/wasm \
