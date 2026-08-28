@@ -35,7 +35,9 @@
     "check:wasm": "cd crates/fleet-cockpit-web && cargo check",
     "reliability": "tsx scripts/recorded-reliability.ts",
     "recorded:run": "tsx scripts/recorded-run.ts",
-    "qa:browser": "tsx scripts/browser-qa.ts"
+    "qa:browser": "tsx scripts/browser-qa.ts",
+    "e2e": "tsx --env-file-if-exists=.env scripts/viewer-e2e.ts",
+    "qa:a11y": "tsx scripts/a11y-qa.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

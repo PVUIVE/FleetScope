@@ -13,6 +13,7 @@ export default defineConfig({
           include: [
             'packages/*/tests/**/*.test.ts',
             'apps/api/tests/**/*.test.ts',
+            'apps/cli/tests/**/*.test.ts',
             'apps/web/tests/**/*.test.ts',
           ],
           exclude: ['packages/projector/tests/**', 'packages/fixtures/tests/**'],

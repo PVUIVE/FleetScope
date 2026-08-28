@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 status=0
-for dir in packages/*/ apps/api; do
+for dir in packages/*/ apps/api apps/cli; do
   [ -f "$dir/tsconfig.json" ] || continue
   name=$(node -p "require('./$dir/package.json').name")
   printf '── typecheck %s\n' "$name"
