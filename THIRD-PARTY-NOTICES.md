@@ -42,6 +42,37 @@ Starlight documentation site under `web/` are excluded from this repository.
 FleetScope renders its own recorded CASE-1042 evidence and uses the browser's own
 monospace font stack. See `vendor/VENDOR-PATCHES.md` for the full inclusion table.
 
+## GSAP (`gsap`, npm) — Standard "no charge" licence
+
+The public landing page (`/`) uses [GSAP](https://gsap.com) 3.15 and its
+ScrollTrigger plugin for the pinned scenes, scrubbed timelines, evidence
+highlighter and Case Spine progression required by `DESIGN.md` §30. It is
+installed from npm as a normal dependency of `@fleetscope/web`; no GSAP source is
+vendored, copied or modified. Licence: **Standard "no charge" licence**
+(<https://gsap.com/standard-license>), which covers ScrollTrigger from v3.13 on.
+
+It loads only on `/`, from a single client island. No operator route imports it.
+
+## Landing-page design references — inspiration only, no code reused
+
+The landing page's visual and interaction research is recorded in
+`docs/design/landing-design-audit.md` §9. For the record, **no code, component
+or asset was copied** from any of the studied references:
+
+| Reference            | Status                                                                                                                                                                                                                                 |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 21st.dev             | Composition patterns studied. No component code taken; the registry is React/shadcn and per-component licence terms are not stated on the site.                                                                                        |
+| OriginKit            | Interaction principles studied and independently re-implemented. No code taken; the site returned HTTP 403 to inspection and its licence terms could not be verified.                                                                  |
+| Beautiful UI         | Product-fragment vocabulary studied. No code or visuals taken.                                                                                                                                                                         |
+| Refero Styles        | Used as a design-system reference for `DESIGN.md`. No styles taken.                                                                                                                                                                    |
+| Lottielab            | Evaluated and rejected. Templates are proprietary; **zero Lottie assets ship** and no Lottie player is bundled.                                                                                                                        |
+| Framer "LiquidFluid" | Paid proprietary Framer marketplace component. **Not downloaded, not inspected for code, not reproduced.** The hero's cursor-reactive field is an independently written Canvas2D particle system in `apps/web/src/scripts/landing.ts`. |
+| PixiJS               | Benchmarked as a candidate and rejected on measurement. **Not installed, not shipped.**                                                                                                                                                |
+| getdesign.md         | Read as an argument. Nothing taken.                                                                                                                                                                                                    |
+
+No third-party font files are downloaded or self-hosted anywhere in the web app;
+it uses the browser's own system sans and monospace stacks.
+
 ## npm and crates.io dependencies
 
 Dependency licenses are recorded in `pnpm-lock.yaml`, `Cargo.lock`,

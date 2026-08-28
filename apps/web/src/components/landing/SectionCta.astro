@@ -1,0 +1,63 @@
+---
+import type { LandingData } from '../../lib/landing-data';
+
+/**
+ * 11 — Final CTA (DESIGN.md §27).
+ *
+ * The last statement of the motif: everything the page has shown converges on
+ * the Case and leaves as one straight spine. Nothing new is introduced here.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const rays = [-42, -28, -14, 0, 14, 28, 42];
+---
+
+<section class="fs-l-sec fs-l-final" aria-labelledby="fs-l-cta-title" data-final>
+  <div class="fs-l-converge" aria-hidden="true">
+    <svg viewBox="0 0 400 240">
+      {rays.map((offset, index) => (
+        <path
+          class="fs-l-converge__ray"
+          d={`M${200 + offset * 4.2} 4 Q${200 + offset * 1.9} 68 200 110`}
+          data-ray
+          style={`--i:${index}`}
+        />
+      ))}
+      <rect x="138" y="110" width="124" height="34" fill="var(--fs-white)" stroke="var(--fs-blue)" />
+      <text
+        x="200"
+        y="132"
+        text-anchor="middle"
+        style="font-family:var(--fs-mono);font-size:13px;font-weight:700;fill:var(--fs-fg)"
+      >{data.caseId}</text>
+      <line x1="200" y1="144" x2="200" y2="232" stroke="var(--fs-border-strong)" stroke-width="2" />
+      {data.spine.slice(0, 7).map((node, index) => (
+        <rect
+          x="195"
+          y={154 + index * 11}
+          width="10"
+          height="10"
+          fill="var(--fs-white)"
+          stroke-width="1.5"
+          stroke={`var(--fs-${node.tone === 'deny' ? 'danger' : node.tone === 'ok' ? 'success' : node.tone === 'warn' ? 'warning' : 'blue'})`}
+        />
+      ))}
+    </svg>
+  </div>
+
+  <h2 id="fs-l-cta-title">Put every agent action<br />on the record.</h2>
+  <p class="fs-l-lede">
+    FleetScope turns distributed agent activity into governed, inspectable, replayable
+    business Cases.
+  </p>
+  <div class="fs-l-ctas">
+    <a class="fs-l-btn fs-l-btn--primary" href={`/cases/${data.caseId}`}>
+      Explore {data.caseId}
+      <span class="fs-l-btn__arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="fs-l-btn fs-l-btn--ghost" href={`/cockpit/${data.caseId}`}>Enter Fleet Cockpit</a>
+  </div>
+</section>

@@ -1,0 +1,187 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import StatusLabel from './StatusLabel.astro';
+import type { LandingData } from '../../lib/landing-data';
+
+/**
+ * 08 — Fleet Cockpit (DESIGN.md §23, §24).
+ *
+ * A deterministic preview, not the WASM renderer: the landing page must not pay
+ * the Cockpit's load cost to show what the Cockpit is. The left rail is a real
+ * tablist, so the sequence is keyboard-operable and not hover-only.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const memory = data.memoryFacts[0] ?? null;
+const succeeded =
+  data.interventionLifecycle.find((step) => step.state === 'succeeded') ?? null;
+
+interface CockpitTab {
+  readonly key: string;
+  readonly label: string;
+  readonly badge: string | null;
+  readonly note: string;
+  readonly eventId: string | null;
+  readonly seq: number | null;
+}
+
+/** Every tab cites the recorded event it moves the frame to. */
+const tab = (
+  key: string,
+  label: string,
+  badge: string | null,
+  note: string,
+  cite: { eventId: string; caseSequence: number } | null,
+): CockpitTab => ({
+  key,
+  label,
+  badge,
+  note,
+  eventId: cite?.eventId ?? null,
+  seq: cite?.caseSequence ?? null,
+});
+
+const tabs: readonly CockpitTab[] = [
+  tab(
+    'memory',
+    'Memory',
+    null,
+    memory === null ? 'No durable fact recorded.' : memory.summary,
+    memory,
+  ),
+  tab(
+    'gateway',
+    'Gateway',
+    'routed',
+    'A delegation to another agent is a routed decision, not a function call.',
+    data.gatewayRouted,
+  ),
+  tab(
+    'screening',
+    'Screening',
+    'blocked',
+    'External content refused entry to agent context.',
+    data.screeningBlocked,
+  ),
+  tab(
+    'incident',
+    'Incident',
+    'denied',
+    data.incidentOpened === null
+      ? 'No incident recorded.'
+      : `${data.incidentOpened.incidentClass.replace(/_/g, ' ')} crossed its recorded threshold.`,
+    data.incidentOpened,
+  ),
+  tab(
+    'warden',
+    'Warden',
+    'allowed',
+    'A bounded, policy-authorized action, and the Runtime result that followed.',
+    succeeded,
+  ),
+];
+
+const maxSeq = Math.max(1, data.eventCount - 1);
+---
+
+<section class="fs-l-sec" id="cockpit" aria-labelledby="fs-l-cockpit-title">
+  <div class="fs-l-scene" data-pin-scene="cockpit">
+    <div style="max-width:60ch;margin-bottom:40px">
+      <SectionHeader num="07" label="Fleet Cockpit" id="fs-l-cockpit-title">
+        <Fragment slot="headline">See the entire Case.<br />At once.</Fragment>
+        <p class="fs-l-lede">
+          Agents, evidence and the event timeline in one frame. Select a control to move
+          the whole view to the moment it was decided.
+        </p>
+      </SectionHeader>
+    </div>
+
+    <div class="fs-l-ck" data-rise data-cockpit>
+      <div class="fs-l-ck__tabs" role="tablist" aria-label="Cockpit controls" aria-orientation="vertical">
+        {tabs.map((tab, index) => (
+          <button
+            type="button"
+            role="tab"
+            class="fs-l-ck__tab"
+            id={`fs-l-ck-tab-${tab.key}`}
+            data-cockpit-tab={tab.key}
+            data-seq={tab.seq ?? 0}
+            aria-selected={index === 0 ? 'true' : 'false'}
+            aria-controls="fs-l-ck-panel"
+            tabindex={index === 0 ? 0 : -1}
+          >{tab.label}</button>
+        ))}
+      </div>
+
+      <div class="fs-l-ck__frame" id="fs-l-ck-panel" role="tabpanel" aria-labelledby="fs-l-ck-tab-memory">
+        <div class="fs-l-frame-ui">
+          <div class="fs-l-frame-ui__bar">
+            <span>{data.caseId}</span>
+            <span>·</span>
+            <span>{data.title}</span>
+          </div>
+          <div class="fs-l-frame-ui__panes">
+            <div class="fs-l-pane">
+              <p class="fs-l-pane__h">Agents</p>
+              {data.agentRoles.map((role, index) => (
+                <p class={`fs-l-agent ${index > 0 ? 'fs-l-agent--child' : ''}`}>
+                  {index > 0 ? '└ ' : ''}{role}
+                </p>
+              ))}
+            </div>
+
+            <div class="fs-l-pane">
+              <p class="fs-l-pane__h">Graph</p>
+              <svg viewBox="0 0 240 130" role="img" aria-label="Case graph: the orchestrator delegates to one agent under the Gateway.">
+                <line class="fs-l-flow__line" x1="120" y1="42" x2="120" y2="70" />
+                <line class="fs-l-flow__line fs-l-flow__line--blue" x1="120" y1="88" x2="120" y2="106" />
+                <rect class="fs-l-flow__box" x="56" y="16" width="128" height="26" />
+                <text class="fs-l-flow__t" x="120" y="33">ORCHESTRATOR</text>
+                <rect class="fs-l-flow__box fs-l-flow__box--gate" x="76" y="62" width="88" height="26" />
+                <text class="fs-l-flow__t" x="120" y="79">GATEWAY</text>
+                <rect class="fs-l-flow__box" x="56" y="104" width="128" height="24" data-ck-child />
+                <text class="fs-l-flow__t" x="120" y="120">LOGISTICS AGENT</text>
+              </svg>
+            </div>
+
+            <div class="fs-l-pane">
+              <p class="fs-l-pane__h">Evidence</p>
+              {tabs.map((tab, index) => (
+                <div class="fs-l-rail" data-rail={tab.key} data-on={index === 0 ? 'true' : 'false'}>
+                  <span style="flex:1">{tab.label}</span>
+                  {tab.badge !== null && <StatusLabel kind="control" value={tab.badge} />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div class="fs-l-timeline">
+            <p class="fs-l-pane__h" style="margin-bottom:8px">Timeline · {data.eventCount} events</p>
+            <div class="fs-l-timeline__track">
+              <span
+                class="fs-l-timeline__cursor"
+                data-ck-cursor
+                style={`left:${Math.round(((tabs[0]?.seq ?? 0) / maxSeq) * 100)}%`}
+              ></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fs-l-ck__state">
+          {tabs.map((tab, index) => (
+            <div data-ck-state={tab.key} hidden={index !== 0}>
+              <h3>{tab.label}</h3>
+              <p class="fs-l-note">{tab.note}</p>
+              {tab.eventId !== null && (
+                <p class="fs-l-mono" style="margin-top:6px">{tab.eventId} · seq {tab.seq}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

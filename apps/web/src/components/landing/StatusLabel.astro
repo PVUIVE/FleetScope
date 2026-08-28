@@ -1,0 +1,64 @@
+---
+/**
+ * The landing page's status primitive (DESIGN.md §40).
+ *
+ * Resolves through lib/status.ts — the single status vocabulary for the whole
+ * product — so a state carries the same word here as it does in the Cockpit.
+ * The landing restyles that vocabulary; it never redefines it.
+ *
+ * Three channels always render together: glyph, word, tone (DESIGN.md §5.2).
+ */
+import {
+  agentStatus,
+  approvalStatusBadge,
+  caseStatus,
+  controlStatus,
+  dispositionStatus,
+  incidentStatus,
+  interventionStatus,
+  severityStatus,
+  type StatusDescriptor,
+} from '../../lib/status';
+
+type Kind =
+  | 'case'
+  | 'agent'
+  | 'control'
+  | 'intervention'
+  | 'approval'
+  | 'incident'
+  | 'severity'
+  | 'disposition';
+
+interface Props {
+  kind: Kind;
+  value: string | null | undefined;
+  /** Adds detail to the resolved word. Never used to change its meaning. */
+  label?: string;
+  class?: string;
+}
+const { kind, value, label, class: className = '' } = Astro.props;
+
+const resolvers: Record<Kind, (v: string | null | undefined) => StatusDescriptor> = {
+  case: caseStatus,
+  agent: agentStatus,
+  control: controlStatus,
+  intervention: interventionStatus,
+  approval: approvalStatusBadge,
+  incident: incidentStatus,
+  severity: severityStatus,
+  disposition: dispositionStatus,
+};
+
+const status = resolvers[kind](value);
+---
+
+<span
+  class={`fs-l-status ${className}`}
+  data-tone={status.tone}
+  data-status-value={value ?? 'unknown'}
+  title={status.hint}
+>
+  <span class="fs-l-status__glyph" aria-hidden="true">{status.glyph}</span>
+  <span>{label ?? status.label}</span>
+</span>

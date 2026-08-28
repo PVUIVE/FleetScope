@@ -1,0 +1,1598 @@
+/*
+ * FleetScope landing page — Enterprise Blueprint.
+ *
+ * Implements DESIGN.md at the repository root. Every rule is scoped under
+ * `.fs-l` so the operator product keeps its dark control-room language: the
+ * landing page is the one light surface in the app.
+ *
+ * The landing re-points the shared `--fs-*` product tokens rather than forking
+ * them, so any product primitive rendered here (status vocabulary, mono stack)
+ * inherits the blueprint palette instead of needing a parallel stylesheet.
+ *
+ * Four motion families only (DESIGN.md §28): A flow, B state, C evidence,
+ * D scroll storytelling. Transform and opacity only.
+ */
+
+html.fs-l {
+  /* ── DESIGN.md §5.1 core ─────────────────────────────────────────────── */
+  --fs-white: #ffffff;
+  --fs-black: #090909;
+
+  --fs-bg: #ffffff;
+  --fs-bg-subtle: #fafafa;
+  --fs-bg-muted: #f6f7f8;
+
+  --fs-fg: #090909;
+  --fs-fg-secondary: #44464c;
+  --fs-fg-muted: #858991;
+
+  --fs-border: #e5e7eb;
+  --fs-border-strong: #111111;
+
+  --fs-blue: #2448ff;
+  --fs-blue-hover: #1738e8;
+  --fs-blue-soft: #eef1ff;
+
+  /* ── DESIGN.md §5.2 operational states ───────────────────────────────── */
+  --fs-success: #168653;
+  --fs-success-soft: #edf8f2;
+  --fs-warning: #b76b08;
+  --fs-warning-soft: #fff8e8;
+  --fs-danger: #d13636;
+  --fs-danger-soft: #fff0f0;
+  --fs-historical: #4f67a5;
+  --fs-historical-soft: #eef2fa;
+  --fs-live: #2448ff;
+
+  /* ── DESIGN.md §6 dark operational surface ───────────────────────────── */
+  --fs-terminal-bg: #0c0d12;
+  --fs-terminal-surface: #12141b;
+  --fs-terminal-border: #262933;
+  --fs-terminal-text: #9da3b5;
+  --fs-terminal-text-active: #ffffff;
+  --fs-terminal-blue: #4965ff;
+
+  /* ── DESIGN.md §29 motion tokens ─────────────────────────────────────── */
+  --fs-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --fs-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --fs-duration-fast: 250ms;
+  --fs-duration-medium: 500ms;
+  --fs-duration-long: 800ms;
+
+  /* ── DESIGN.md §8 grid ───────────────────────────────────────────────── */
+  --fs-l-max: 1440px;
+  --fs-l-gutter: clamp(20px, 2.2vw, 32px);
+  --fs-l-nav-h: 64px;
+  --fs-l-grid-line: #f1f2f4;
+
+  /*
+   * The product tokens, re-pointed. Anything shared that renders on this page
+   * reads the blueprint palette through the same names it always used.
+   */
+  --fs-surface: #fafafa;
+  --fs-surface-raised: #ffffff;
+  --fs-surface-sunken: #f6f7f8;
+  --fs-text: #090909;
+  --fs-text-muted: #44464c;
+  --fs-text-faint: #858991;
+  --fs-ok: #168653;
+  --fs-warn: #b76b08;
+  --fs-deny: #d13636;
+  --fs-info: #2448ff;
+  --fs-unknown: #858991;
+  --fs-accent: #2448ff;
+  --fs-ok-bg: #edf8f2;
+  --fs-warn-bg: #fff8e8;
+  --fs-deny-bg: #fff0f0;
+  --fs-neutral-bg: #f6f7f8;
+  /* DESIGN.md §9: sharp by default. */
+  --fs-radius: 0;
+  --fs-radius-sm: 0;
+
+  color-scheme: light;
+  background: var(--fs-bg);
+}
+
+body.fs-l {
+  background: var(--fs-bg);
+  color: var(--fs-fg);
+  font-family: var(--fs-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.fs-l ::selection {
+  background: var(--fs-blue);
+  color: var(--fs-white);
+}
+
+.fs-l :focus-visible {
+  outline: 2px solid var(--fs-blue);
+  outline-offset: 2px;
+}
+
+/* ── The frame ──────────────────────────────────────────────────────────
+ * One blueprint: a single bordered column that every section sits inside, so
+ * the vertical rules line up from the hero to the footer (DESIGN.md §8, §43).
+ */
+.fs-l-main {
+  padding: 0;
+  display: block;
+}
+
+.fs-l-frame {
+  position: relative;
+  max-width: var(--fs-l-max);
+  margin: 0 auto;
+  border-inline: 1px solid var(--fs-border);
+}
+
+/* DESIGN.md §32: the grid extends past the content only on large screens, and
+   only as one painted background — never as decorative divs (§37). */
+@media (min-width: 1280px) {
+  .fs-l-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to right,
+      var(--fs-l-grid-line) 0 1px,
+      transparent 1px calc(100% / 12)
+    );
+  }
+}
+
+.fs-l-sec {
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid var(--fs-border);
+}
+.fs-l-sec:last-child {
+  border-bottom: 0;
+}
+
+.fs-l-pad {
+  padding-inline: var(--fs-l-gutter);
+}
+
+.fs-l-block {
+  padding: clamp(64px, 7vw, 116px) var(--fs-l-gutter);
+}
+
+/* ── Type ───────────────────────────────────────────────────────────────── */
+
+.fs-l h1 {
+  font-size: clamp(4rem, 7vw, 6.5rem);
+  font-weight: 800;
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+  margin: 0 0 28px;
+  text-wrap: balance;
+}
+.fs-l h2 {
+  font-size: clamp(3rem, 5vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  color: var(--fs-fg);
+  text-transform: none;
+  margin: 0 0 24px;
+  text-wrap: balance;
+}
+.fs-l h3 {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.fs-l-blue {
+  color: var(--fs-blue);
+}
+.fs-l-lede {
+  font-size: clamp(18px, 1.35vw, 21px);
+  line-height: 1.45;
+  color: var(--fs-fg-secondary);
+  max-width: 58ch;
+  margin: 0;
+}
+.fs-l-note {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fs-fg-muted);
+  max-width: 64ch;
+  margin: 0;
+}
+.fs-l-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  margin: 0;
+}
+.fs-l-oplabel {
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  color: var(--fs-fg-secondary);
+  margin: 0;
+}
+/* DESIGN.md §7.3: identifiers only. */
+.fs-l-mono {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: var(--fs-fg-secondary);
+}
+
+/* ── Section header (DESIGN.md §7.2 section number) ─────────────────────── */
+
+.fs-l-sechead {
+  max-width: 62ch;
+}
+.fs-l-sechead__num {
+  font-size: clamp(40px, 3.4vw, 52px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--fs-border-strong);
+  margin: 0;
+}
+.fs-l-sechead__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  margin: 6px 0 32px;
+}
+.fs-l-sechead .fs-l-lede {
+  margin-top: 20px;
+}
+
+/* ── Buttons (DESIGN.md §11) ────────────────────────────────────────────── */
+
+.fs-l-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--fs-duration-fast) var(--fs-ease-out),
+    color var(--fs-duration-fast) var(--fs-ease-out),
+    border-color var(--fs-duration-fast) var(--fs-ease-out),
+    transform var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-btn--primary {
+  background: var(--fs-blue);
+  color: var(--fs-white);
+  border: 1px solid var(--fs-blue);
+}
+.fs-l-btn--primary:hover {
+  background: var(--fs-blue-hover);
+  border-color: var(--fs-blue-hover);
+  transform: translateY(-1px);
+}
+.fs-l-btn--ghost {
+  background: var(--fs-white);
+  color: var(--fs-fg);
+  border: 1px solid var(--fs-border-strong);
+}
+.fs-l-btn--ghost:hover {
+  background: var(--fs-bg-muted);
+  transform: translateY(-1px);
+}
+.fs-l-btn:active {
+  transform: scale(0.985);
+}
+.fs-l-btn__arrow {
+  transition: transform var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-btn:hover .fs-l-btn__arrow {
+  transform: translateX(3px);
+}
+.fs-l-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── StatusLabel (DESIGN.md §5.2, §40) ──────────────────────────────────
+ * Glyph + word + tone. Never colour alone.
+ */
+.fs-l-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.fs-l-status__glyph {
+  font-size: 11px;
+  line-height: 1;
+}
+.fs-l-status[data-tone='ok'] {
+  color: var(--fs-success);
+  border-color: #bfe3d0;
+  background: var(--fs-success-soft);
+}
+.fs-l-status[data-tone='warn'] {
+  color: var(--fs-warning);
+  border-color: #ecd6a6;
+  background: var(--fs-warning-soft);
+}
+.fs-l-status[data-tone='deny'] {
+  color: var(--fs-danger);
+  border-color: #f0c2c2;
+  background: var(--fs-danger-soft);
+}
+.fs-l-status[data-tone='info'] {
+  color: var(--fs-blue);
+  border-color: #c6cffd;
+  background: var(--fs-blue-soft);
+}
+.fs-l-status[data-tone='unknown'] {
+  color: var(--fs-fg-muted);
+  border-color: var(--fs-border);
+  background: var(--fs-bg-muted);
+}
+/* On the dark operational surface the same vocabulary inverts. */
+.fs-l-term .fs-l-status {
+  background: transparent;
+}
+.fs-l-term .fs-l-status[data-tone='ok'] {
+  color: #5cd39b;
+  border-color: #22483a;
+}
+.fs-l-term .fs-l-status[data-tone='deny'] {
+  color: #ff8b8b;
+  border-color: #4d2626;
+}
+.fs-l-term .fs-l-status[data-tone='info'] {
+  color: #8aa0ff;
+  border-color: #2a3260;
+}
+.fs-l-term .fs-l-status[data-tone='warn'] {
+  color: #e0b25f;
+  border-color: #4a3a1c;
+}
+
+/* ── Cell grid (DESIGN.md §8: internal columns share borders) ───────────── */
+
+.fs-l-cells {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border-block: 1px solid var(--fs-border);
+}
+.fs-l-cell {
+  background: var(--fs-bg);
+  padding: 28px var(--fs-l-gutter);
+  transition: border-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+
+/* ── 00 Navigation (DESIGN.md §10) ──────────────────────────────────────── */
+
+.fs-l-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--fs-l-nav-h);
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding-inline: max(var(--fs-l-gutter), calc((100vw - var(--fs-l-max)) / 2 + var(--fs-l-gutter)));
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color var(--fs-duration-fast) var(--fs-ease-out),
+    border-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-nav[data-scrolled='true'] {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--fs-border);
+  backdrop-filter: saturate(1.1) blur(6px);
+}
+.fs-l-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fs-fg);
+  text-decoration: none;
+}
+.fs-l-nav__mark {
+  width: 10px;
+  height: 10px;
+  background: var(--fs-blue);
+}
+.fs-l-nav__links {
+  display: none;
+  gap: 2px;
+  margin-inline-start: auto;
+}
+@media (min-width: 900px) {
+  .fs-l-nav__links {
+    display: flex;
+  }
+}
+.fs-l-nav__link {
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--fs-fg-secondary);
+  text-decoration: none;
+  transition: background-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-nav__link:hover {
+  background: rgba(0, 0, 0, 0.035);
+  color: var(--fs-fg);
+}
+.fs-l-nav__end {
+  margin-inline-start: auto;
+}
+@media (min-width: 900px) {
+  .fs-l-nav__end {
+    margin-inline-start: 0;
+  }
+}
+.fs-l-nav .fs-l-btn {
+  height: 38px;
+  padding-inline: 15px;
+  font-size: 13px;
+}
+
+/* ── 01 Hero (DESIGN.md §13–16) ─────────────────────────────────────────── */
+
+.fs-l-hero {
+  position: relative;
+}
+.fs-l-hero__grid {
+  display: grid;
+  gap: 48px;
+  align-items: center;
+  padding: clamp(56px, 6vw, 96px) var(--fs-l-gutter) clamp(48px, 5vw, 80px);
+}
+@media (min-width: 1024px) {
+  .fs-l-hero__grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 56px;
+  }
+}
+.fs-l-hero__sub {
+  font-size: clamp(18px, 1.35vw, 21px);
+  line-height: 1.45;
+  color: var(--fs-fg-secondary);
+  max-width: 52ch;
+  margin: 0 0 32px;
+}
+/* DESIGN.md §31: a mask reveal per line, never per letter. */
+.fs-l-reveal {
+  display: block;
+  overflow: hidden;
+  padding-block: 0.05em;
+}
+.fs-l-reveal > span {
+  display: block;
+}
+
+.fs-l-hero__scene {
+  position: relative;
+  aspect-ratio: 1;
+  max-height: 60vh;
+  margin-inline: auto;
+  width: 100%;
+}
+.fs-l-hero__field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity var(--fs-duration-long) var(--fs-ease-out);
+}
+.fs-l-hero__field[data-on='true'] {
+  opacity: 1;
+}
+.fs-l-hero__scene svg {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.fs-l-node__ring {
+  fill: var(--fs-white);
+  stroke: var(--fs-border-strong);
+  stroke-width: 1;
+}
+.fs-l-node__glyph {
+  font-family: var(--fs-mono);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--fs-fg);
+  text-anchor: middle;
+}
+.fs-l-node__label {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  fill: var(--fs-fg-muted);
+  text-anchor: middle;
+}
+.fs-l-edge {
+  fill: none;
+  stroke: var(--fs-border-strong);
+  stroke-width: 1;
+  stroke-opacity: 0.32;
+}
+.fs-l-edge--live {
+  stroke: var(--fs-blue);
+  stroke-opacity: 0.55;
+}
+.fs-l-core__ring {
+  fill: none;
+  stroke: var(--fs-border);
+}
+.fs-l-core__plate {
+  fill: var(--fs-white);
+  stroke: var(--fs-border-strong);
+  stroke-width: 1.25;
+}
+.fs-l-core__id {
+  font-family: var(--fs-mono);
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--fs-fg);
+  text-anchor: middle;
+}
+.fs-l-core__sub {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  fill: var(--fs-blue);
+  text-anchor: middle;
+}
+
+/* The hero footer strip (DESIGN.md §14). */
+.fs-l-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  align-items: center;
+  padding: 16px var(--fs-l-gutter);
+  border-top: 1px solid var(--fs-border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+}
+.fs-l-strip strong {
+  color: var(--fs-fg);
+  font-weight: 700;
+}
+.fs-l-strip__dot {
+  width: 5px;
+  height: 5px;
+  background: var(--fs-blue);
+  display: inline-block;
+  margin-inline-end: 8px;
+}
+
+/* ── Case Spine (DESIGN.md §3) ──────────────────────────────────────────── */
+
+.fs-l-spine {
+  position: relative;
+  padding-inline-start: 26px;
+}
+.fs-l-spine::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--fs-border);
+}
+.fs-l-spine__fill {
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  width: 2px;
+  height: calc(100% - 12px);
+  background: var(--fs-blue);
+  transform-origin: top;
+  z-index: 1;
+}
+.fs-l-ev {
+  position: relative;
+  padding: 9px 0;
+}
+.fs-l-ev::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 15px;
+  width: 12px;
+  height: 12px;
+  background: var(--fs-white);
+  border: 1.5px solid var(--fs-border-strong);
+  z-index: 2;
+}
+.fs-l-ev[data-tone='ok']::before {
+  border-color: var(--fs-success);
+}
+.fs-l-ev[data-tone='deny']::before {
+  border-color: var(--fs-danger);
+}
+.fs-l-ev[data-tone='warn']::before {
+  border-color: var(--fs-warning);
+}
+.fs-l-ev[data-tone='info']::before {
+  border-color: var(--fs-blue);
+}
+.fs-l-ev__label {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--fs-fg);
+  margin: 0;
+}
+.fs-l-ev__meta {
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  color: var(--fs-fg-muted);
+  margin: 2px 0 0;
+}
+
+/* ── Pinned scenes (DESIGN.md §17, §20, §21, §24) ───────────────────────── */
+
+.fs-l-scene {
+  padding: clamp(64px, 7vw, 112px) var(--fs-l-gutter);
+}
+.fs-l-scene__grid {
+  display: grid;
+  gap: 40px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .fs-l-scene__grid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: 64px;
+  }
+}
+
+/* The pinned left rail: inactive is muted, active is full contrast. */
+.fs-l-steps {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fs-l-step {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--fs-border);
+  color: var(--fs-fg-muted);
+  transition:
+    color var(--fs-duration-fast) var(--fs-ease-out),
+    border-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-step[data-on='true'] {
+  color: var(--fs-fg);
+  border-top-color: var(--fs-border-strong);
+}
+.fs-l-step__n {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding-top: 2px;
+}
+.fs-l-step[data-on='true'] .fs-l-step__n {
+  color: var(--fs-blue);
+}
+.fs-l-step__t {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+.fs-l-step__d {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--fs-fg-muted);
+  margin: 4px 0 0;
+}
+
+/* ── 02 Sessions ────────────────────────────────────────────────────────── */
+
+.fs-l-sessions {
+  display: grid;
+  gap: 0;
+}
+.fs-l-session {
+  border: 1px solid var(--fs-border);
+  border-bottom: 0;
+  padding: 22px var(--fs-l-gutter) 24px;
+  transition:
+    opacity var(--fs-duration-medium) var(--fs-ease-out),
+    border-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-session:last-child {
+  border-bottom: 1px solid var(--fs-border);
+}
+.fs-l-session[data-on='false'] {
+  opacity: 0.42;
+}
+.fs-l-session[data-on='true'] {
+  border-color: var(--fs-border-strong);
+}
+.fs-l-session__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.fs-l-session__id {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg);
+  margin: 0;
+}
+/* The simulated gap. Compresses as the scene advances — never claimed to be
+   literal elapsed time (DESIGN.md §17). */
+.fs-l-gap {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 26px 0;
+  border-inline: 1px solid var(--fs-border);
+  background: repeating-linear-gradient(to bottom, var(--fs-border) 0 4px, transparent 4px 10px);
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.fs-l-gap__label {
+  background: var(--fs-bg);
+  padding: 5px 12px;
+  border: 1px solid var(--fs-border-strong);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── 03 Durable context ─────────────────────────────────────────────────── */
+
+.fs-l-ctx {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+}
+@media (min-width: 900px) {
+  .fs-l-ctx {
+    grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+  }
+}
+.fs-l-ctx__col {
+  background: var(--fs-bg);
+  padding: 24px;
+}
+.fs-l-ctx__wire {
+  background: var(--fs-bg);
+  position: relative;
+  min-height: 76px;
+}
+.fs-l-ctx__wire::before {
+  content: '';
+  position: absolute;
+  inset-inline: 12px;
+  top: 50%;
+  height: 1px;
+  background: var(--fs-border-strong);
+}
+.fs-l-token {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  background: var(--fs-blue);
+  z-index: 2;
+}
+.fs-l-fact {
+  border: 1px solid var(--fs-border-strong);
+  padding: 16px;
+}
+.fs-l-fact__body {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--fs-fg);
+  margin: 8px 0 0;
+}
+.fs-l-kv {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 16px 0 0;
+  font-size: 12px;
+}
+.fs-l-kv dt {
+  color: var(--fs-fg-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
+  padding-top: 2px;
+}
+.fs-l-kv dd {
+  margin: 0;
+  font-family: var(--fs-mono);
+  color: var(--fs-fg);
+}
+
+/* ── 04 Control boundaries (DESIGN.md §19) ──────────────────────────────── */
+
+.fs-l-gates {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border-block: 1px solid var(--fs-border);
+}
+@media (min-width: 1024px) {
+  .fs-l-gates {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.fs-l-gate {
+  position: relative;
+  background: var(--fs-bg);
+  padding: 26px 24px 28px;
+  transition: background-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+/* One strong highlight box travels between the gates as scroll advances. */
+.fs-l-gate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border: 1px solid var(--fs-border-strong);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-gate[data-active='true']::after {
+  opacity: 1;
+}
+.fs-l-gate__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.fs-l-gate__n {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fs-blue);
+}
+.fs-l-gate__switch {
+  display: flex;
+  margin: 18px 0 22px;
+  border: 1px solid var(--fs-border);
+}
+.fs-l-gate__switch button {
+  flex: 1;
+  appearance: none;
+  background: var(--fs-white);
+  border: 0;
+  border-inline-end: 1px solid var(--fs-border);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--fs-duration-fast) var(--fs-ease-out),
+    color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-gate__switch button:last-child {
+  border-inline-end: 0;
+}
+.fs-l-gate__switch button[aria-pressed='true'] {
+  background: var(--fs-fg);
+  color: var(--fs-white);
+}
+.fs-l-gate__diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.fs-l-flow__box {
+  fill: var(--fs-white);
+  stroke: var(--fs-border-strong);
+  stroke-width: 1;
+}
+.fs-l-flow__box--gate {
+  stroke-width: 1.75;
+}
+.fs-l-flow__t {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  fill: var(--fs-fg);
+  text-anchor: middle;
+}
+.fs-l-flow__line {
+  stroke: var(--fs-border-strong);
+  stroke-width: 1.5;
+  fill: none;
+}
+.fs-l-flow__line--blue {
+  stroke: var(--fs-blue);
+}
+.fs-l-flow__stop {
+  stroke: var(--fs-danger);
+  stroke-width: 2;
+}
+.fs-l-flow__pulse {
+  fill: var(--fs-blue);
+}
+.fs-l-gate__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--fs-border);
+}
+
+/* ── 05 Governed recovery — the dark operational surface (DESIGN.md §6) ─── */
+
+.fs-l-term {
+  background: var(--fs-terminal-bg);
+  border: 1px solid var(--fs-terminal-border);
+  color: var(--fs-terminal-text);
+  padding: 22px;
+  font-family: var(--fs-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.fs-l-term__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--fs-terminal-border);
+}
+.fs-l-term__title {
+  color: var(--fs-terminal-text-active);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.fs-l-term__line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+}
+.fs-l-term__line--fail {
+  color: #ff8b8b;
+}
+.fs-l-term__line--ok {
+  color: #5cd39b;
+}
+.fs-l-term__group {
+  padding: 14px 0;
+  border-top: 1px solid var(--fs-terminal-border);
+  margin-top: 14px;
+}
+.fs-l-term__group[data-on='false'] {
+  opacity: 0.28;
+}
+.fs-l-term__group[data-on='true'] {
+  opacity: 1;
+}
+.fs-l-term__evt {
+  color: var(--fs-terminal-text-active);
+  font-weight: 600;
+}
+.fs-l-term__k {
+  color: var(--fs-terminal-blue);
+}
+.fs-l-term__result {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid #22483a;
+  color: #5cd39b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* ── 06 Replay ──────────────────────────────────────────────────────────── */
+
+.fs-l-replay {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+}
+@media (min-width: 1024px) {
+  .fs-l-replay {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
+  }
+}
+.fs-l-replay__marks {
+  background: var(--fs-bg);
+  padding: 20px;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+.fs-l-mark {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--fs-border);
+  padding: 11px 0;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  color: var(--fs-fg-muted);
+  transition: color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-mark[data-on='true'] {
+  color: var(--fs-fg);
+  border-top-color: var(--fs-border-strong);
+}
+.fs-l-mark__n {
+  font-family: var(--fs-mono);
+  font-size: 15px;
+  font-weight: 600;
+  display: block;
+}
+.fs-l-mark__l {
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+.fs-l-replay__stage {
+  background: var(--fs-bg);
+  padding: 24px;
+  position: relative;
+}
+.fs-l-replay__flag {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--fs-historical);
+  background: var(--fs-historical-soft);
+  color: var(--fs-historical);
+  opacity: 0;
+  transition: opacity var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-replay__stage[data-historical='true'] .fs-l-replay__flag {
+  opacity: 1;
+}
+.fs-l-replay__flag-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fs-l-replay__flag-note {
+  font-size: 12px;
+}
+.fs-l-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+  margin-top: 20px;
+}
+@media (min-width: 640px) {
+  .fs-l-counts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.fs-l-count {
+  background: var(--fs-bg);
+  padding: 14px 16px;
+}
+.fs-l-count__v {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.fs-l-count__l {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  margin: 6px 0 0;
+}
+.fs-l-scrub {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+.fs-l-scrub input[type='range'] {
+  flex: 1;
+  accent-color: var(--fs-blue);
+  min-width: 0;
+}
+.fs-l-proof {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 28px var(--fs-l-gutter);
+  border-top: 1px solid var(--fs-border);
+}
+.fs-l-proof__n {
+  font-size: clamp(64px, 8vw, 108px);
+  font-weight: 800;
+  line-height: 0.82;
+  letter-spacing: -0.06em;
+  color: var(--fs-blue);
+  margin: 0;
+}
+.fs-l-proof__t {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fs-fg);
+  margin: 0;
+  max-width: 18ch;
+}
+
+/* ── 07 Evidence (DESIGN.md §22) ────────────────────────────────────────── */
+
+.fs-l-ev-layout {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+}
+@media (min-width: 1024px) {
+  .fs-l-ev-layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+.fs-l-evrows {
+  background: var(--fs-bg);
+}
+.fs-l-evrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 92px;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--fs-border);
+  padding: 16px 20px;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-evrow:last-child {
+  border-bottom: 0;
+}
+.fs-l-evrow:hover {
+  background: var(--fs-bg-muted);
+}
+.fs-l-evrow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border: 1px solid var(--fs-border-strong);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-evrow[data-on='true']::after {
+  opacity: 1;
+}
+.fs-l-evrow__c {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fs-fg);
+}
+.fs-l-evrow__e {
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  color: var(--fs-fg-muted);
+  justify-self: end;
+}
+.fs-l-evdetail {
+  background: var(--fs-bg);
+  padding: 24px;
+}
+.fs-l-evdetail__h {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 18px;
+}
+
+/* ── 08 Fleet Cockpit (DESIGN.md §23, §24) ──────────────────────────────── */
+
+.fs-l-ck {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+}
+@media (min-width: 1024px) {
+  .fs-l-ck {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 8fr);
+  }
+}
+.fs-l-ck__tabs {
+  background: var(--fs-bg);
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+.fs-l-ck__tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--fs-border);
+  padding: 13px 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-align: start;
+  color: var(--fs-fg-muted);
+  cursor: pointer;
+  transition: color var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-ck__tab[aria-selected='true'] {
+  color: var(--fs-fg);
+  border-top-color: var(--fs-border-strong);
+}
+.fs-l-ck__frame {
+  background: var(--fs-bg-subtle);
+  padding: 20px;
+}
+/* The one place a radius is allowed: a product preview frame (DESIGN.md §9). */
+.fs-l-frame-ui {
+  border: 1px solid var(--fs-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--fs-white);
+}
+.fs-l-frame-ui__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fs-border);
+  background: var(--fs-bg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+}
+.fs-l-frame-ui__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: var(--fs-border);
+}
+@media (min-width: 760px) {
+  .fs-l-frame-ui__panes {
+    grid-template-columns: 150px minmax(0, 1fr) 190px;
+  }
+}
+.fs-l-pane {
+  background: var(--fs-white);
+  padding: 14px;
+  min-height: 150px;
+}
+.fs-l-pane__h {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  margin: 0 0 12px;
+}
+.fs-l-agent {
+  font-size: 13px;
+  padding: 4px 0;
+  color: var(--fs-fg-secondary);
+}
+.fs-l-agent--child {
+  padding-inline-start: 14px;
+}
+.fs-l-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--fs-border);
+  font-size: 12px;
+  opacity: 0.4;
+  transition: opacity var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-rail[data-on='true'] {
+  opacity: 1;
+}
+.fs-l-timeline {
+  background: var(--fs-white);
+  border-top: 1px solid var(--fs-border);
+  padding: 12px 14px;
+}
+.fs-l-timeline__track {
+  position: relative;
+  height: 8px;
+  background: var(--fs-bg-muted);
+  border: 1px solid var(--fs-border);
+}
+.fs-l-timeline__cursor {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--fs-blue);
+  transition: left var(--fs-duration-fast) var(--fs-ease-out);
+}
+.fs-l-ck__state {
+  margin-top: 16px;
+  min-height: 62px;
+}
+.fs-l-ck__state h3 {
+  margin-bottom: 4px;
+}
+
+/* ── 09 Audit ───────────────────────────────────────────────────────────── */
+
+.fs-l-audit {
+  display: grid;
+  gap: 40px;
+}
+@media (min-width: 1024px) {
+  .fs-l-audit {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 64px;
+  }
+}
+.fs-l-resolve {
+  display: grid;
+  gap: 1px;
+  background: var(--fs-border);
+  border: 1px solid var(--fs-border);
+}
+.fs-l-resolve__row {
+  background: var(--fs-bg);
+  padding: 18px 20px;
+}
+.fs-l-resolve__k {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fs-fg-muted);
+  margin: 0 0 6px;
+}
+.fs-l-resolve__v {
+  font-family: var(--fs-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fs-fg);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ── 10 Product surfaces ────────────────────────────────────────────────── */
+
+@media (min-width: 720px) {
+  .fs-l-surfaces {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .fs-l-surfaces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.fs-l-surface {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.fs-l-surface:hover {
+  background: var(--fs-bg-subtle);
+}
+.fs-l-surface__n {
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fs-blue);
+  margin: 0 0 14px;
+}
+.fs-l-frag {
+  margin-top: 16px;
+  border: 1px solid var(--fs-border);
+  padding: 12px;
+  font-size: 12px;
+  background: var(--fs-bg-subtle);
+}
+.fs-l-frag__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+/* ── 11 Final CTA ───────────────────────────────────────────────────────── */
+
+.fs-l-final {
+  text-align: center;
+  padding: clamp(72px, 8vw, 132px) var(--fs-l-gutter);
+}
+.fs-l-final .fs-l-lede {
+  margin-inline: auto;
+}
+.fs-l-final .fs-l-ctas {
+  justify-content: center;
+  margin-top: 32px;
+}
+.fs-l-converge {
+  width: min(420px, 100%);
+  margin: 0 auto 40px;
+}
+.fs-l-converge__ray {
+  fill: none;
+  stroke: var(--fs-border-strong);
+  stroke-width: 1;
+  stroke-opacity: 0.3;
+}
+
+/* ── 12 Footer ──────────────────────────────────────────────────────────── */
+
+.fs-l-footer {
+  max-width: var(--fs-l-max);
+  margin: 0 auto;
+  border: 1px solid var(--fs-border);
+  border-top: 0;
+  padding: 28px var(--fs-l-gutter) 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--fs-fg-muted);
+}
+.fs-l-footer a {
+  color: var(--fs-fg-secondary);
+  text-decoration: none;
+}
+.fs-l-footer a:hover {
+  color: var(--fs-blue);
+}
+
+/* ── Responsive (DESIGN.md §34) ─────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .fs-l h1 {
+    font-size: clamp(2.6rem, 11vw, 4rem);
+    letter-spacing: -0.04em;
+  }
+  .fs-l h2 {
+    font-size: clamp(2.1rem, 8.5vw, 3rem);
+    letter-spacing: -0.035em;
+  }
+  .fs-l-hero__scene {
+    max-height: 44vh;
+  }
+  .fs-l-hero__field {
+    display: none;
+  }
+  .fs-l-evrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+  .fs-l-evrow__e {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .fs-l-proof {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* ── Reduced motion (DESIGN.md §35) ─────────────────────────────────────
+ * The script refuses to pin or start a rAF loop; CSS restores every end state
+ * so the whole narrative is present with nothing running.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .fs-l [data-rise],
+  .fs-l-reveal > span,
+  .fs-l-token {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .fs-l-session,
+  .fs-l-step,
+  .fs-l-term__group {
+    opacity: 1 !important;
+  }
+  .fs-l-hero__field {
+    display: none;
+  }
+  .fs-l-spine__fill {
+    transform: scaleY(1) !important;
+  }
+}
+
+/* The same restoration when the script has decided motion is off, so the two
+   paths can never disagree. */
+.fs-l[data-motion='off'] [data-rise],
+.fs-l[data-motion='off'] .fs-l-reveal > span {
+  opacity: 1 !important;
+  transform: none !important;
+}
+.fs-l[data-motion='off'] .fs-l-session,
+.fs-l[data-motion='off'] .fs-l-step,
+.fs-l[data-motion='off'] .fs-l-term__group {
+  opacity: 1 !important;
+}

@@ -10,15 +10,16 @@
     "typecheck": "astro check --minimumSeverity error"
   },
   "dependencies": {
+    "@fleetscope/canonicalizer": "workspace:*",
     "@fleetscope/domain": "workspace:*",
     "@fleetscope/event-schema": "workspace:*",
     "@fleetscope/fixtures": "workspace:*",
+    "@fleetscope/platform-adapters": "workspace:*",
     "@fleetscope/projector": "workspace:*",
     "@fleetscope/scenario-compiler": "workspace:*",
     "@fleetscope/shared": "workspace:*",
-    "@fleetscope/canonicalizer": "workspace:*",
-    "@fleetscope/platform-adapters": "workspace:*",
-    "@fleetscope/warden": "workspace:*"
+    "@fleetscope/warden": "workspace:*",
+    "gsap": "^3.15.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",

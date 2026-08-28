@@ -1,0 +1,88 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import StatusLabel from './StatusLabel.astro';
+import type { LandingData } from '../../lib/landing-data';
+
+/**
+ * 07 — Decision evidence (DESIGN.md §22).
+ *
+ * One highlight box travels between rows as the reader scrolls, and every row is
+ * clickable. The detail beside it is the recorded decision for that badge — the
+ * badge is a link to evidence, not a claim about it.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const rows = data.evidenceRows;
+const first = rows[0] ?? null;
+const badges = [...new Set(rows.map((row) => row.badge))];
+
+const payload = rows.map((row) => ({
+  control: row.control,
+  badge: row.badge,
+  decision: row.decision,
+  resource: row.resource ?? '—',
+  policy: row.policy ?? '—',
+  session: row.sessionId ?? '—',
+  eventId: row.eventId,
+  seq: row.caseSequence,
+}));
+---
+
+<section class="fs-l-sec" id="evidence" aria-labelledby="fs-l-evidence-title">
+  <div class="fs-l-block">
+    <SectionHeader num="06" label="Decision evidence" id="fs-l-evidence-title">
+      <Fragment slot="headline">Every badge has<br />evidence behind it.</Fragment>
+      <p class="fs-l-lede">
+        Each control outcome on this page resolves to one Canonical Event in the record.
+        Select a row to read the decision it stands on.
+      </p>
+    </SectionHeader>
+
+    <div class="fs-l-ev-layout" style="margin-top:44px" data-rise data-evidence>
+      <script type="application/json" data-ev-payload set:html={JSON.stringify(payload)} />
+
+      <div class="fs-l-evrows" role="group" aria-label="Recorded control decisions">
+        {rows.map((row, index) => (
+          <button
+            type="button"
+            class="fs-l-evrow"
+            data-ev-row={index}
+            data-on={index === 0 ? 'true' : 'false'}
+          >
+            <span class="fs-l-evrow__c">{row.control}</span>
+            <StatusLabel kind="control" value={row.badge} label={row.outcome} />
+            <span class="fs-l-evrow__e">{row.eventId}</span>
+          </button>
+        ))}
+      </div>
+
+      <div class="fs-l-evdetail" aria-live="polite">
+        <p class="fs-l-evdetail__h">
+          <span data-ev="control">{first?.control ?? ''}</span>
+        </p>
+        {badges.map((badge) => (
+          <span data-ev-badge={badge} hidden={badge !== first?.badge}>
+            <StatusLabel kind="control" value={badge} />
+          </span>
+        ))}
+        <dl class="fs-l-kv" style="grid-template-columns:96px minmax(0,1fr)">
+          <dt>Decision</dt>
+          <dd data-ev="decision">{first?.decision ?? ''}</dd>
+          <dt>Resource</dt>
+          <dd data-ev="resource">{first?.resource ?? '—'}</dd>
+          <dt>Policy</dt>
+          <dd data-ev="policy">{first?.policy ?? '—'}</dd>
+          <dt>Session</dt>
+          <dd data-ev="session">{first?.sessionId ?? '—'}</dd>
+          <dt>Evidence</dt>
+          <dd data-ev="evt">{first?.eventId ?? ''}</dd>
+          <dt>Sequence</dt>
+          <dd data-ev="seq">{first?.caseSequence ?? ''}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>

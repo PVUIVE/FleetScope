@@ -1,6 +1,6 @@
 import { parseCanonicalEventsJsonl, type CanonicalEvent } from '@fleetscope/event-schema';
 import { project, type ProjectionResult } from '@fleetscope/projector';
-import type { EvidenceManifest, FixtureCaseDescriptor } from '@fleetscope/fixtures';
+import type { EvidenceManifest, ExpectedState, FixtureCaseDescriptor } from '@fleetscope/fixtures';
 import type { RenderManifest } from '@fleetscope/scenario-compiler';
 
 /**
@@ -24,6 +24,12 @@ const eventFiles = import.meta.glob<string>(
 );
 const agentVersionFiles = import.meta.glob<{ default: unknown[] }>(
   '../../../../packages/fixtures/cases/*/agent-versions.json',
+  { eager: true },
+);
+// The blessed projection: terminal state hash plus the prefix hashes that make a
+// replay position verifiable rather than merely plausible.
+const expectedStateFiles = import.meta.glob<{ default: ExpectedState }>(
+  '../../../../packages/fixtures/cases/*/expected-state.json',
   { eager: true },
 );
 // The compiled renderer artifacts. Inlined at BUILD time like everything else
@@ -54,6 +60,7 @@ const cases = byCaseId(caseFiles);
 const manifests = byCaseId(manifestFiles);
 const events = byCaseId(eventFiles);
 const agentVersions = byCaseId(agentVersionFiles);
+const expectedStates = byCaseId(expectedStateFiles);
 const renderManifests = byCaseId(renderManifestFiles);
 const rendererMains = byCaseId(rendererMainFiles);
 const rendererSubagents = byCaseId(rendererSubagentFiles);
@@ -70,6 +77,10 @@ export function getEvidenceManifest(caseId: string): EvidenceManifest | null {
 
 export function getAgentVersions(caseId: string): unknown[] {
   return agentVersions.get(caseId)?.default ?? [];
+}
+
+export function getExpectedState(caseId: string): ExpectedState | null {
+  return expectedStates.get(caseId)?.default ?? null;
 }
 
 export function getCanonicalEvents(caseId: string): CanonicalEvent[] {

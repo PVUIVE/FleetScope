@@ -1,0 +1,21 @@
+---
+/**
+ * Section number over label over headline (DESIGN.md §7.2).
+ *
+ * The number is a display-sized numeral, not a chip — it is what makes the page
+ * read as one numbered blueprint rather than a stack of marketing sections.
+ */
+interface Props {
+  num: string;
+  label: string;
+  id: string;
+}
+const { num, label, id } = Astro.props;
+---
+
+<header class="fs-l-sechead" data-rise>
+  <p class="fs-l-sechead__num" aria-hidden="true">{num}</p>
+  <p class="fs-l-sechead__label">{label}</p>
+  <h2 id={id}><slot name="headline" /></h2>
+  <slot />
+</header>

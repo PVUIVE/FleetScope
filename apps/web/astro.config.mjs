@@ -9,8 +9,7 @@ import { defineConfig } from 'astro/config';
  */
 export default defineConfig({
   output: 'static',
-  // No separate landing page in the MVP: procurement users open on Cases.
-  redirects: { '/': '/cases' },
+  // `/` is the public landing page. Operator surfaces keep their own routes.
   build: { format: 'directory' },
   vite: {
     // Workspace packages are consumed as TypeScript source (no per-package build

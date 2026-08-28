@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+import '../styles/landing.css';
+import LandingNav from '../components/landing/LandingNav.astro';
+import LandingFooter from '../components/landing/LandingFooter.astro';
+import { webConfig } from '../lib/config';
+
+/**
+ * The public shell (DESIGN.md §8, §10).
+ *
+ * Deliberately not BaseLayout: the operator shell's 48px bar and padded main are
+ * correct for a console and wrong under a blueprint landing page. The product
+ * routes keep BaseLayout — and their dark palette — untouched.
+ *
+ * `.fs-l` on the root element is what re-points the shared design tokens to the
+ * light blueprint, so the scoping boundary is a single class.
+ */
+interface Props {
+  title: string;
+  description: string;
+  caseId: string;
+}
+const { title, description, caseId } = Astro.props;
+const config = webConfig();
+---
+
+<html lang="en" class="fs-l" data-motion="on">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+  </head>
+  <body class="fs-l">
+    <a class="fs-visually-hidden" href="#fs-l-main">Skip to content</a>
+    <LandingNav caseId={caseId} />
+    <main id="fs-l-main" class="fs-l-main">
+      <div class="fs-l-frame">
+        <slot />
+      </div>
+    </main>
+    <LandingFooter caseId={caseId} liveMode={config.liveMode} />
+  </body>
+</html>

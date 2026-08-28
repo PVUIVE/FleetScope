@@ -1,0 +1,143 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import StatusLabel from './StatusLabel.astro';
+import type { LandingData } from '../../lib/landing-data';
+
+/**
+ * 06 — Deterministic replay (DESIGN.md §21).
+ *
+ * Every position the scrubber can stop on is a position the projector holds a
+ * recorded prefix state hash for, so the reconstructed state on screen is the
+ * state the record proves — not an animation of one. Scroll rewinds it, and the
+ * range input reaches the same positions without scrolling.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const frames = data.replayFrames;
+const last = frames.length - 1;
+const terminal = frames[last] ?? null;
+
+/** Four recorded stopping points, newest first, as the spec's left rail. */
+const markIndexes = [...new Set([last, Math.round(last * 0.66), Math.round(last * 0.33), 1])]
+  .filter((index) => index >= 0 && index < frames.length)
+  .sort((a, b) => b - a);
+
+const digest = (hash: string | null): string =>
+  hash === null ? '—' : `${hash.slice(0, 10)}…${hash.slice(-6)}`;
+
+const caseStates = [...new Set(frames.map((frame) => frame.caseState))];
+
+/** What the scrubber needs at runtime, hashes already shortened for display. */
+const payload = frames.map((frame) => ({
+  seq: frame.caseSequence,
+  eventId: frame.eventId,
+  label: frame.label,
+  caseState: frame.caseState,
+  agents: frame.agentCount,
+  memory: frame.memoryCount,
+  incidents: frame.openIncidents,
+  interventions: frame.interventionCount,
+  hash: digest(frame.stateHash),
+}));
+---
+
+<section class="fs-l-sec" id="replay" aria-labelledby="fs-l-replay-title">
+  <div class="fs-l-scene" data-pin-scene="replay">
+    <div style="max-width:62ch;margin-bottom:44px">
+      <SectionHeader num="05" label="Historical replay" id="fs-l-replay-title">
+        <Fragment slot="headline">Go back in time without<br />running anything again.</Fragment>
+        <p class="fs-l-lede">
+          Replay re-reads recorded evidence and rebuilds the Case as it stood. No agent
+          runs, no tool is called, no system is touched.
+        </p>
+      </SectionHeader>
+    </div>
+
+    {frames.length === 0 ? (
+      <p class="fs-l-note">This Case recorded no blessed replay positions.</p>
+    ) : (
+      <div class="fs-l-replay" data-rise data-replay>
+        <script type="application/json" data-replay-payload set:html={JSON.stringify(payload)} />
+        <div class="fs-l-replay__marks" role="group" aria-label="Recorded replay positions">
+          {markIndexes.map((index) => (
+            <button
+              type="button"
+              class="fs-l-mark"
+              data-replay-mark={index}
+              data-on={index === last ? 'true' : 'false'}
+            >
+              <span class="fs-l-mark__n">Event {frames[index]?.caseSequence}</span>
+              <span class="fs-l-mark__l">{frames[index]?.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div class="fs-l-replay__stage" data-replay-stage data-historical="false">
+          <div class="fs-l-replay__flag">
+            <span class="fs-l-replay__flag-title">Historical</span>
+            <span class="fs-l-replay__flag-note">Recorded evidence. Nothing is executing.</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px">
+            {/* One badge per recorded Case state, resolved on the server; the
+                scrubber reveals whichever the position actually holds. */}
+            {caseStates.map((caseState) => (
+              <span data-replay-badge={caseState} hidden={caseState !== terminal?.caseState}>
+                <StatusLabel kind="case" value={caseState} />
+              </span>
+            ))}
+            <span class="fs-l-mono" data-replay-meta>
+              {terminal?.eventId} · seq {terminal?.caseSequence} · {terminal?.label}
+            </span>
+          </div>
+
+          <div class="fs-l-counts">
+            <div class="fs-l-count">
+              <p class="fs-l-count__v" data-replay-count="agents">{terminal?.agentCount ?? 0}</p>
+              <p class="fs-l-count__l">Agents</p>
+            </div>
+            <div class="fs-l-count">
+              <p class="fs-l-count__v" data-replay-count="memory">{terminal?.memoryCount ?? 0}</p>
+              <p class="fs-l-count__l">Memory records</p>
+            </div>
+            <div class="fs-l-count">
+              <p class="fs-l-count__v" data-replay-count="incidents">{terminal?.openIncidents ?? 0}</p>
+              <p class="fs-l-count__l">Open incidents</p>
+            </div>
+            <div class="fs-l-count">
+              <p class="fs-l-count__v" data-replay-count="interventions">{terminal?.interventionCount ?? 0}</p>
+              <p class="fs-l-count__l">Interventions</p>
+            </div>
+          </div>
+
+          <div class="fs-l-scrub">
+            <label class="fs-l-label" for="fs-l-replay-input">Position</label>
+            <input
+              id="fs-l-replay-input"
+              type="range"
+              min="0"
+              max={last}
+              value={last}
+              step="1"
+              data-replay-input
+              aria-label="Recorded replay position"
+            />
+          </div>
+
+          <p class="fs-l-mono" style="margin-top:14px">
+            State hash <span data-replay-hash>{digest(terminal?.stateHash ?? null)}</span>
+            · projector {data.projectorVersion}
+          </p>
+        </div>
+      </div>
+    )}
+  </div>
+
+  <div class="fs-l-proof" data-rise>
+    <p class="fs-l-proof__n">0</p>
+    <p class="fs-l-proof__t">Side effects during replay</p>
+  </div>
+</section>

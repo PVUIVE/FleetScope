@@ -1,0 +1,86 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import ControlGate from './ControlGate.astro';
+import type { ControlDecision, CorridorState, LandingData } from '../../lib/landing-data';
+
+/**
+ * 04 — Control boundaries (DESIGN.md §19).
+ *
+ * Three gates, three recorded pairs of outcomes. A highlight box travels across
+ * them as the reader scrolls, and each gate is also directly selectable so the
+ * two recorded outcomes of one control can be compared without scrolling.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const state = (
+  decision: ControlDecision | null,
+  key: string,
+  label: string,
+  badge: CorridorState['badge'],
+  passes: boolean,
+  fallbackTarget: string,
+): CorridorState | null =>
+  decision === null
+    ? null
+    : {
+        key,
+        label,
+        badge,
+        passes,
+        target: decision.subject ?? fallbackTarget,
+        detail: decision.detail ?? `Recorded at case sequence ${decision.caseSequence}.`,
+        eventId: decision.eventId,
+        policy: decision.policyRef,
+      };
+
+const identity = [
+  state(data.identityAllowed, 'allowed', 'Allowed', 'allowed', true, 'ERP'),
+  state(data.identityDenied, 'denied', 'Denied', 'denied', false, 'ERP'),
+].filter((entry): entry is CorridorState => entry !== null);
+
+const gateway = [
+  state(data.gatewayRouted, 'routed', 'Routed', 'routed', true, 'Logistics agent'),
+  state(data.gatewayDenied, 'denied', 'Denied', 'denied', false, 'Logistics agent'),
+].filter((entry): entry is CorridorState => entry !== null);
+
+const screening = [
+  state(data.screeningAllowed, 'allowed', 'Allowed', 'allowed', true, 'Agent context'),
+  state(data.screeningBlocked, 'blocked', 'Blocked', 'blocked', false, 'Agent context'),
+].filter((entry): entry is CorridorState => entry !== null);
+---
+
+<section class="fs-l-sec" id="boundaries" aria-labelledby="fs-l-boundaries-title">
+  <div class="fs-l-block" style="padding-bottom:48px">
+    <SectionHeader num="03" label="Governed access" id="fs-l-boundaries-title">
+      <Fragment slot="headline">Every action crosses<br />a control boundary.</Fragment>
+      <p class="fs-l-lede">
+        An agent does not reach a system directly. Identity resolves who is asking, the
+        Gateway decides whether a delegation is allowed, and Screening decides whether
+        external content is permitted into agent context at all.
+      </p>
+    </SectionHeader>
+  </div>
+
+  <div class="fs-l-gates" data-gates>
+    {identity.length > 0 && (
+      <ControlGate id="corridor-identity" num="01" name="Identity" source="Orchestrator" states={identity} />
+    )}
+    {gateway.length > 0 && (
+      <ControlGate id="corridor-gateway" num="02" name="Gateway" source="Orchestrator" states={gateway} />
+    )}
+    {screening.length > 0 && (
+      <ControlGate id="corridor-screening" num="03" name="Screening" source="External input" states={screening} />
+    )}
+  </div>
+
+  <div class="fs-l-block" style="padding-block:28px 48px">
+    <p class="fs-l-note" data-rise>
+      {data.blockedInputCount > 0
+        ? `${data.blockedInputCount} external input${data.blockedInputCount === 1 ? ' was' : 's were'} refused entry to agent context in this Case. A refusal is an event, not a silence.`
+        : 'Every control decision in this Case is recorded as an event, allow or deny alike.'}
+    </p>
+  </div>
+</section>

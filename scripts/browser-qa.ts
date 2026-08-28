@@ -93,6 +93,118 @@ async function shoot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true });
 }
 
+/**
+ * The landing page, driven.
+ *
+ * Run twice: once with motion, once with `prefers-reduced-motion: reduce`. The
+ * reduced-motion pass is not a formality — every reveal on the page starts at
+ * opacity 0, so a missing reduced-motion rule renders a blank page to the
+ * readers who most need it to work.
+ */
+async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
+  for (const reduced of [false, true]) {
+    const label = reduced ? 'landing (reduced motion)' : 'landing';
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      reducedMotion: reduced ? 'reduce' : 'no-preference',
+    });
+    const page = await context.newPage();
+    const { errors } = watchConsole(page);
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2400);
+
+    check(`${label}: exactly one h1`, (await page.locator('h1').count()) === 1);
+    check(
+      `${label}: the full narrative is present`,
+      (await page.locator('main section').count()) === 11,
+      await page.locator('main section').count(),
+    );
+    check(
+      `${label}: the headline states the product, not a vendor`,
+      (await page.locator('h1').innerText()).includes('Control every agent'),
+    );
+
+    // Nothing in view may be left invisible by an animation that never ran.
+    const hidden = await page.evaluate(() => {
+      let count = 0;
+      for (const element of document.querySelectorAll('[data-rise]')) {
+        const box = element.getBoundingClientRect();
+        const inView = box.top < window.innerHeight && box.bottom > 0;
+        if (inView && getComputedStyle(element).opacity === '0') count++;
+      }
+      return count;
+    });
+    check(`${label}: no in-view content left invisible`, hidden === 0, hidden);
+
+    // The decorative field must not run when motion is not wanted.
+    const fieldOn = await page.evaluate(
+      () => document.querySelector('#fs-l-field')?.getAttribute('data-on') === 'true',
+    );
+    check(`${label}: the hero field respects the motion preference`, fieldOn === !reduced, fieldOn);
+
+    // Governance is claimed by behaviour: a denial has to stop the request.
+    await page.locator('#corridor-screening').scrollIntoViewIfNeeded();
+    await page.locator('#corridor-screening [data-corridor-state="blocked"]').click();
+    await page.waitForTimeout(400);
+    check(
+      `${label}: a blocked input visibly stops at the gate`,
+      await page.evaluate(() => {
+        const out = document.querySelector<SVGElement>('#corridor-screening [data-flow="out"]');
+        return out !== null && out.style.opacity === '0';
+      }),
+    );
+    check(
+      `${label}: the corridor cites the event that proves it`,
+      /^evt-\d{4}$/.test(await page.locator('#corridor-screening [data-corridor-evt]').innerText()),
+      await page.locator('#corridor-screening [data-corridor-evt]').innerText(),
+    );
+
+    // Replay must re-read recorded state, and say so.
+    await page.locator('#replay').scrollIntoViewIfNeeded();
+    const agentsAtEnd = await page.locator('[data-replay-count="agents"]').innerText();
+    await page.locator('[data-replay-input]').fill('2');
+    await page.waitForTimeout(300);
+    check(
+      `${label}: scrubbing changes the reconstructed state`,
+      (await page.locator('[data-replay-count="agents"]').innerText()) !== agentsAtEnd,
+    );
+    check(
+      `${label}: an earlier position is flagged historical`,
+      (await page.locator('[data-replay-stage]').getAttribute('data-historical')) === 'true',
+    );
+    check(
+      `${label}: the position shows its recorded state hash`,
+      /^[0-9a-f]{10}…[0-9a-f]{6}$/.test(await page.locator('[data-replay-hash]').innerText()),
+      await page.locator('[data-replay-hash]').innerText(),
+    );
+
+    // Cockpit tabs are a real tablist, not five divs.
+    await page.locator('#cockpit').scrollIntoViewIfNeeded();
+    await page.locator('[data-cockpit-tab="incident"]').click();
+    await page.waitForTimeout(300);
+    check(
+      `${label}: switching the Cockpit control switches the evidence rail`,
+      (await page.locator('[data-rail="incident"]').getAttribute('data-on')) === 'true',
+    );
+
+    await page.locator('#evidence').scrollIntoViewIfNeeded();
+    await page.locator('[data-ev-row]').nth(2).click();
+    await page.waitForTimeout(200);
+    check(
+      `${label}: an evidence row opens its Decision Evidence`,
+      (await page.locator('[data-ev="evt"]').innerText()).includes('evt-'),
+      await page.locator('[data-ev="evt"]').innerText(),
+    );
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(600);
+    await assertNoBodyOverflow(page, `${label} @ 1440x900 after scroll`);
+    check(`${label}: no console errors during interaction`, errors.length === 0, errors[0] ?? '');
+    await shoot(page, reduced ? 'landing-reduced-motion' : 'landing-full');
+    await context.close();
+  }
+}
+
 async function main(): Promise<void> {
   const { baseUrl, stop } = await serve();
   let browser: Browser | null = null;
@@ -109,6 +221,7 @@ async function main(): Promise<void> {
       const { errors } = watchConsole(page);
 
       for (const [name, route] of [
+        ['landing', '/'],
         ['catalog', '/catalog/'],
         ['cases', '/cases/'],
         ['workspace', `/cases/${CASE_ID}/`],
@@ -121,6 +234,9 @@ async function main(): Promise<void> {
         // Wait for the renderer to exist rather than for a stopwatch: a fixed
         // delay turns a slow machine into a false failure, which is the fastest
         // way to teach a team to ignore its own QA.
+        // The landing page's entrance beat sheet resolves by ~2s; screenshotting
+        // through it would capture a half-drawn scene and call it the design.
+        if (name === 'landing') await page.waitForTimeout(2400);
         if (name === 'cockpit') {
           await page
             .waitForSelector('#fleetscope-cockpit-canvas canvas', { timeout: 20_000 })
@@ -129,7 +245,7 @@ async function main(): Promise<void> {
         await page.waitForTimeout(400);
         check(
           `${name} @ ${viewport.name}: loads`,
-          await page.locator('.fs-shell').isVisible(),
+          await page.locator(name === 'landing' ? '.fs-l-main' : '.fs-shell').isVisible(),
           route,
         );
         await assertNoBodyOverflow(page, `${name} @ ${viewport.name}`);
@@ -142,6 +258,13 @@ async function main(): Promise<void> {
       }
       await context.close();
     }
+
+    // ── The landing page, in depth ──────────────────────────────────────────
+    // The landing page is the only surface a visitor sees before the evidence,
+    // so what it claims has to be as testable as what the console shows. These
+    // checks are behavioural: a control that says "Denied" must visibly stop the
+    // request, and a replay position must change recorded state.
+    await checkLanding(browser, baseUrl);
 
     // ── The Cockpit, in depth ───────────────────────────────────────────────
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });

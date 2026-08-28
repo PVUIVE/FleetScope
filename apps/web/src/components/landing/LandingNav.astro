@@ -1,0 +1,37 @@
+---
+/**
+ * 00 — Navigation (DESIGN.md §10).
+ *
+ * 64px, sticky, transparent over the white hero and an elevated white bar once
+ * the reader has left it. The scrolled state is driven by an IntersectionObserver
+ * sentinel rather than a scroll listener, so it costs nothing per frame.
+ */
+interface Props {
+  caseId: string;
+}
+const { caseId } = Astro.props;
+
+const links = [
+  { href: '#sessions', label: 'Product' },
+  { href: '#replay', label: 'Case' },
+  { href: '#cockpit', label: 'Cockpit' },
+  { href: '#audit', label: 'Audit' },
+];
+---
+
+<header class="fs-l-nav" id="fs-l-nav" data-scrolled="false">
+  <a class="fs-l-nav__brand" href="/">
+    <span class="fs-l-nav__mark" aria-hidden="true"></span>
+    <span>FleetScope</span>
+  </a>
+  <nav class="fs-l-nav__links" aria-label="Sections">
+    {links.map((link) => <a class="fs-l-nav__link" href={link.href}>{link.label}</a>)}
+  </nav>
+  <div class="fs-l-nav__end">
+    <a class="fs-l-btn fs-l-btn--primary" href={`/cases/${caseId}`}>
+      Explore {caseId}
+      <span class="fs-l-btn__arrow" aria-hidden="true">→</span>
+    </a>
+  </div>
+</header>
+<div id="fs-l-nav-sentinel" aria-hidden="true" style="position:absolute;top:80px;height:1px;width:1px"></div>

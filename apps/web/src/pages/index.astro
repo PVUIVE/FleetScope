@@ -1,0 +1,46 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro';
+import Hero from '../components/landing/Hero.astro';
+import SectionSessions from '../components/landing/SectionSessions.astro';
+import SectionContext from '../components/landing/SectionContext.astro';
+import SectionBoundaries from '../components/landing/SectionBoundaries.astro';
+import SectionIncident from '../components/landing/SectionIncident.astro';
+import SectionReplay from '../components/landing/SectionReplay.astro';
+import SectionEvidence from '../components/landing/SectionEvidence.astro';
+import SectionCockpit from '../components/landing/SectionCockpit.astro';
+import SectionAudit from '../components/landing/SectionAudit.astro';
+import SectionSurfaces from '../components/landing/SectionSurfaces.astro';
+import SectionCta from '../components/landing/SectionCta.astro';
+import { landingData } from '../lib/landing-data';
+
+/**
+ * The public landing page (DESIGN.md §12).
+ *
+ * Every figure below is read out of the recorded Case at build time by
+ * `landingData()`. Nothing on this page is typed by hand, so the page cannot
+ * drift from what the product can actually prove (DESIGN.md §38).
+ */
+const data = landingData();
+---
+
+<LandingLayout
+  title="FleetScope — control every agent, understand every decision"
+  description="FleetScope gives enterprise teams one place to monitor, govern, intervene in and replay long-running AI-agent workflows across sessions, systems and teams."
+  caseId={data.caseId}
+>
+  <Hero data={data} />
+  <SectionSessions data={data} />
+  <SectionContext data={data} />
+  <SectionBoundaries data={data} />
+  <SectionIncident data={data} />
+  <SectionReplay data={data} />
+  <SectionEvidence data={data} />
+  <SectionCockpit data={data} />
+  <SectionAudit data={data} />
+  <SectionSurfaces data={data} />
+  <SectionCta data={data} />
+</LandingLayout>
+
+<script>
+  import '../scripts/landing.ts';
+</script>
