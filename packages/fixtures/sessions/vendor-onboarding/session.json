@@ -1,0 +1,9 @@
+{
+  "sessionId": "ses_46ce1d89e76a",
+  "name": "Vendor Onboarding Agent",
+  "framework": "google-adk",
+  "frameworkVersion": "1.20.0",
+  "model": "gemini-3.5-flash",
+  "recordedAt": "2026-08-28T17:25:26.126Z",
+  "provenance": "A real Google ADK 1.20.0 run against Gemini, captured by examples/fleetscope_adk. The business tools are local fixtures; the agent execution is not."
+}

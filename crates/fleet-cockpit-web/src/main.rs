@@ -31,17 +31,21 @@ use ratzilla::{WebGl2Backend, WebRenderer};
 use wasm_bindgen::prelude::*;
 use web_time::Instant;
 
-/// The recorded golden Case, compiled into the binary.
+/// The boot scene: empty.
 ///
-/// This is what makes the static demo work with the network disabled: the page
-/// needs no fetch to render a complete, real Case. `fleetscope_load` replaces it
-/// at runtime when the shell hands over a different one.
-const CASE_MAIN: &str =
-    include_str!("../../../packages/fixtures/cases/CASE-1042/renderer/main.jsonl");
-const CASE_SUBAGENTS: &str =
-    include_str!("../../../packages/fixtures/cases/CASE-1042/renderer/subagents.json");
-const CASE_MANIFEST: &str =
-    include_str!("../../../packages/fixtures/cases/CASE-1042/renderer/render-manifest.json");
+/// A generic Agent Viewer must not embed one recorded Case as its default —
+/// doing so made an earlier build show a vendor-onboarding graph for a second
+/// before the developer's own session loaded. Every scene now arrives through
+/// [`fleetscope_load`], which is the only path that exists.
+const EMPTY_MANIFEST: &str = r#"{
+  "manifestVersion": "1.0.0",
+  "caseId": "",
+  "adapterId": "zoetrope-claude-jsonl@1.0.0",
+  "rendererEntryCount": 0,
+  "firstCaseSequence": 0,
+  "lastCaseSequence": 0,
+  "entries": []
+}"#;
 
 /// The DOM element the WebGl2 grid fills. `apps/web` owns everything around it
 /// and writes nothing inside it, so the renderer owns its subtree entirely.
@@ -64,18 +68,18 @@ fn parse_subagents(json: &str) -> Vec<SubagentFile> {
     serde_json::from_str(json).unwrap_or_default()
 }
 
-fn bundled_scene() -> Result<Scene, String> {
+fn empty_scene() -> Result<Scene, String> {
     Ok(Scene {
-        main: CASE_MAIN.to_owned(),
-        subagents: parse_subagents(CASE_SUBAGENTS),
-        manifest: RenderManifest::parse(CASE_MANIFEST).map_err(|e| e.to_string())?,
+        main: String::new(),
+        subagents: Vec::new(),
+        manifest: RenderManifest::parse(EMPTY_MANIFEST).map_err(|e| e.to_string())?,
     })
 }
 
 fn main() -> io::Result<()> {
     console_error_panic_hook::set_once();
 
-    let cockpit = Cockpit::load(bundled_scene().map_err(io::Error::other)?)
+    let cockpit = Cockpit::load(empty_scene().map_err(io::Error::other)?)
         .map_err(|e| io::Error::other(e.to_string()))?;
     let cockpit = Rc::new(RefCell::new(cockpit));
     COCKPIT.with(|cell| *cell.borrow_mut() = Some(cockpit.clone()));
