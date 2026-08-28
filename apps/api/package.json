@@ -16,11 +16,18 @@
     "@hono/node-server": "^1.14.0",
     "hono": "^4.6.16",
     "tsx": "^4.19.2",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "@fleetscope/adk-adapter": "workspace:*",
+    "@fleetscope/session-store": "workspace:*",
+    "@fleetscope/viewer": "workspace:*",
+    "@fleetscope/canonicalizer": "workspace:*"
   },
   "devDependencies": {
-    "@fleetscope/canonicalizer": "workspace:*",
     "@fleetscope/fixtures": "workspace:*",
     "@fleetscope/scenario-compiler": "workspace:*"
+  },
+  "exports": {
+    "./app": "./src/app.ts",
+    "./collector": "./src/collector/index.ts"
   }
 }

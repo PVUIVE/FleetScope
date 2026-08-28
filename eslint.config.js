@@ -19,6 +19,9 @@ export default tseslint.config(
       'apps/web/public/wasm/**',
       'packages/fixtures/cases/**',
       'packages/event-schema/schemas/**',
+      // A Node entry-point shim, not project source: it runs before the tsx
+      // loader is registered and is deliberately plain ESM.
+      'apps/cli/bin/*.js',
     ],
   },
   js.configs.recommended,
@@ -42,6 +45,10 @@ export default tseslint.config(
     files: [
       'packages/shared/src/env.ts',
       'apps/api/src/config/**/*.ts',
+      // The CLI and the server entry point ARE the process boundary: they read
+      // argv, the environment and the terminal, and hand a parsed value on.
+      'apps/cli/src/**/*.ts',
+      'apps/api/src/server.ts',
       'packages/*/src/cli.ts',
       'packages/*/src/emit-json-schema.ts',
       'scripts/**/*.ts',
