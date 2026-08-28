@@ -6,171 +6,113 @@
 > and gets fixed first.
 >
 > **Scope.** This contract governs the public landing route `/` only — every
-> selector under `.fs-l`. The operator product (`/cases`, `/catalog`,
-> `/approvals`, `/cockpit`, `/audit`) keeps its own dark control-room language
-> and is out of scope here. The landing page is the one light surface.
+> selector under `.fs-l`. The Agent Viewer (`/sessions`, `/sessions/:id`) and the
+> deferred enterprise surfaces keep the dark control-room language defined in
+> `apps/web/src/styles/global.css` and `viewer.css`. The landing page is the one
+> light surface.
 
 ---
 
 # 1. Product Design Thesis
 
-FleetScope is the control plane for long-running enterprise AI-agent operations.
+FleetScope is a **local Agent Viewer for Gemini and Google ADK**.
 
 The landing page must communicate one idea immediately:
 
-> **Control every agent. Understand every decision.**
+> **See what your agents are doing.**
 
-FleetScope is not:
+Supporting line:
 
-- a chatbot;
-- an AI assistant landing page;
-- an observability dashboard;
-- a generic workflow tool;
-- a graph visualizer;
-- a Gemini marketing page.
+> FleetScope turns local Gemini/ADK sessions into a live execution graph —
+> agents, tools, handoffs, errors, and timeline included.
 
-FleetScope turns distributed agent activity into one governed, inspectable, replayable business **Case**.
+The visitor is one developer with an agent that is behaving oddly and a terminal
+full of log lines. The page has to make them recognise their own problem in the
+first screen, and believe the answer is real by the second.
 
-The landing page must visually communicate:
+**Credibility is the whole design problem.** Anyone can mock up a pretty graph.
+So every figure, name, duration and error class on this page is read at BUILD
+time out of a real recorded Google ADK run (§30). Nothing on the page is typed by
+hand, and the page says so at the bottom.
 
-```text
-Agent activity
-    ↓
-Business Case
-    ↓
-Persistent context
-    ↓
-Governance boundaries
-    ↓
-Incident detection
-    ↓
-Policy
-    ↓
-Intervention
-    ↓
-Historical replay
-    ↓
-Audit evidence
-```
+## What the page must NOT be
 
-The product should feel:
+- an enterprise governance pitch;
+- a policy, approval or compliance story;
+- a fleet dashboard;
+- a wall of feature cards.
 
-- precise;
-- enterprise;
-- technical;
-- controlled;
-- intelligent;
-- evidence-driven;
-- alive without feeling chaotic.
+Those belong to the direction documented in `docs/archive/README.md`. Above the
+fold they are actively harmful: they answer a question this visitor is not asking.
 
 ---
 
 # 2. Design Inspiration
 
-FleetScope inherits the strongest visual principles from the Sup_Contract reference:
+Technical-blueprint precision, in the Sup_Contract register: white ground, 1px
+rules, sharp geometry, large grotesque type, one electric blue, and motion that
+only ever reports a state change.
 
-- strict grid-based composition;
-- 1px structural borders;
-- sharp corners;
-- generous whitespace;
-- high-contrast black-on-white typography;
-- one strong electric accent color;
-- very large grotesque headlines;
-- minimal decorative gradients;
-- strong section numbering;
-- scroll-driven visual storytelling;
-- sticky/pinned product sequences;
-- diagrams that animate themselves;
-- restrained text animation;
-- one signature WebGL/interactive hero visual.
+Reference points, and what is taken from each:
 
-FleetScope must **not** visually copy Sup_Contract.
+| Source                 | Taken                                           |
+| ---------------------- | ----------------------------------------------- |
+| Engineering blueprints | 1px rules, numbered sections, measured captions |
+| Terminal UIs           | monospace for anything the machine produced     |
+| Sup_Contract           | pinned scroll sequences, restrained type motion |
+| Instrument panels      | status as glyph + word, never colour alone      |
 
-Its own visual language is based on:
-
-> **The Case Spine**
-
-A single evidence path that evolves throughout the page.
+Explicitly rejected: gradients, glows, glass, drop shadows on flat elements,
+rounded "friendly" corners, stock illustration, and any animation that exists to
+be noticed.
 
 ---
 
-# 3. Core Visual Motif — The Case Spine
+# 3. Core Visual Motif — The Execution Spine
 
-The Case Spine is the primary visual motif of FleetScope.
+The Execution Spine is the primary visual motif of FleetScope.
 
-Conceptually:
+It replaces the earlier **Case Spine**, which drew a governed Case resolving from
+seven enterprise systems. That motif was correct for the enterprise product and
+is wrong for this one: it puts governance where the developer expects execution.
+The rename is not cosmetic — the shape it draws is different.
 
-```text
-● Case Created
+A run is one vertical line. Every node on it is a real event:
+
+```
+Session started
 │
-● Agent Started
+Agent
 │
-● Memory
+Model
 │
-● Waiting
+Tool
 │
-● Resume
+Handoff
 │
-● Identity
+Tool
 │
-● Gateway
+Error
 │
-● Screening
-│
-● Incident
-│
-● Policy
-│
-● Intervention
-│
-● Runtime Result
-│
-● Audit
+Result
 ```
 
-The same line changes meaning depending on the section.
+Rules:
 
-### Hero
+- **The spine is vertical and 1px.** It runs down the kind column, drawn by the
+  rows themselves rather than by an element per node.
+- **Time reads downward.** Offsets from the session start sit in the left gutter,
+  monospace, tabular numerals.
+- **Kind is a word.** `MODEL`, `TOOL`, `HANDOFF`, `ERROR` — never an icon alone
+  and never a colour alone.
+- **A failure tints its row** (`--fs-danger-soft`) and turns its kind and label
+  `--fs-danger`. It is the only row on the page allowed a fill.
+- **Blue marks the machine's decisions** — model calls and handoffs. Everything
+  else is black on white.
 
-The Case Spine appears as a network of fragmented agent activity converging into:
-
-```text
-CASE-1042
-```
-
-### Long-running workflow
-
-The spine becomes an event timeline spanning multiple Runtime Sessions.
-
-### Memory
-
-Facts travel across the spine from Session 1 to Session 2.
-
-### Governance
-
-The spine physically crosses:
-
-- Identity;
-- Gateway;
-- Screening.
-
-### Incident
-
-The spine changes state after repeated failure.
-
-### Warden
-
-The spine becomes a governed intervention lifecycle.
-
-### Replay
-
-The spine becomes a historical scrubber.
-
-### Audit
-
-The spine resolves into an immutable-looking—but truthfully application-level—evidence trail.
-
-This motif should make the entire page feel like one continuous system rather than a sequence of unrelated sections.
+The motif appears three times, at three densities: full in the hero, compact in
+§14 (Section 02), and as a live preview in §16 (Section 04). It is the same component
+(`.fs-d-spine`), not three drawings of the same idea.
 
 ---
 
@@ -301,10 +243,9 @@ Primary dark surface:
 
 Use dark panels for:
 
-- Warden / policy sequence;
-- technical evidence;
-- runtime state;
-- selected Fleet Cockpit previews.
+- the terminal column in §14;
+- the two commands under the hero CTAs;
+- anything the machine printed rather than the page wrote.
 
 Do not turn the whole landing page dark.
 
@@ -505,12 +446,12 @@ Navigation:
 ```text
 FleetScope
 
-Product
-Case
-Cockpit
-Audit
+How it works
+Failures
+Replay
+Setup
 
-Explore CASE-1042
+Open Agent Viewer
 ```
 
 Desktop height:
@@ -542,7 +483,7 @@ z-index: 50;
 Primary CTA:
 
 ```text
-Explore CASE-1042 →
+Open Agent Viewer →
 ```
 
 Filled blue.
@@ -590,919 +531,294 @@ No gradient button.
 
 # 12. Landing Page Architecture
 
-```text
-00 Navigation
+Six sections. Not eight, not twelve.
 
-01 Hero
-   Control every agent.
-
-02 One Case, Many Sessions
-
-03 Durable Context
-
-04 Control Boundaries
-
-05 Governed Recovery
-
-06 Deterministic Replay
-
-07 Evidence Behind Every Decision
-
-08 Fleet Cockpit
-
-09 Audit
-
-10 Product Surfaces
-
-11 Final CTA
-
-12 Footer
 ```
+01  Hero                    See what your agents are doing
+02  From logs to graph      Your agent is more than a log stream
+03  Execution events        Every model call. Every tool. Every handoff.
+04  Catch failures fast     See exactly where the run broke
+05  Historical inspection   Replay the run without rerunning it
+06  Final CTA               Debug your next agent visually
+```
+
+Each earns its place by answering one question in order: _what is this_, _why do
+I need it_, _what does it capture_, _what is it like when things break_, _can I
+go back_, _how do I start_. A seventh section would be a section that answers a
+question nobody asked.
+
+**Every section is numbered.** The numeral is display-sized and sits above a
+monospace label above the headline (§7.2). That numbering is what makes the page
+read as one blueprint rather than a stack of marketing blocks.
 
 ---
 
-# 13. Hero
+# 13. Section 01 — Hero
 
 ## Headline
 
-```text
-Control every agent.
-Understand every decision.
+```
+See what your
+agents are doing.
 ```
 
-Highlight:
+Two lines. `agents` is the one blue word above the fold. Each line is a
+`.fs-l-reveal` masked span so it rises into place once, on load (§23).
 
-```text
-every decision.
+## Sub
+
+```
+FleetScope turns local Gemini/ADK sessions into a live execution graph —
+agents, tools, handoffs, errors, and timeline included.
 ```
 
-in:
+## CTAs
 
-```css
-var(--fs-blue)
+```
+[ Open Agent Viewer → ]   [ Setup in two commands ]
 ```
 
-Supporting copy:
+Primary is blue and goes to `/sessions`. Secondary is a 1px ghost and goes to
+`/docs`. No third CTA.
 
-> FleetScope gives enterprise teams one place to monitor, govern, intervene in, and replay long-running AI-agent workflows across sessions, systems, and teams.
+## The two commands
 
-Primary CTA:
+Directly under the CTAs, on the dark operational surface (§6):
 
-```text
-Explore CASE-1042
+```
+$ fleetscope watch
+$ python examples/vendor_agent.py
 ```
 
-Secondary:
+This is a deliberate risk taken on purpose: showing a command line in the hero
+tells a developer in one glance that this is a local tool they run, not a service
+they sign up for.
 
-```text
-Open Fleet Cockpit
-```
+## Right column
 
----
+The Execution Spine at full density: time, kind, label, agent — seven rows from
+the recorded run. It draws itself top-down on load, one row at a time, in the
+order the events happened (§20.1).
 
-# 14. Hero Layout
+## Strip
 
-Two-column grid.
-
-```text
-┌──────────────────────────┬───────────────────────────┐
-│                          │                           │
-│ CONTROL EVERY AGENT.     │                           │
-│ UNDERSTAND EVERY         │      CASE NETWORK         │
-│ DECISION.                │                           │
-│                          │                           │
-│ Description              │                           │
-│                          │                           │
-│ CTA CTA                  │                           │
-│                          │                           │
-├──────────────────────────┴───────────────────────────┤
-│ CASE-1042 · VENDOR ONBOARDING · RECORDED EVIDENCE   │
-└──────────────────────────────────────────────────────┘
-```
+A 1px-ruled row under the hero carrying only measured facts: session name,
+framework and version, event count, agent count, tool-call count, failure count,
+duration. Every number is read from the recording.
 
 ---
 
-# 15. Hero Signature Visual — Case Network
+# 14. Section 02 — From logs to graph
 
-Sup_Contract uses a spherical particle object.
+## Headline
 
-FleetScope replaces this with a:
-
-> **Case Orbit / Evidence Sphere**
-
-Central entity:
-
-```text
-CASE-1042
+```
+Your agent is more than a log stream.
 ```
 
-Orbiting/connected entities:
+## Layout
 
-```text
-Orchestrator
+Three columns: terminal, connector, structured.
 
-Logistics
-
-Memory
-
-ERP
-
-External Input
-
-Security
-
-Evidence
+```
+┌───────────────────┐        ┌─────────────────────────┐
+│ TERMINAL          │  ───►  │ AGENT VIEWER            │
+│ runtime.started   │        │ SESSION  Session started│
+│ agent.spawned     │        │ MODEL    gemini-…       │
+│ model.requested   │        │ TOOL     vendor_lookup  │
+│ tool.requested    │        │ HANDOFF  main → logistics│
+│ tool.failed       │        │ ERROR    inventory_lookup│
+└───────────────────┘        └─────────────────────────┘
 ```
 
-Visual structure:
+Left is the dark operational surface, monospace, `--fs-terminal-text`. Right is
+the compact Execution Spine on white.
 
-- hundreds of small evidence points;
-- sparse blue connections;
-- black structural points;
-- one central Case anchor;
-- slow autonomous movement;
-- minimal cursor response.
+**Both columns are the same events.** The left column is the distinct canonical
+type names the recording actually contains; it is not a fabricated log.
 
-This can be implemented using:
+## Motion — the page's primary story
 
-1. SVG/Canvas first;
-2. PixiJS if particle count requires it;
-3. Three.js only if actual 3D depth materially improves the result.
+Scrubbed against the section crossing the viewport (§20.4):
 
-Do not add React Three Fiber only to reproduce Sup_Contract.
+1. the terminal column fades back to 32% opacity, line by line;
+2. the connector rule draws left to right;
+3. the structured rows resolve in, staggered.
 
-FleetScope remains Astro-first.
+Nothing new appears — the animation reveals content that was already rendered, so
+the section is complete and readable with motion off.
 
 ---
 
-# 16. Hero Motion
+# 15. Section 03 — Execution events
 
-Initial state:
+## Headline
 
-```text
-fragmented agents
-+
-unstructured evidence
+```
+Every model call. Every tool. Every handoff.
 ```
 
-Timeline:
+## Lede
 
-```text
-0.0s
-Evidence points fade in
+Names the mechanism, because the mechanism is the credibility:
 
-0.3s
-Peripheral system nodes appear
+> FleetScope captures Google ADK's own callbacks — not terminal output — so every
+> model request, tool invocation, delegation and failure is a first-class event
+> with an agent, a timestamp and a duration.
 
-0.7s
-CASE-1042 locks into the center
+## Layout
 
-1.0s
-Case Spine draws
+Four blueprint cells in one 1px-bordered row, divided by 1px rules:
 
-1.3s
-Agent connections resolve
-
-1.6s
-Evidence begins flowing toward Case
-
-2.0s
-Stable governed system
+```
+MODEL              TOOL               HANDOFF            ERROR
+gemini-3.5-flash   vendor_lookup      main → logistics   inventory_lookup
+2.06 sec           290 ms             sub-agent          timeout
 ```
 
-Motion meaning:
+Each cell is rendered from **one real event** of the recording. A cell whose
+event the recording does not contain is not rendered at all — the row is
+`auto-fit`, so three cells fill the width correctly.
 
-> distributed activity becomes one governed Case.
+The ERROR cell is filled `--fs-danger-soft` with `--fs-danger` text. It is the
+only filled cell.
 
-No large headline animation beyond a restrained mask/fade entrance.
+## Motion
+
+Entrance only: each cell rises 18px on first sight, staggered. No loop.
 
 ---
 
-# 17. Section 01 — One Case, Many Sessions
+# 16. Section 04 — Catch failures fast
 
-Eyebrow:
+## Headline
 
-```text
-01
-LONG-RUNNING OPERATIONS
+```
+See exactly where the run broke.
 ```
 
-Headline:
+## Layout — pinned
 
-```text
-One Case.
-Weeks of agent work.
+Left: four steps. Right: a persistent Agent Viewer preview.
+
+```
+01  AGENT      logistics
+02  TOOL       inventory_lookup
+03  FAILURE    timeout
+04  CONTEXT    5 surrounding events
 ```
 
-Highlight:
+The steps are the questions a developer asks, in the order they ask them. Each
+value is read from the recorded failure.
 
-```text
-one Case.
-```
+The preview is the Execution Spine showing the failure **in context**: two rows
+before, the failure, two rows after. The failing row is tinted and carries a 2px
+`--fs-danger` inset marker on its leading edge.
 
-Visual:
+## Motion
 
-```text
-SESSION 01
+`ScrollTrigger` pins the scene and steps `aria-current` discretely against scroll
+progress — `Math.floor(progress * count)`, never a fraction of a step. Inactive
+steps sit at 40% opacity.
 
-● Case started
-│
-● Memory written
-│
-● Waiting
-│
-┆
-┆ SIMULATED DAY 12
-┆
-● Session 02
-│
-● Memory recalled
-│
-● ERP check
-│
-● Logistics delegated
-```
-
-### Motion
-
-Pinned scroll section.
-
-Recommended parent:
-
-```text
-250–300vh
-```
-
-Content:
-
-```css
-position: sticky;
-top: 10vh;
-```
-
-As scrolling advances:
-
-- active session changes;
-- previous steps stay visible but muted;
-- Case Spine extends;
-- Day 12 gap compresses visually.
-
-Never pretend scroll distance is literal elapsed time.
+Desktop only (≥1024px). Below that the pin is not created and all four steps
+render at full opacity.
 
 ---
 
-# 18. Section 02 — Durable Context
+# 17. Section 05 — Historical inspection
 
-Eyebrow:
+## Headline
 
-```text
-02
-PERSISTENT CONTEXT
+```
+Replay the run without rerunning it.
 ```
 
-Headline:
+## Layout
 
-```text
-Context survives
-the session.
+Left: the recorded positions as a 1px-ruled list of buttons. Right: a state
+panel.
+
+```
+01  gemini-3.5-flash          ┌──────────────────────────┐
+02  vendor_lookup             │ HISTORICAL               │
+03  main → logistics          │ Recorded session state.  │
+04  inventory_lookup          │ Nothing is executing.    │
+05  Session completed         │                          │
+                              │ Event      15            │
+                              │ Agent      logistics     │
+                              │ Executing  nothing       │
+                              └──────────────────────────┘
 ```
 
-Two-column structure.
+## The rule this section exists to state
 
-Left:
+Selecting an earlier mark reports the state **at that recorded position** and says,
+in as many words, that nothing is executing. That is the product's actual
+behaviour (`docs/architecture.md` §5), not a claim invented for the page.
 
-```text
-SESSION 01
+- At the last mark: `LIVE`, `--fs-live`.
+- At any earlier mark: `HISTORICAL`, `--fs-historical`, panel filled
+  `--fs-historical-soft`.
 
-<the recorded durable fact>
-```
+Historical must never look live. No pulse, no marching ants, no motion of any
+kind in that state.
 
-Right:
+## Motion
 
-```text
-SESSION 02
-
-Memory recalled
-with provenance
-```
-
-Motion:
-
-1. memory card created;
-2. card collapses into a small evidence token;
-3. token travels through Case Spine;
-4. Session 02 receives it;
-5. provenance expands.
-
-Hover:
-
-```text
-<fact>
-
-Source
-<recorded event id>
-
-Written
-Session 01
-
-Recalled
-Session 02
-```
-
-> **Correction to earlier drafts.** No fabricated fact appears here. The durable
-> fact, its source event and its recall event are read out of the recorded Case
-> at build time (§38). Any illustrative figure in an earlier version of this
-> section that is not in the record is void.
+Click only. This section is interactive rather than scrubbed, because the claim
+is about a control the visitor can operate.
 
 ---
 
-# 19. Section 03 — Control Boundaries
+# 18. Section 06 — Final CTA
 
-Eyebrow:
+## Headline
 
-```text
-03
-GOVERNED ACCESS
+```
+Debug your next agent visually.
 ```
 
-Headline:
+Centred, one masked reveal.
 
-```text
-Every action crosses
-a control boundary.
+## CTAs
+
+```
+[ Open FleetScope → ]   [ Read the setup ]
 ```
 
-This section adapts Sup_Contract's scroll-moving protocol highlighter into FleetScope control gates.
+## Provenance line
 
-Create a grid containing:
+Below the CTAs, `--fs-fg-muted`, 12px, centred, max 62ch:
 
-```text
-01 Identity
-02 Gateway
-03 Screening
-```
+> A real Google ADK 1.20.0 run against Gemini, captured by
+> `examples/fleetscope_adk`. The business tools are local fixtures; the agent
+> execution is not.
 
-A strong border/highlight box moves across each system as scroll progresses.
+**This line is required.** It is the page's single most credible sentence: it
+tells the reader precisely which part of what they just saw was real, and it is
+read from the recording's own metadata rather than written here.
 
 ---
 
-## State 01 — Identity
+# 19. Footer
 
-```text
-ORCHESTRATOR
-     │
-     ▼
- [ IDENTITY ]
-     │
-  ALLOWED
-     │
-     ▼
-    ERP
-```
+Three columns: wordmark and one line, product links, the recorded session id in
+monospace.
 
-The request should physically stop before Identity.
-
-Only after `ALLOWED` does the line continue.
+The enterprise surfaces are linked from the footer, and only from the footer,
+labelled _Enterprise preview_. They are a future direction; the footer is where a
+future direction belongs.
 
 ---
 
-## State 02 — Gateway
-
-```text
-ORCHESTRATOR
-     │
-     ▼
- [ GATEWAY ]
-     │
-   ROUTED
-     │
-     ▼
-LOGISTICS AGENT
-```
-
-Logistics node should not appear before routed state.
-
----
-
-## State 03 — Screening
-
-```text
-EXTERNAL INPUT
-     │
-     ▼
- [ SCREENING ]
-     │
-   BLOCKED
-     ×
-AGENT CONTEXT
-```
-
-Blocked path ends visibly.
-
-Use motion to demonstrate enforcement rather than merely displaying labels.
-
-Each gate must also be directly selectable, so a reader can compare the two
-recorded outcomes of the same control without scrolling. Both outcomes are
-recorded events; the control selects between them, it does not simulate.
-
----
-
-# 20. Section 04 — Governed Recovery
-
-Eyebrow:
-
-```text
-04
-INCIDENT + WARDEN
-```
-
-Headline:
-
-```text
-Recovery is governed.
-Not improvised.
-```
-
-This section uses Sup_Contract's pinned left-step + dark sticky terminal pattern.
-
-Parent:
-
-```text
-300vh
-```
-
-Two columns.
-
-### Left
-
-```text
-01 Detect
-02 Evaluate
-03 Authorize
-04 Intervene
-05 Verify
-```
-
-Inactive:
-
-```css
-color: var(--fs-fg-muted);
-```
-
-Active:
-
-```css
-color: var(--fs-fg);
-```
-
----
-
-## Right: Operational Console
-
-Dark panel.
-
-Initial:
-
-```text
-Logistics Agent
-
-inventory.read    ✓
-inventory.read    ✕
-inventory.read    ✕
-inventory.read    ✕
-```
-
-Then active lines progress with scroll.
-
-### Detect
-
-```text
-incident.detected
-
-class:
-repeated_tool_failure
-```
-
-### Evaluate
-
-```text
-policy.evaluate
-
-action:
-bounded_retry
-```
-
-### Authorize
-
-```text
-intervention.authorized
-```
-
-### Intervene
-
-```text
-intervention.requested
-runtime.acknowledged
-```
-
-### Verify
-
-```text
-runtime.result
-
-SUCCEEDED
-```
-
-Never collapse:
-
-```text
-Authorized
-```
-
-and:
-
-```text
-Succeeded
-```
-
-into the same state.
-
----
-
-# 21. Section 05 — Deterministic Replay
-
-Eyebrow:
-
-```text
-05
-HISTORICAL REPLAY
-```
-
-Headline:
-
-```text
-Go back in time
-without running anything again.
-```
-
-Use another pinned sequence.
-
-Left:
-
-```text
-Event 60
-
-Event 45
-
-Event 30
-
-Event 16
-```
-
-Right:
-
-FleetScope Case preview.
-
-As scroll goes backward:
-
-- Logistics Agent disappears;
-- incident disappears;
-- Warden disappears;
-- memory state changes;
-- status switches to Historical.
-
-Persistent label:
-
-```text
-HISTORICAL
-
-Recorded evidence.
-Nothing is executing.
-```
-
-Large proof statement:
-
-```text
-0
-SIDE EFFECTS DURING REPLAY
-```
-
-Motion should resemble a system rewinding, not a video playing backward.
-
-The scrubber must also be operable directly — a real range input — so a position
-can be chosen without scrolling, and every position must show the recorded
-prefix state hash for that position.
-
----
-
-# 22. Section 06 — Evidence
-
-Eyebrow:
-
-```text
-06
-DECISION EVIDENCE
-```
-
-Headline:
-
-```text
-Every badge has
-evidence behind it.
-```
-
-Grid/table:
-
-```text
-IDENTITY        ALLOWED       evt-0014
-GATEWAY         ROUTED        evt-0022
-SCREENING       BLOCKED       evt-0016
-INCIDENT        DETECTED      evt-0031
-INTERVENTION    SUCCEEDED     evt-0037
-```
-
-Use 1px borders.
-
-No rounded table card.
-
----
-
-## Scroll Highlight
-
-Adapt Sup_Contract's moving protocol highlight.
-
-One border box moves between evidence rows.
-
-When row becomes active, detailed evidence appears beside it.
-
-Example:
-
-```text
-IDENTITY ALLOWED
-
-Actor
-Vendor Onboarding Orchestrator
-
-Resource
-ERP.inventory.read
-
-Policy
-enterprise-read-policy@1.3
-
-Evidence
-evt-0014
-```
-
-Rows are also directly clickable.
-
----
-
-# 23. Section 07 — Fleet Cockpit
-
-Eyebrow:
-
-```text
-07
-FLEET COCKPIT
-```
-
-Headline:
-
-```text
-See the entire Case.
-At once.
-```
-
-Show a high-fidelity product preview.
-
-Structure:
-
-```text
-┌─────────────┬────────────────────┬───────────────┐
-│ AGENTS      │                    │ EVIDENCE      │
-│             │                    │               │
-│ Orchestrator│      GRAPH         │ Identity ✓    │
-│ └ Logistics │                    │ Gateway ✓     │
-│             │                    │ Screening ×   │
-├─────────────┴────────────────────┴───────────────┤
-│                 TIMELINE                         │
-└─────────────────────────────────────────────────┘
-```
-
-Do not embed full heavy WASM if unnecessary.
-
-Use:
-
-- recorded screenshot;
-- lightweight SVG recreation;
-- deterministic preview.
-
----
-
-# 24. Cockpit Showcase Motion
-
-Adapt Sup_Contract's cross-platform pinned mockup sequence.
-
-Left:
-
-```text
-Memory
-
-Gateway
-
-Screening
-
-Incident
-
-Warden
-```
-
-Right:
-
-one persistent product frame.
-
-The internal UI state changes as the left active item changes.
-
-Transition:
-
-```text
-old:
-opacity 1 → 0
-translateY 0 → -16px
-
-new:
-opacity 0 → 1
-translateY 16px → 0
-```
-
-Duration:
-
-```text
-250–350ms
-```
-
-No exaggerated animation.
-
-The left rail is a real tablist, keyboard operable.
-
----
-
-# 25. Section 08 — Audit
-
-Eyebrow:
-
-```text
-08
-AUDIT
-```
-
-Headline:
-
-```text
-Every Case
-leaves a record.
-```
-
-Evidence dots from previous sections enter the section and align vertically.
-
-They become:
-
-```text
-Agent Version
-Session
-Memory
-Identity
-Gateway
-Screening
-Incident
-Policy
-Intervention
-Runtime Result
-```
-
-Then resolve to:
-
-```text
-STREAM REVISION
-
-PROJECTOR VERSION
-
-STATE HASH
-```
-
-CTA:
-
-```text
-View CASE-1042 Audit →
-```
-
----
-
-# 26. Product Surfaces
-
-Eyebrow:
-
-```text
-09
-THE CONTROL PLANE
-```
-
-Headline:
-
-```text
-One operating layer
-for the entire fleet.
-```
-
-Five structural cells:
-
-```text
-AGENT CATALOG
-
-Discover approved agents.
-```
-
-```text
-CASE WORKSPACE
-
-Follow long-running business work.
-```
-
-```text
-APPROVALS
-
-Authorize sensitive actions.
-```
-
-```text
-FLEET COCKPIT
-
-Investigate and intervene.
-```
-
-```text
-AUDIT
-
-Reconstruct every decision.
-```
-
-No generic icon feature cards.
-
-Use actual product UI fragments.
-
----
-
-# 27. Final CTA
-
-Headline:
-
-```text
-Put every agent action
-on the record.
-```
-
-Alternative:
-
-```text
-Your agents move fast.
-Your control plane should keep up.
-```
-
-Sub:
-
-> FleetScope turns distributed agent activity into governed, inspectable, replayable business Cases.
-
-Primary:
-
-```text
-Explore CASE-1042
-```
-
-Secondary:
-
-```text
-Enter Fleet Cockpit
-```
-
-Final animation:
-
-Evidence particles from the entire page converge into:
-
-```text
-CASE-1042
-```
-
-then resolve into one straight Case Spine.
-
----
-
-# 28. Motion System
+# 20. Motion System
 
 FleetScope motion has exactly four semantic families.
 
 ---
 
-## 28.1 Flow
+## 20.1 Flow
 
 Used for:
 
@@ -1521,7 +837,7 @@ Recommended behavior:
 
 ---
 
-## 28.2 State
+## 20.2 State
 
 Used for:
 
@@ -1550,33 +866,32 @@ Duration:
 
 ---
 
-## 28.3 Evidence
+## 20.3 Evidence
 
 Used when canonical evidence appears.
 
 Example:
 
 ```text
-event accepted
+event captured
     ↓
-small dot appears
+a row appears
     ↓
-joins Case Spine
+joins the Execution Spine
 ```
 
 Do not make every dot pulse forever.
 
 ---
 
-## 28.4 Scroll Storytelling
+## 20.4 Scroll Storytelling
 
 Used for:
 
-- Sessions;
-- Control Boundaries;
-- Warden;
-- Replay;
-- Cockpit states.
+- §14 logs → graph;
+- §16 the pinned failure sequence.
+
+Nowhere else. Two scrubbed scenes is the budget for a six-section page.
 
 Scrub should feel deterministic and precise.
 
@@ -1584,7 +899,7 @@ Avoid overly elastic physics.
 
 ---
 
-# 29. Motion Tokens
+# 21. Motion Tokens
 
 ```css
 :root {
@@ -1600,7 +915,7 @@ Avoid overly elastic physics.
 
 ---
 
-# 30. Scroll Architecture
+# 22. Scroll Architecture
 
 Preferred implementation in FleetScope:
 
@@ -1618,8 +933,7 @@ Use GSAP for:
 
 - pinned sections;
 - scrubbed timelines;
-- evidence highlighter;
-- Case Spine progression;
+- Execution Spine progression;
 - active-step state.
 
 Use plain CSS for:
@@ -1635,7 +949,7 @@ Do not make Lenis mandatory without benchmarking.
 
 ---
 
-# 31. Text Motion
+# 23. Text Motion
 
 Text animation must remain restrained.
 
@@ -1657,7 +971,7 @@ Content should remain readable even with animations disabled.
 
 ---
 
-# 32. Background
+# 24. Background
 
 Primary:
 
@@ -1675,7 +989,7 @@ A subtle grid extension may appear outside the main content container on large s
 
 ---
 
-# 33. Hover Language
+# 25. Hover Language
 
 Interactions should feel engineered.
 
@@ -1704,7 +1018,7 @@ Buttons:
 
 ---
 
-# 34. Responsive
+# 26. Responsive
 
 ## Desktop
 
@@ -1761,7 +1075,7 @@ Hero Case Network becomes a simplified static/SVG version.
 
 ---
 
-# 35. Reduced Motion
+# 27. Reduced Motion
 
 Mandatory.
 
@@ -1788,7 +1102,7 @@ A media query alone does not stop a script — the script must check.
 
 ---
 
-# 36. Accessibility
+# 28. Accessibility
 
 Required:
 
@@ -1805,7 +1119,7 @@ Required:
 
 ---
 
-# 37. Performance Rules
+# 29. Performance Rules
 
 Hero WebGL/canvas is the primary performance risk.
 
@@ -1831,30 +1145,28 @@ Grid:
 
 ---
 
-# 38. Product Truth
+# 30. Product Truth
 
 Landing visuals must never invent evidence.
 
-If UI shows:
+If the page shows:
 
 ```text
-Identity Allowed
+inventory_lookup   timeout   480 ms
 ```
 
-there must be actual CASE-1042 evidence supporting it.
+there must be a recorded event that says exactly that.
 
-Same for:
+Same for every agent name, model name, tool name, duration, token count, event
+count and error class on the page.
 
-```text
-Gateway Routed
-Screening Blocked
-Incident Detected
-Intervention Succeeded
-```
+Technical values come from a real recorded Google ADK run, derived at BUILD time
+from `packages/fixtures/sessions/vendor-onboarding` through
+`apps/web/src/lib/landing-session.ts`. No figure on this page is typed by hand,
+and `apps/web/tests/landing.test.ts` fails the build if one ever is.
 
-Technical values must come from real product fixture data, derived at build time
-from `packages/fixtures/cases/CASE-1042` through
-`apps/web/src/lib/landing-data.ts`. No figure on this page is typed by hand.
+When the recording does not contain something the page wants to say, the page
+does not say it: the field is `null` and the component renders nothing.
 
 Simplifying visuals is allowed.
 
@@ -1862,7 +1174,7 @@ Inventing proof is not.
 
 ---
 
-# 39. Technology Branding
+# 31. Technology Branding
 
 Do not make Gemini/Google a major visual element.
 
@@ -1884,7 +1196,7 @@ No technology-first narrative.
 
 ---
 
-# 40. Core UI Primitives
+# 32. Core UI Primitives
 
 Create/reuse only a small number of primitives.
 
@@ -1895,18 +1207,17 @@ BlueprintCell
 SectionHeader
 SectionEyebrow
 
-CaseSpine
-CaseEvent
+ExecutionSpine
+SpineRow
 
-StatusLabel
-EvidenceRow
-EvidenceDetail
+SectionHeader
+EventCell
 
-ControlGate
+ViewerPreview
+TerminalBlock
 
-OperationalConsole
-
-ProductFrame
+ReplayMark
+ReplayState
 
 PrimaryButton
 SecondaryButton
@@ -1920,65 +1231,48 @@ restyles that vocabulary; it never redefines it.
 
 ---
 
-# 41. Section Rhythm
+# 33. Section Rhythm
 
-Follow a deliberate rhythm:
+Six sections cannot all be loud. The page has one peak and one close:
 
 ```text
-HERO
-high visual impact
+01  HERO
+    large narrative + the two commands
 
 ↓
 
-SESSIONS
-large narrative
+02  LOGS → GRAPH
+    the argument, scrubbed
 
 ↓
 
-MEMORY
-lighter / explanatory
+03  EVENTS
+    structured / calm
 
 ↓
 
-CONTROL
-interactive
+04  FAILURE
+    pinned operational peak
 
 ↓
 
-WARDEN
-dark operational peak
+05  REPLAY
+    interactive, quiet
 
 ↓
 
-REPLAY
-interactive peak
-
-↓
-
-EVIDENCE
-structured / calm
-
-↓
-
-COCKPIT
-product reveal
-
-↓
-
-AUDIT
-proof
-
-↓
-
-CTA
-minimal closure
+06  CTA
+    minimal closure
 ```
+
+§04 is the only pinned scene. §05 is the only interactive one. Everything else
+rises once and then holds still.
 
 Do not make every section equally visually loud.
 
 ---
 
-# 42. Z-Index System
+# 34. Z-Index System
 
 ```text
 z-0
@@ -1988,7 +1282,7 @@ z-5
 hero visualization
 
 z-10
-Case Spine overlays
+Execution Spine overlays
 
 z-20
 scroll highlight
@@ -2007,7 +1301,7 @@ Avoid arbitrary `z-index: 9999`.
 
 ---
 
-# 43. Design Do
+# 35. Design Do
 
 Do:
 
@@ -2018,12 +1312,12 @@ Do:
 - maintain large whitespace;
 - let diagrams draw themselves;
 - use actual FleetScope evidence;
-- create continuity through the Case Spine;
+- create continuity through the Execution Spine;
 - preserve crisp sharp geometry.
 
 ---
 
-# 44. Design Don't
+# 36. Design Don't
 
 Do not:
 
@@ -2041,80 +1335,65 @@ Do not:
 
 ---
 
-# 45. Signature FleetScope Moments
+# 37. Signature FleetScope Moments
 
 The final page must contain at least these five memorable moments.
 
-## 1. Case Formation
+## 1. The Spine draws itself
 
-Fragmented agent activity converges around:
-
-```text
-CASE-1042
-```
+On load, the hero's run appears one row at a time, in the order the events
+happened — the shape of the product in three seconds.
 
 ---
 
-## 2. Session Jump
+## 2. Logs become a graph
 
-Scroll compresses:
-
-```text
-Session 01
-→ Simulated Day 12
-→ Session 02
-```
-
-while memory survives.
+The terminal column fades back and the same events resolve into structure. One
+scroll, and the visitor has understood the entire value proposition.
 
 ---
 
-## 3. Control Gate
+## 3. The failure in context
 
-A request physically cannot pass until the control decision allows it.
-
----
-
-## 4. Governed Recovery
-
-Repeated failure becomes:
-
-```text
-Incident
-→ Policy
-→ Intervention
-→ Runtime Result
-```
+A tinted row with two events before it and two after. Not "we detect errors" —
+_here is the error, here is what surrounded it_.
 
 ---
 
-## 5. Replay
+## 4. Historical
 
-The entire Case visibly rewinds while displaying:
+Selecting an earlier position and having the panel say, plainly:
 
 ```text
 HISTORICAL
 
-Recorded evidence.
+Recorded session state.
 Nothing is executing.
 ```
+
+---
+
+## 5. The provenance line
+
+The last sentence on the page names exactly which part of what you just saw was
+real. Almost nothing else on the internet does this.
 
 These moments should define FleetScope's identity.
 
 ---
 
-# 46. Quality Bar
+# 38. Quality Bar
 
 The landing page is visually complete only when:
 
 - every section feels like part of one grid system;
-- the Case Spine remains visually coherent;
+- the Execution Spine remains visually coherent;
 - typography is consistently large and disciplined;
 - motion explains FleetScope behavior;
 - blue remains an accent rather than wallpaper;
 - no section looks like an unrelated component pasted from a library;
 - FleetScope remains understandable without animation;
-- CASE-1042 tells one coherent story;
+- the recorded run tells one coherent story;
 - desktop experience is excellent at 1440×900 and 1280×720;
 - mobile retains the story without heavy animation;
 - reduced motion retains all information;
@@ -2126,13 +1405,13 @@ The landing page is visually complete only when:
 
 ---
 
-# 47. Final Design Statement
+# 39. Final Design Statement
 
 FleetScope should not look like an AI startup trying to appear futuristic.
 
 It should look like:
 
-> **the operating system that enterprises would actually trust to control autonomous agents.**
+> **an instrument a working engineer would keep open next to their terminal.**
 
 The landing page achieves this through:
 
@@ -2149,9 +1428,10 @@ real operational evidence
 +
 precise scroll choreography
 +
-the Case Spine
+the Execution Spine
 ```
 
-The visual experience starts with distributed agent activity and ends with one auditable Case.
+The visual experience starts with an unreadable log stream and ends with one run
+a developer can see, click and rewind.
 
 That transformation is the FleetScope brand story.

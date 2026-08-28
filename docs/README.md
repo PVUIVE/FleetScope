@@ -1,74 +1,41 @@
-# FleetScope product documentation
+# FleetScope documentation
 
-Status: draft working set
+FleetScope is a **local Agent Viewer for Gemini and Google ADK** that turns agent
+sessions into a live execution graph and inspectable timeline.
 
-FleetScope is an enterprise agent-fleet control plane for discovering approved
+## Current
 
-agents and operating durable, policy-enforced business Cases. Its Fleet Cockpit
+Read in this order.
 
-makes Registry, Runtime, Memory, Identity, Gateway, Model Armor, observability,
+1. [`architecture.md`](architecture.md) — how an ADK run becomes a graph: the two
+   event models, the six rules the code enforces, package boundaries, the renderer.
+2. [`local-agent-viewer.md`](local-agent-viewer.md) — the operational reference:
+   the CLI, the API, the SQLite store, the SSE transport, configuration, and the
+   Python plugin.
+3. [`demo.md`](demo.md) — the exact three-minute demo, what is real and what is a
+   stub, and what to do when something goes wrong.
+4. [`../DESIGN.md`](../DESIGN.md) — the landing-page design contract: the
+   Execution Spine motif, the six sections, the visual and motion systems.
+5. [`decisions/`](decisions/) — architecture decision records.
+   0001 tooling · 0002 renderer boundary · 0003 bounded live path ·
+   0004 render manifest · 0005 redaction boundaries.
+6. [`deployment/railway.md`](deployment/railway.md) — hosting the static site.
 
-and bounded Warden actions visible and auditable.
+## Reports
 
-## Read this set
+- [`reports/fleetscope-local-agent-viewer-refactor-audit.md`](reports/fleetscope-local-agent-viewer-refactor-audit.md)
+  — the pre-refactor audit: what existed, what was kept, what was deferred.
+- [`reports/fleetscope-local-agent-viewer-implementation.md`](reports/fleetscope-local-agent-viewer-implementation.md)
+  — what was built, with real command output and measured results.
 
-1. [Product plan](product/[product-plan.md](http://product-plan.md)) — positioning, users, outcomes,
+## Archive
 
-   assumptions, competition, launch, and product decisions.
+[`archive/`](archive/README.md) holds the earlier **enterprise agent-fleet
+control plane** direction: requirements, product plans, system design, delivery
+plans and reports. It is clearly labelled *Future / Enterprise Direction* and
+does **not** describe the current product. A good deal of the code it specifies
+is still in the repository, compiling and tested — the archive README says which,
+and where.
 
-2. [UI/UX plan](product/[ui-ux-plan.md](http://ui-ux-plan.md)) — Agent Catalog, Case Workspace,
-
-   approvals, Fleet Cockpit, visual system, and demo flow.
-
-3. [Context intake](product/[context-intake.md](http://context-intake.md)) — the facts and artifacts still
-
-   needed to turn the draft into an evidence-backed active plan.
-
-4. [Requirements entry point](requirements/[fleetscope.md](http://fleetscope.md)) — product contract,
-
-   scope, success criteria, and capability map.
-
-5. [Glossary](requirements/[glossary.md](http://glossary.md)) — normative names and boundaries.
-
-6. [System design](design/[system.md](http://system.md)) — components, event protocol, Warden
-
-   control loop, security, and failure handling.
-
-7. [USD 35 demo design](design/[budget-demo.md](http://budget-demo.md)) — browser visualization reuse,
-
-   static-first architecture, scenario compiler, credit guardrails, and slices.
-
-8. [Six-day delivery plan](plans/[six-day-delivery.md](http://six-day-delivery.md)) — work breakdown,
-
-   milestones, owners, gates, and cuts.
-
-9. [Demo and validation plan](plans/[demo-validation.md](http://demo-validation.md)) — the proof the team
-
-   must capture for judges and for internal acceptance.
-
-10. [Zoetrope audit and implementation plan](plans/zoetrope-audit-and-implementation-plan.md) —
-
-    the renderer decision, and the four points where the plan was wrong.
-
-11. [Implementation report, 2026-08-26](reports/fleetscope-end-to-end-implementation-2026-08-26.md) —
-
-    **what was actually built, with real command output.** Read this before
-
-    trusting any status claim in the plans above.
-
-12. [UI completion report, 2026-08-26](reports/fleetscope-ui-completion-2026-08-26.md) —
-
-    the product-UI audit, what was changed route by route, the browser QA and
-
-    accessibility results, and the executed live-proof-from-the-UI evidence.
-
-13. [Decisions](decisions/) — 0001 tooling · 0002 renderer boundary (resolved) ·
-
-    0003 bounded live path · 0004 render manifest · 0005 redaction boundaries.
-
-The requirements use **MUST**, **SHOULD**, and **MAY** as normative terms.
-
-MUST is required for the MVP to conform; SHOULD is the default unless a
-
-documented tradeoff is accepted; MAY is optional.
-
+Requirements documents there use **MUST**, **SHOULD** and **MAY** as normative
+terms for that direction, not for this MVP.

@@ -39,8 +39,8 @@ and `cargo check --no-default-features` all clean.
 **Not redistributed.** Upstream's `assets/` (demo recordings, GIFs, an OG image,
 and JetBrains Mono TTFs shipped without accompanying OFL-1.1 text) and its
 Starlight documentation site under `web/` are excluded from this repository.
-FleetScope renders its own recorded CASE-1042 evidence and uses the browser's own
-monospace font stack. See `vendor/VENDOR-PATCHES.md` for the full inclusion table.
+FleetScope renders the developer's own local sessions — and, on the landing page,
+its own recorded Google ADK run — and uses the browser's own monospace font stack. See `vendor/VENDOR-PATCHES.md` for the full inclusion table.
 
 ## GSAP (`gsap`, npm) — Standard "no charge" licence
 

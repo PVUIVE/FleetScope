@@ -1,149 +1,199 @@
-# FleetScope repository architecture
+# Architecture
 
-Companion to `docs/design/system.md`. That document describes the *system*; this
-one describes how the *repository* enforces it.
+How a Google ADK run becomes a graph you can scrub.
 
-## Package responsibilities
+## The one-line version
 
-| Package | Owns | Must never |
-|---|---|---|
-| `@fleetscope/domain` | The FleetScope vocabulary: Case, Session, AgentVersion, MemoryRecord, PlatformDecision, DecisionEvidence, Intervention, ObservableCaseState | Import Astro, a server framework, or a platform SDK |
-| `@fleetscope/event-schema` | The Canonical Event envelope, the closed event-type set, Source Event, JSONL codec, generated JSON Schema | Contain business behavior |
-| `@fleetscope/projector` | The versioned pure reducer and the state-hash contract | Touch network, clock, filesystem, environment, or any control path |
-| `@fleetscope/fixtures` | Recorded Case evidence — a product asset, not a test leftover | Import a UI component |
-| `@fleetscope/canonicalizer` | The **primary redaction boundary**, dedup, and the deterministic total order | Read a clock, a network, or the filesystem; let arrival order affect the result |
-| `@fleetscope/scenario-compiler` | Canonical Events → renderer transcripts **and the Render Manifest**, behind `RendererAdapter` | Write canonical evidence, leak renderer fields into the domain, or emit a prompt, reasoning, or a secret |
-| `@fleetscope/warden` | Incident Detector, Policy Engine, Intervention lifecycle, the Control Adapter port | Let a detector or a model grant authority; execute one Intervention id twice |
-| `@fleetscope/platform-adapters` | The seven adapter interfaces, the `recorded / synthetic / live / unavailable` mode contract, and the capability truth table | Contain a live implementation, or label a synthetic result as real |
-| `@fleetscope/shared` | Canonical JSON, SHA-256, `Result`, central config parsing, the live-mode guard | Grow into a utility dumping ground |
-| `@fleetscope/web` | Astro product shell: Catalog, Cases, Approvals, Cockpit mount, Audit, evidence export | Hold domain logic in a component |
-| `@fleetscope/api` | Health, capability description, one bounded live proof | Serve Case data, or expose a free-form prompt |
-| `fleet-cockpit` (crate) | Render Manifest, Event Cursor, scene loading over the vendored renderer, the snapshot contract | Duplicate the TypeScript domain model; report a canonical unit |
-| `fleet-cockpit-web` (crate) | The browser shell, input handling, the render loop, the `fleetscope_*` ABI | Hold a rule that could have been host-tested one crate down |
-| `vendor/zoetrope` | The vendored rendering substrate: fold, timeline, graph layout, camera, chips | Be edited outside a recorded, narrow patch (`vendor/VENDOR-PATCHES.md`) |
+```
+ADK callbacks → Source Events → Canonical Events (REDACTED) → SQLite + SSE → ViewerEvents → graph, timeline, details
+```
 
-## Dependency direction
+## The full path
 
 ```mermaid
-graph TD
-  shared[shared]
-  schema[event-schema]
-  domain[domain]
-  canon[canonicalizer]
-  projector[projector]
-  fixtures[fixtures]
-  compiler[scenario-compiler]
-  warden[warden]
-  adapters[platform-adapters]
-  web[apps/web]
-  api[apps/api]
-  cockpit["fleet-cockpit (rust)"]
-  cockpitweb["fleet-cockpit-web (wasm32)"]
-  zoetrope["vendor/zoetrope"]
+flowchart TD
+  A["Google ADK agent (Python)<br/>Gemini · tools · sub-agents"]
+  B["fleetscope_adk.FleetScopePlugin<br/>BasePlugin callbacks"]
+  C["POST /api/ingest"]
+  D["@fleetscope/adk-adapter<br/>ADK wire → Source Events"]
+  E["@fleetscope/canonicalizer<br/>validate → REDACT → dedupe → order → sequence"]
+  F["@fleetscope/session-store<br/>SQLite: sessions, events"]
+  G["EventHub<br/>Server-Sent Events"]
+  H["@fleetscope/viewer<br/>Canonical → ViewerEvent / ViewerSession"]
+  I["@fleetscope/scenario-compiler<br/>Canonical → renderer scene + Render Manifest"]
+  J["crates/fleet-cockpit-web<br/>WebGL execution graph"]
+  K["Agent Viewer<br/>tree · graph · timeline · details"]
 
-  schema --> domain
-  schema --> canon
-  shared --> canon
-  domain --> projector
-  schema --> projector
-  shared --> projector
-  domain --> fixtures
-  schema --> fixtures
-  domain --> compiler
-  shared --> compiler
-  schema --> compiler
-  domain --> warden
-  schema --> warden
-  shared --> warden
-  domain --> adapters
-  schema --> adapters
-  canon --> web
-  projector --> web
-  fixtures --> web
-  compiler --> web
-  warden --> web
-  adapters --> web
-  adapters --> api
-  shared --> api
-  canon --> api
-  zoetrope --> cockpit
-  cockpit --> cockpitweb
-  zoetrope --> cockpitweb
-  compiler -.->|blessed artifacts| cockpit
-  cockpitweb -.->|wasm bundle| web
+  A -->|"in-process, non-blocking"| B
+  B -->|"HTTP, fail-open"| C
+  C --> D --> E
+  E --> F
+  E --> G
+  F -->|"history"| K
+  G -->|"live tail"| K
+  K --> H
+  K --> I --> J
+  J -->|"renderer index"| K
 ```
 
-The dotted edges are artifacts, not code dependencies. The TypeScript compiler is
-the sole PRODUCER of the renderer transcripts and the Render Manifest; the Rust
-crates only read them, and both sides read the **same blessed bytes** under
-`packages/fixtures/cases/<case>/renderer/`, so the two representations cannot
-drift apart without a test failing.
+The browser holds the canonical stream. That is what makes historical inspection
+free: every projection — timeline rows, agent tree, session summary, renderer
+scene — is a pure function of a **prefix** of that stream, so moving backwards is
+re-derivation, never a request and never an execution.
 
-`crates/fleet-cockpit` is a root workspace member and **host-testable**, because
-Zoetrope's portable core (`default-features = false`) builds on the host.
-`crates/fleet-cockpit-web` and `vendor/zoetrope` are `exclude`d: the first can
-only be *compiled* for wasm32 (rataflow gates its ratzilla impls on
-`target_arch = "wasm32"`), and the second carries its own `[workspace]` table.
+## The two event models
 
-Forbidden edges — a PR introducing one should be rejected:
+FleetScope has a rich internal vocabulary and a small developer-facing one. They
+are not in competition; the second is a projection of the first.
 
-```text
-domain       → Astro / server framework
-projector    → network / Gemini / clock / filesystem / Control Adapter
-canonicalizer→ clock / network / filesystem
-detector     → Control Adapter / model / clock
-fixtures     → UI components
-compiler     → canonical evidence (write direction)
-renderer     → any canonical unit (caseSequence, canonical unread)
+### Canonical Events — internal, authoritative
+
+`packages/event-schema` defines a closed set of 45 types across 15 families
+(`runtime.*`, `agent.*`, `model.*`, `tool.*`, plus the deferred governance
+families). A Canonical Event is immutable, schema-versioned, redacted, sequenced,
+and the only input to any projection.
+
+```ts
+{
+  eventId, caseId, caseSequence, sessionId, sessionSequence,
+  schemaVersion, type, sourceTime, ingestionTime?, acceptedTime,
+  actor, correlations, payloadRedacted, payloadDigest?
+}
 ```
 
-## Where each invariant is enforced
+The local Agent Viewer uses ten of those types. The other 35 belong to the
+deferred enterprise direction and cost nothing to keep: they are table entries,
+not code paths.
 
-| # | Invariant | Enforced by |
+### ViewerEvents — what the browser reads
+
+`packages/viewer` projects the canonical stream onto eleven types:
+
+```
+session.started · session.completed
+agent.started   · agent.completed · agent.handoff
+model.started   · model.completed
+tool.started    · tool.completed  · tool.failed
+error
+```
+
+A developer never has to learn the word *Canonicalizer*, *Projector* or *Render
+Manifest* to use the product. Those are how it is built, not what it is.
+
+`agent.handoff` has no canonical type of its own: it IS an `agent.spawned` that
+names a parent. That is deliberate — a delegation is a fact about parentage, and
+inventing a separate event for it would create two sources of truth for the tree.
+
+## The rules the code enforces
+
+### 1. Redaction happens before persistence
+
+`canonicalizeAppend` redacts inside the Collector, before the first write and
+before the first byte reaches a browser. Two independent classifiers run over
+every payload leaf: by **field name** (`api_key`, `authorization`, `password`,
+`prompt`, `thinking`, …) and by **value shape** (Google API keys, bearer tokens,
+PEM blocks, `sk-`/`ghp_`/`xoxb-` prefixes, home directory paths).
+
+A credential that arrives in a tool argument is never stored and never streamed.
+
+### 2. Unknown is never zero
+
+A duration FleetScope did not observe is `null` and renders as "Unknown". A token
+count the framework did not report is absent, not `0`. The renderer omits the
+usage block entirely rather than drawing "0 tok". This runs from the Python
+plugin (`if usage is not None`) through the adapter (`drop(undefined)`), the
+projection (`elapsed()` returns null), and the UI (`formatDuration(null)`).
+
+### 3. Cursor translation goes through the Render Manifest
+
+It is tempting to position the renderer arithmetically:
+
+```
+fraction = caseSequence / lastCaseSequence          ← WRONG
+```
+
+One Canonical Event compiles to zero renderer entries, one, or several. The
+Render Manifest records what compilation actually produced, so both directions
+are lookups:
+
+```
+caseSequence → manifest → renderer entry range → fraction
+renderer entry index → manifest → the Canonical Event that produced it
+```
+
+The manifest exists in TypeScript (`packages/scenario-compiler`) and in Rust
+(`crates/fleet-cockpit/src/manifest.rs`), and both read the same bytes.
+
+### 4. FleetScope owns the cursor; the renderer owns its index
+
+`packages/domain/src/cursor.ts` holds the Event Cursor, the high-water mark and
+therefore the canonical unread count. The renderer reports only where its own
+timeline sits. Letting the renderer answer "how many new events?" would make a
+rendering decision authoritative over the evidence.
+
+While the developer is parked in the past, new events move the high-water mark
+and the unread count. They never move the cursor.
+
+### 5. Historical inspection is side-effect free
+
+Seeking backwards re-projects a prefix that is already on the client. No model
+call, no tool call, no network request. The renderer additionally freezes its
+animation ticks in historical mode (`crates/fleet-cockpit-web/src/main.rs`), so
+nothing on screen implies execution. The browser E2E asserts that no request is
+issued during a seek.
+
+### 6. A growing scene is a suffix, never a second compiler
+
+The Scenario Compiler is deterministic and append-only in emission: the renderer
+lines for the first N events are byte-identical whether it was handed N events or
+N+5. So a live scene grows by recompiling the whole stream and taking the suffix
+(`apps/web/src/features/viewer/scene-delta.ts`). An incremental compiler would be
+a second implementation of the emission rules, free to drift from the tested one.
+
+## Package boundaries
+
+| Package | Depends on | May never import |
 |---|---|---|
-| 1 | Case is the root correlation | Branded `CaseId`/`SessionId`; `validateCanonicalStream` rejects mixed-Case streams |
-| 2 | A running Case stays bound to its Agent Version | `Case.agentVersionRef` is readonly and set at `case.created`; asserted in the fixture test |
-| 3 | External input screened before context/memory/tool use | `blockedInputIds` + `checkBlockedInputUse` in the projector, AND a second check in the Scenario Compiler; both record violations rather than hiding them |
-| 4 | Protected access requires independent identity authorization | Separate `AgentIdentityAdapter` and `ProtectedResourceAdapter` interfaces |
-| 5 | Agent-to-agent delegation passes through Gateway | `GatewayDecision` is required before a routed edge exists |
-| 6 | Every badge derives from evidence | `PlatformBadge.evidenceEventId` is non-optional; asserted in the fixture test |
-| 7 | Replay projects recorded Observable Case State only | `project()` is pure; blessed prefix hashes in `expected-state.json`; ten cold runs agree (`pnpm reliability`) |
-| 8 | Replay causes zero external side effects | A purity test greps the projector source (comments stripped) for forbidden APIs, AND replays every prefix of a Case containing an Intervention with a recording Control Adapter, asserting zero calls |
-| 9 | Model advice never grants Runtime authority | `evaluate()` caps the disposition before advice is even read; `adviceInfluencedDisposition` is always false; an unallowlisted suggestion is rejected and the rejection recorded |
-| 10 | Intervention success requires authoritative Runtime evidence | `INTERVENTION_TRANSITIONS` forbids skipping states; `Warden.execute` marks `succeeded` only on an observed `applied`; an unobservable result is `timed_out`, never success |
-| 11 | Canonical unread is FleetScope's, not the renderer's | `CaseCursorState` derives it from accepted events; a test asserts the wasm snapshot carries no `caseSequence` and no `unread` |
-| 12 | A cursor never uses `caseSequence / lastCaseSequence` | Every translation goes through the Render Manifest; a test asserts the ratio *demonstrably disagrees* |
-| 13 | Sensitive material never reaches persistence or a renderer | Canonicalizer redacts before the Canonical Event exists; the compiler minimizes again; artifacts are scanned in both suites |
-| 14 | Unknown renders as unknown, never as zero | `UnknownOr.astro`; the compiler omits `message.usage` entirely when no usage was recorded |
+| `shared` | — | anything |
+| `event-schema` | `domain`, zod | a framework, a store, a renderer |
+| `canonicalizer` | `event-schema`, `shared` | a clock, an env, a filesystem, a network |
+| `adk-adapter` | `event-schema`, zod | a store, a renderer, `google-adk` itself |
+| `viewer` | `event-schema` | a store, a network, a DOM |
+| `session-store` | `event-schema`, `viewer` | a framework adapter |
+| `scenario-compiler` | `event-schema`, `shared` | anything that writes evidence |
+| `apps/api` | all of the above | the browser |
+| `apps/web` | the pure packages | `node:*` |
 
-## Warden control loop
+The Canonicalizer's purity is load-bearing rather than stylistic: it reads no
+clock and no environment, so the same **set** of Source Events produces
+byte-identical Canonical Events whatever order they arrive in. Receipt times are
+facts the collector observes and passes in.
 
-```text
-Canonical Events → Incident Detector → [optional model adviser, untrusted]
-                 → Policy Engine → Intervention → Control Adapter → Runtime
-```
+## The renderer
 
-Implemented in `@fleetscope/warden`, with the three responsibilities deliberately
-separated so none can borrow another's authority:
+`vendor/zoetrope` is a pinned upstream Claude Code session visualizer: graph
+layout, timeline, camera, fold, parser. FleetScope carries one additive patch — a
+default-on `render-provenance` Cargo feature that FleetScope switches OFF, so the
+detail panel renders neither the triggering prompt nor the assistant's reasoning.
+Upstream's own suite (182 library + 8 binary tests) passes unchanged after it.
+The full record is `vendor/VENDOR-PATCHES.md` and `THIRD-PARTY-NOTICES.md`.
 
-- the **detector** finds patterns and grants nothing. It is pure, consults no
-  model, and cannot reach a Control Adapter — a test greps its source to keep it
-  that way;
-- the **policy engine** decides, and computes the strongest permitted disposition
-  by capping downward. Written the other way round — start at `auto_act` and look
-  for reasons to stop — a missing rule would fail OPEN;
-- the **Warden** acts, at most once per Intervention id, and reports only what the
-  Runtime said.
+- `packages/scenario-compiler/src/zoetrope/` emits the JSONL transcript format
+  Zoetrope parses, and only the fields it reads. There is deliberately no
+  `prompt` field on a spawn and no `thinking` block builder: `vendor/zoetrope/src/ui/panel.rs`
+  draws `↳ prompt` and `↳ thought` rows from exactly those.
+- `crates/fleet-cockpit` is the host-testable core — scene loading, the Render
+  Manifest, the cursor. `cargo test` proves the integration without a browser.
+- `crates/fleet-cockpit-web` is the wasm32 shell: WebGL2 terminal, input, and the
+  `fleetscope_*` ABI. It boots with an **empty** scene; every scene arrives
+  through `fleetscope_load`.
 
-`proposed`, `authorized`, `requested`, `acknowledged`, and
-`succeeded | failed | timed_out` are distinct and are never collapsed into one
-"done". A retry is a NEW Intervention with a fresh id linked by `retryOf` — the
-id is derived from `(caseId, incidentId, actionTemplate, attempt)`, so the rule
-is enforced by the id scheme rather than by remembering to follow it.
+The adapter is generic. It is driven by lookup tables keyed on event type and
+contains no reference to any particular session, vendor or fixture.
 
-`Warden.execute` reserves the id **before** calling out, so a crash between the
-request and the acknowledgement cannot permit a second real request on retry.
+## Extension points
 
-Autonomous remediation stays deliberately narrow: the only auto-acted template is
-one bounded retry of an idempotent read. An externally visible write can never
-reach `auto_act`, whatever the incident's severity.
+Documented in [`docs/archive/README.md`](archive/README.md). In short: a second
+framework is a second adapter; remote sessions are a transport in front of
+`POST /api/ingest`; persistent Cases are already the canonical shape; governance
+re-enters through canonical families that already exist.
