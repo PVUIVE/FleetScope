@@ -6,16 +6,11 @@
  * the reader has left it. The scrolled state is driven by an IntersectionObserver
  * sentinel rather than a scroll listener, so it costs nothing per frame.
  */
-interface Props {
-  caseId: string;
-}
-const { caseId } = Astro.props;
-
 const links = [
-  { href: '#sessions', label: 'Product' },
-  { href: '#replay', label: 'Case' },
-  { href: '#cockpit', label: 'Cockpit' },
-  { href: '#audit', label: 'Audit' },
+  { href: '#fs-l-logs-title', label: 'How it works' },
+  { href: '#fs-l-failure-title', label: 'Failures' },
+  { href: '#fs-l-replay-title', label: 'Replay' },
+  { href: '/docs/', label: 'Setup' },
 ];
 ---
 
@@ -28,8 +23,8 @@ const links = [
     {links.map((link) => <a class="fs-l-nav__link" href={link.href}>{link.label}</a>)}
   </nav>
   <div class="fs-l-nav__end">
-    <a class="fs-l-btn fs-l-btn--primary" href={`/cases/${caseId}`}>
-      Explore {caseId}
+    <a class="fs-l-btn fs-l-btn--primary" href="/sessions/">
+      Open Agent Viewer
       <span class="fs-l-btn__arrow" aria-hidden="true">→</span>
     </a>
   </div>

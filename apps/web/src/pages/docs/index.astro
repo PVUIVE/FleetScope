@@ -1,0 +1,127 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/viewer.css';
+
+/**
+ * Setup.
+ *
+ * The one page that has to be exactly right: every command here is a command
+ * the repository actually provides, and the plugin snippet is the real import
+ * path from `examples/fleetscope_adk`.
+ */
+const steps = [
+  {
+    n: '01',
+    title: 'Build the viewer once',
+    body: 'Installs the workspace and builds the static Agent Viewer the collector serves.',
+    commands: ['pnpm install', 'pnpm build'],
+  },
+  {
+    n: '02',
+    title: 'Start FleetScope',
+    body: 'Starts the collector and the viewer on one port and holds the terminal.',
+    commands: ['fleetscope watch'],
+  },
+  {
+    n: '03',
+    title: 'Run your agent',
+    body: 'The bundled demo is a real two-agent Google ADK run with a deterministic tool failure.',
+    commands: ['python examples/vendor_agent.py'],
+  },
+];
+
+const PLUGIN_SNIPPET = `from fleetscope_adk import FleetScopePlugin
+
+runner = Runner(
+    app_name="My Agent",
+    agent=root_agent,
+    session_service=session_service,
+    plugins=[FleetScopePlugin()],   # reads FLEETSCOPE_ENDPOINT, defaults to :4317
+)`;
+---
+
+<BaseLayout title="Setup">
+  <section class="fs-sessions">
+    <header class="fs-sessions__head">
+      <h1>Setup</h1>
+      <p>
+        FleetScope is a local Agent Viewer for Gemini and Google ADK. It runs on your machine,
+        stores sessions on your machine, and sends nothing anywhere.
+      </p>
+    </header>
+
+    {steps.map((step) => (
+      <div class="fs-onboard">
+        <h2>{step.n} · {step.title}</h2>
+        <p>{step.body}</p>
+        {step.commands.map((command) => (
+          <div class="fs-copy-row">
+            <code data-copy-source>{command}</code>
+            <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+          </div>
+        ))}
+      </div>
+    ))}
+
+    <div class="fs-onboard">
+      <h2>Watching your own agent</h2>
+      <p>
+        Register the plugin once on your <code>Runner</code>. It uses Google ADK's own
+        <code>BasePlugin</code> callbacks, so every agent in the invocation is observed —
+        including sub-agents created at runtime.
+      </p>
+      <div class="fs-copy-row">
+        <code data-copy-source>{PLUGIN_SNIPPET}</code>
+        <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+      </div>
+      <p style="margin:0">
+        Or let FleetScope start it for you: <code>fleetscope run python my_agent.py</code>.
+      </p>
+    </div>
+
+    <div class="fs-onboard">
+      <h2>What FleetScope records</h2>
+      <p>
+        Agent names, model names, tool names, timings, token counts the framework reported, and
+        tool arguments and results. It does <strong>not</strong> record prompts, completions, or
+        model reasoning — the plugin never reads them.
+      </p>
+      <p>
+        Every payload passes a redaction boundary before anything is written to disk: API keys,
+        bearer tokens, private keys and common secret shapes are replaced by a marker. FleetScope
+        never holds a Gemini credential of its own — your agent process calls the model, and
+        FleetScope only hears what happened.
+      </p>
+      <p style="margin:0">
+        Sessions live in <code>.fleetscope/fleetscope.db</code> in the directory you started
+        <code>fleetscope watch</code> from. Delete the file to delete the history.
+      </p>
+    </div>
+
+    <div class="fs-onboard">
+      <h2>Commands</h2>
+      <dl class="fs-detail__grid">
+        <dt>init</dt><dd>Write <code>.fleetscope/config.json</code> and check the environment.</dd>
+        <dt>watch</dt><dd>Start the collector and the viewer. <code>--port</code>, <code>--open</code>.</dd>
+        <dt>open</dt><dd>Open a viewer that is already running.</dd>
+        <dt>run</dt><dd>Start the viewer, then run an agent command against it.</dd>
+      </dl>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', () => {
+      const source = button.previousElementSibling?.textContent ?? '';
+      void navigator.clipboard?.writeText(source).then(
+        () => {
+          button.textContent = 'Copied';
+          setTimeout(() => (button.textContent = 'Copy'), 1400);
+        },
+        // A denied clipboard permission must not look like a broken button.
+        () => (button.textContent = 'Select and copy'),
+      );
+    });
+  }
+</script>

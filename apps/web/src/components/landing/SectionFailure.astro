@@ -1,0 +1,80 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import type { LandingData } from '../../lib/landing-session';
+import { formatDuration } from '../../lib/format';
+
+/**
+ * 04 — See exactly where the run broke.
+ *
+ * A pinned four-step sequence over a persistent viewer preview. The steps are
+ * the questions a developer actually asks in order — which agent, which tool,
+ * what failed, what surrounded it — and each is answered from the recording.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+const failure = data.highlights.failure;
+const start = data.session.startedAt;
+
+const offset = (iso: string): string => {
+  if (start === null) return '';
+  const ms = Date.parse(iso) - Date.parse(start);
+  return Number.isFinite(ms) && ms >= 0 ? `+${(ms / 1000).toFixed(2)}s` : '';
+};
+
+const steps =
+  failure === null
+    ? []
+    : [
+        { n: '01', label: 'Agent', value: failure.agentId ?? 'Unknown' },
+        { n: '02', label: 'Tool', value: failure.toolName ?? failure.label },
+        { n: '03', label: 'Failure', value: failure.errorClass ?? 'Unknown' },
+        { n: '04', label: 'Context', value: `${data.failureContext.length} surrounding events` },
+      ];
+---
+
+{failure !== null && (
+  <section class="fs-l-sec" aria-labelledby="fs-l-failure-title" data-failure>
+    <SectionHeader num="04" label="Catch failures fast" id="fs-l-failure-title">
+      <span slot="headline">See exactly where the run broke.</span>
+      <p class="fs-l-lede">
+        A failing tool is highlighted in the timeline, marked in the graph, and counted in the
+        header. One click puts you on it, with everything that happened immediately before.
+      </p>
+    </SectionHeader>
+
+    <div class="fs-d-pin" data-pin-scene>
+      <ol class="fs-d-steps">
+        {steps.map((step, index) => (
+          <li class="fs-d-step" data-step style={`--i:${index}`} aria-current={index === 0 ? 'step' : 'false'}>
+            <span class="fs-d-step__n">{step.n}</span>
+            <span class="fs-d-step__l">{step.label}</span>
+            <span class="fs-d-step__v">{step.value}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div class="fs-d-preview">
+        <div class="fs-d-preview__bar">
+          <span>{data.name}</span>
+          <span class="fs-d-preview__err">{data.session.errorCount} failure</span>
+        </div>
+        <ul class="fs-d-preview__rows">
+          {data.failureContext.map((row) => (
+            <li
+              class="fs-d-preview__row"
+              data-kind={row.category.toUpperCase()}
+              aria-current={row.sequence === failure.sequence ? 'true' : 'false'}
+            >
+              <span class="fs-d-spine__t">{offset(row.timestamp)}</span>
+              <span class="fs-d-spine__k">{row.category.toUpperCase()}</span>
+              <span class="fs-d-spine__l">{row.label}</span>
+              <span class="fs-d-spine__a">{formatDuration(row.durationMs)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+)}

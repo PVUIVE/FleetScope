@@ -73,7 +73,7 @@ const liveSessionId = state?.sessions.at(-1)?.sessionId ?? null;
 const LIVE_STEP_ID = 'orchestrator-compliance-decision';
 ---
 
-<BaseLayout title={`Fleet Cockpit · ${caseId}`} wide>
+<BaseLayout title={`Fleet Cockpit · ${caseId}`} wide legacy>
   <CaseHeader summary={summary} compact>
     <a slot="actions" class="fs-button fs-button--sm" href={`/cases/${caseId}`}>Case Workspace</a>
     <a slot="actions" class="fs-button fs-button--sm" href={`/audit/${caseId}`}>Audit</a>

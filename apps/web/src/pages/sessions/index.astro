@@ -1,0 +1,200 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/viewer.css';
+
+/**
+ * Local session list.
+ *
+ * A static shell filled entirely at runtime: the sessions live in the local
+ * collector's store, not in this build. It renders the empty state first, so a
+ * developer with no sessions yet sees onboarding rather than an empty table of
+ * zeros.
+ */
+---
+
+<BaseLayout title="Sessions">
+  <section class="fs-sessions">
+    <header class="fs-sessions__head">
+      <h1>Local Agent Sessions</h1>
+      <p>Gemini and Google ADK runs captured on this machine.</p>
+    </header>
+
+    <div class="fs-filters" role="group" aria-label="Filter sessions by status">
+      <button type="button" class="fs-filter" data-filter="all" aria-pressed="true">
+        All<span class="fs-filter__count" data-count="all">0</span>
+      </button>
+      <button type="button" class="fs-filter" data-filter="running" aria-pressed="false">
+        Running<span class="fs-filter__count" data-count="running">0</span>
+      </button>
+      <button type="button" class="fs-filter" data-filter="completed" aria-pressed="false">
+        Completed<span class="fs-filter__count" data-count="completed">0</span>
+      </button>
+      <button type="button" class="fs-filter" data-filter="failed" aria-pressed="false">
+        Failed<span class="fs-filter__count" data-count="failed">0</span>
+      </button>
+    </div>
+
+    <ul class="fs-session-list" data-session-list aria-live="polite" aria-label="Sessions"></ul>
+
+    <div class="fs-onboard" data-empty>
+      <h2>No agent sessions yet.</h2>
+      <p>Start FleetScope, then run your Gemini / ADK agent.</p>
+
+      <div class="fs-copy-row">
+        <code data-copy-source>fleetscope watch</code>
+        <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+      </div>
+      <div class="fs-copy-row">
+        <code data-copy-source>python examples/vendor_agent.py</code>
+        <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+      </div>
+
+      <p style="margin:0">
+        Already running an agent? Add the plugin to your Runner —
+        see <a href="/docs/">Setup</a>.
+      </p>
+    </div>
+
+    <p class="fs-detail__empty" data-offline hidden>
+      The local collector is not answering. Start it with <code>fleetscope watch</code>,
+      then reload.
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  import { fetchSessions, subscribe, type SessionRow } from '../../lib/local-api';
+  import { formatAgo, formatCount, formatDuration, STATUS_GLYPH, STATUS_LABEL } from '../../lib/format';
+
+  type Filter = 'all' | 'running' | 'completed' | 'failed';
+
+  const list = document.querySelector<HTMLUListElement>('[data-session-list]');
+  const empty = document.querySelector<HTMLElement>('[data-empty]');
+  const offline = document.querySelector<HTMLElement>('[data-offline]');
+
+  let sessions: SessionRow[] = [];
+  let filter: Filter = 'all';
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-filter]')) {
+    button.addEventListener('click', () => {
+      filter = (button.dataset['filter'] ?? 'all') as Filter;
+      for (const other of document.querySelectorAll<HTMLButtonElement>('[data-filter]')) {
+        other.setAttribute('aria-pressed', String(other === button));
+      }
+      render();
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', () => {
+      const source = button.previousElementSibling?.textContent ?? '';
+      void navigator.clipboard?.writeText(source).then(
+        () => {
+          button.textContent = 'Copied';
+          setTimeout(() => (button.textContent = 'Copy'), 1400);
+        },
+        // A denied clipboard permission must not look like a broken button.
+        () => (button.textContent = 'Select and copy'),
+      );
+    });
+  }
+
+  function duration(session: SessionRow): string {
+    if (session.startedAt === null) return formatDuration(null);
+    const end = session.endedAt === null ? Date.now() : Date.parse(session.endedAt);
+    return formatDuration(end - Date.parse(session.startedAt));
+  }
+
+  function render(): void {
+    if (list === null) return;
+
+    const counts = { all: sessions.length, running: 0, completed: 0, failed: 0 };
+    for (const session of sessions) counts[session.status] += 1;
+    for (const node of document.querySelectorAll<HTMLElement>('[data-count]')) {
+      node.textContent = String(counts[(node.dataset['count'] ?? 'all') as Filter]);
+    }
+
+    const visible = filter === 'all' ? sessions : sessions.filter((s) => s.status === filter);
+
+    if (empty !== null) empty.hidden = sessions.length > 0;
+    list.replaceChildren();
+
+    for (const session of visible) {
+      const item = document.createElement('li');
+      item.className = 'fs-session';
+      item.dataset['status'] = session.status;
+      item.dataset['sessionId'] = session.id;
+
+      const link = document.createElement('a');
+      link.className = 'fs-session__link';
+      link.href = `/sessions/${encodeURIComponent(session.id)}`;
+
+      const glyph = document.createElement('span');
+      glyph.className = 'fs-session__glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.textContent = STATUS_GLYPH[session.status] ?? '?';
+
+      const main = document.createElement('span');
+      const name = document.createElement('strong');
+      name.className = 'fs-session__name';
+      name.textContent = session.name;
+      const meta = document.createElement('span');
+      meta.className = 'fs-session__meta';
+      meta.textContent = [
+        session.framework === 'google-adk' ? 'Gemini · Google ADK' : session.framework,
+        session.rootAgent ?? null,
+        session.id,
+      ]
+        .filter((part): part is string => part !== null)
+        .join(' · ');
+      main.append(name, meta);
+
+      const status = document.createElement('span');
+      status.className = 'fs-session__stat';
+      // The word, not only the colour: status must survive a monochrome screen.
+      status.textContent = STATUS_LABEL[session.status] ?? session.status;
+
+      const events = document.createElement('span');
+      events.className = 'fs-session__stat';
+      events.textContent = formatCount(session.eventCount, 'event');
+
+      const elapsed = document.createElement('span');
+      elapsed.className = 'fs-session__stat';
+      elapsed.textContent = `${duration(session)} · ${formatAgo(session.startedAt)}`;
+
+      link.append(glyph, main, status, events, elapsed);
+      item.append(link);
+      list.append(item);
+    }
+  }
+
+  async function load(): Promise<void> {
+    try {
+      const payload = await fetchSessions();
+      sessions = payload.sessions;
+      if (offline !== null) offline.hidden = true;
+      render();
+    } catch {
+      if (offline !== null) offline.hidden = false;
+      if (empty !== null) empty.hidden = true;
+    }
+  }
+
+  void load();
+
+  // Live: a session that starts while this page is open appears without a
+  // reload, and a running one updates its counts as it goes.
+  const stop = subscribe('/api/sessions/stream', 'sessions', (data) => {
+    const payload = data as { sessions?: SessionRow[] };
+    if (!Array.isArray(payload.sessions)) return;
+    sessions = payload.sessions;
+    if (offline !== null) offline.hidden = true;
+    render();
+  });
+  window.addEventListener('pagehide', stop);
+
+  // Elapsed time on a running session is wall-clock, so it has to tick.
+  setInterval(() => {
+    if (sessions.some((session) => session.status === 'running')) render();
+  }, 1000);
+</script>

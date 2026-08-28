@@ -1,0 +1,673 @@
+/*
+ * The local Agent Viewer surfaces: the session list and the Agent Viewer.
+ *
+ * Same visual language as the rest of the console — 1px borders, no gradients,
+ * no glow, status never carried by colour alone — applied to a screen whose job
+ * is different: a developer scanning a run they just started, not an auditor
+ * reading a settled Case.
+ *
+ * Layout rules that are load-bearing rather than decorative:
+ *   - the viewer grid is `min-height: 0` all the way down, so the timeline and
+ *     the details panel scroll INSIDE themselves and the page body never does;
+ *   - the renderer owns its canvas subtree entirely, so nothing here writes
+ *     into `#fleetscope-cockpit-canvas`.
+ */
+
+/* ── Session list ──────────────────────────────────────────────────────────── */
+
+.fs-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-5);
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.fs-sessions__head h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.fs-sessions__head p {
+  margin: var(--fs-space-2) 0 0;
+  color: var(--fs-text-muted);
+}
+
+.fs-filters {
+  display: flex;
+  gap: var(--fs-space-1);
+  border-bottom: 1px solid var(--fs-border);
+  padding-bottom: var(--fs-space-2);
+  flex-wrap: wrap;
+}
+
+.fs-filter {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--fs-radius-sm);
+  color: var(--fs-text-muted);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--fs-space-1) var(--fs-space-3);
+}
+
+.fs-filter:hover {
+  color: var(--fs-text);
+}
+
+.fs-filter[aria-pressed='true'] {
+  background: var(--fs-neutral-bg);
+  border-color: var(--fs-border-strong);
+  color: var(--fs-text);
+}
+
+.fs-filter__count {
+  color: var(--fs-text-faint);
+  margin-left: var(--fs-space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--fs-border);
+}
+
+.fs-session {
+  border-bottom: 1px solid var(--fs-border);
+}
+
+.fs-session__link {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) repeat(3, minmax(90px, auto));
+  align-items: center;
+  gap: var(--fs-space-4);
+  padding: var(--fs-space-4) var(--fs-space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.fs-session__link:hover,
+.fs-session__link:focus-visible {
+  background: var(--fs-surface);
+  color: inherit;
+}
+
+.fs-session__glyph {
+  font-size: 13px;
+  text-align: center;
+  color: var(--fs-unknown);
+}
+
+.fs-session[data-status='running'] .fs-session__glyph {
+  color: var(--fs-info);
+}
+.fs-session[data-status='completed'] .fs-session__glyph {
+  color: var(--fs-ok);
+}
+.fs-session[data-status='failed'] .fs-session__glyph {
+  color: var(--fs-deny);
+}
+
+.fs-session__name {
+  font-weight: 600;
+  display: block;
+}
+
+.fs-session__meta {
+  color: var(--fs-text-faint);
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+
+.fs-session__stat {
+  color: var(--fs-text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Empty state / onboarding ──────────────────────────────────────────────── */
+
+.fs-onboard {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-6);
+  background: var(--fs-surface);
+}
+
+.fs-onboard h2 {
+  margin: 0 0 var(--fs-space-2);
+  font-size: 16px;
+}
+
+.fs-onboard p {
+  margin: 0 0 var(--fs-space-4);
+  color: var(--fs-text-muted);
+}
+
+.fs-copy-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--fs-space-2);
+  margin-bottom: var(--fs-space-3);
+}
+
+.fs-copy-row code {
+  flex: 1;
+  background: var(--fs-surface-sunken);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-3);
+  font-family: var(--fs-mono);
+  font-size: 13px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.fs-copy-btn {
+  appearance: none;
+  background: var(--fs-surface-raised);
+  border: 1px solid var(--fs-border-strong);
+  border-radius: var(--fs-radius-sm);
+  color: var(--fs-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 var(--fs-space-4);
+  white-space: nowrap;
+}
+
+.fs-copy-btn:hover {
+  border-color: var(--fs-accent);
+}
+
+/* ── Agent Viewer shell ────────────────────────────────────────────────────── */
+
+.fs-viewer {
+  display: flex;
+  flex-direction: column;
+  /* The console owns the viewport: only the inner panes scroll. */
+  height: calc(100vh - var(--fs-nav-height));
+  min-height: 0;
+}
+
+.fs-viewer__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-4);
+  padding: var(--fs-space-3) var(--fs-space-4);
+  border-bottom: 1px solid var(--fs-border);
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.fs-viewer__title {
+  font-weight: 600;
+  margin: 0;
+  font-size: 15px;
+}
+
+.fs-viewer__id {
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+}
+
+.fs-viewer__stat {
+  color: var(--fs-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-viewer__spacer {
+  margin-left: auto;
+}
+
+.fs-transport {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  border: 1px solid var(--fs-border-strong);
+  border-radius: 999px;
+  padding: 2px var(--fs-space-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fs-transport[data-historical='true'] {
+  border-color: var(--fs-warn);
+  color: var(--fs-warn);
+}
+
+.fs-transport[data-live='true'] {
+  border-color: var(--fs-info);
+  color: var(--fs-info);
+}
+
+.fs-transport__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.fs-transport[data-live='true'] .fs-transport__dot {
+  animation: fs-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes fs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.fs-button--danger {
+  border-color: var(--fs-deny);
+  color: var(--fs-deny);
+}
+
+.fs-viewer__body {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 330px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fs-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-right: 1px solid var(--fs-border);
+}
+
+.fs-pane:last-child {
+  border-right: 0;
+  border-left: 1px solid var(--fs-border);
+}
+
+.fs-pane__head {
+  flex: 0 0 auto;
+  padding: var(--fs-space-3) var(--fs-space-4);
+  border-bottom: 1px solid var(--fs-border);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-text-faint);
+}
+
+.fs-pane__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Agent tree ────────────────────────────────────────────────────────────── */
+
+.fs-agents {
+  list-style: none;
+  margin: 0;
+  padding: var(--fs-space-2);
+}
+
+.fs-agent {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--fs-radius-sm);
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  padding: var(--fs-space-2) var(--fs-space-3);
+  text-align: left;
+  width: 100%;
+}
+
+.fs-agent:hover {
+  background: var(--fs-surface);
+}
+
+.fs-agent[aria-pressed='true'] {
+  background: var(--fs-surface-raised);
+  border-color: var(--fs-accent);
+}
+
+.fs-agent__name {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.fs-agent__status {
+  font-size: 11px;
+  color: var(--fs-unknown);
+}
+
+.fs-agent[data-status='running'] .fs-agent__status {
+  color: var(--fs-info);
+}
+.fs-agent[data-status='completed'] .fs-agent__status {
+  color: var(--fs-ok);
+}
+.fs-agent[data-status='failed'] .fs-agent__status {
+  color: var(--fs-deny);
+}
+
+.fs-agent__last {
+  color: var(--fs-text-faint);
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-agent__errors {
+  color: var(--fs-deny);
+  font-size: 11px;
+}
+
+/* ── Graph ─────────────────────────────────────────────────────────────────── */
+
+.fs-graph {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--fs-surface-sunken);
+}
+
+.fs-graph__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.fs-graph__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--fs-space-6);
+  text-align: center;
+  color: var(--fs-text-muted);
+  font-size: 13px;
+}
+
+/* ── Details ───────────────────────────────────────────────────────────────── */
+
+.fs-detail {
+  padding: var(--fs-space-4);
+  font-size: 13px;
+}
+
+.fs-detail__kind {
+  color: var(--fs-text-faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fs-detail__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: var(--fs-space-1) 0 var(--fs-space-4);
+  word-break: break-word;
+}
+
+.fs-detail__grid {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--fs-space-2) var(--fs-space-3);
+  margin: 0 0 var(--fs-space-4);
+}
+
+.fs-detail__grid dt {
+  color: var(--fs-text-faint);
+  font-size: 12px;
+}
+
+.fs-detail__grid dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.fs-detail__section {
+  border-top: 1px solid var(--fs-border);
+  padding-top: var(--fs-space-3);
+  margin-top: var(--fs-space-3);
+}
+
+.fs-detail__label {
+  color: var(--fs-text-faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--fs-space-2);
+}
+
+.fs-detail pre {
+  background: var(--fs-surface-sunken);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: var(--fs-space-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.fs-detail__error {
+  border: 1px solid var(--fs-deny);
+  background: var(--fs-deny-bg);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-3);
+  margin-bottom: var(--fs-space-4);
+}
+
+.fs-detail__empty {
+  color: var(--fs-text-faint);
+  padding: var(--fs-space-5) var(--fs-space-4);
+}
+
+/* ── Timeline ──────────────────────────────────────────────────────────────── */
+
+.fs-timeline {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--fs-border);
+  height: 232px;
+  min-height: 0;
+}
+
+.fs-timeline__head {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  padding: var(--fs-space-2) var(--fs-space-4);
+  border-bottom: 1px solid var(--fs-border);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fs-text-faint);
+}
+
+.fs-timeline__rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fs-event {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 84px 76px minmax(0, 1fr) 92px;
+  gap: var(--fs-space-3);
+  align-items: baseline;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px var(--fs-space-4);
+  text-align: left;
+  width: 100%;
+}
+
+.fs-event:hover {
+  background: var(--fs-surface);
+}
+
+.fs-event[aria-current='true'] {
+  background: var(--fs-surface-raised);
+  border-left-color: var(--fs-accent);
+}
+
+.fs-event[data-dimmed='true'] {
+  opacity: 0.32;
+}
+
+.fs-event__time {
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-event__category {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--fs-text-faint);
+}
+
+.fs-event[data-category='error'] {
+  color: var(--fs-deny);
+}
+.fs-event[data-category='error'] .fs-event__category {
+  color: var(--fs-deny);
+}
+.fs-event[data-category='handoff'] .fs-event__category {
+  color: var(--fs-info);
+}
+.fs-event[data-category='model'] .fs-event__category {
+  color: var(--fs-accent);
+}
+
+.fs-event__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-event__agent {
+  color: var(--fs-text-faint);
+  font-size: 11px;
+}
+
+.fs-event__duration {
+  color: var(--fs-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Banners ───────────────────────────────────────────────────────────────── */
+
+.fs-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-3);
+  padding: var(--fs-space-2) var(--fs-space-4);
+  border-bottom: 1px solid var(--fs-border);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.fs-banner--historical {
+  background: var(--fs-warn-bg);
+  border-bottom-color: var(--fs-warn);
+  color: var(--fs-warn);
+}
+
+.fs-banner--error {
+  background: var(--fs-deny-bg);
+  border-bottom-color: var(--fs-deny);
+  color: var(--fs-deny);
+}
+
+.fs-banner strong {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  /* The agent tree collapses into a strip above the graph and the details pane
+     becomes a drawer, so the graph and the timeline keep their full width. */
+  .fs-viewer__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .fs-pane--agents {
+    border-right: 0;
+    border-bottom: 1px solid var(--fs-border);
+    max-height: 132px;
+  }
+
+  .fs-pane--details {
+    position: fixed;
+    inset: var(--fs-nav-height) 0 0 auto;
+    width: min(380px, 92vw);
+    background: var(--fs-surface);
+    box-shadow: var(--fs-shadow-drawer);
+    z-index: 20;
+  }
+
+  .fs-pane--details[hidden] {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .fs-session__link {
+    grid-template-columns: 24px minmax(0, 1fr);
+    row-gap: var(--fs-space-2);
+  }
+
+  .fs-session__stat {
+    grid-column: 2;
+  }
+
+  .fs-event {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .fs-event__category,
+  .fs-event__duration {
+    display: none;
+  }
+}

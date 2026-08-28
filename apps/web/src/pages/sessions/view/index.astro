@@ -1,0 +1,115 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import '../../../styles/viewer.css';
+
+/**
+ * The Agent Viewer.
+ *
+ * ONE static shell for every session: the Astro build is static, so the session
+ * id cannot be a build-time route. The local collector rewrites
+ * `/sessions/<id>` onto this page and the client reads the id from the path,
+ * which keeps the URL a developer copies out of the terminal working.
+ *
+ * The markup below is the frame only. Everything inside it is derived at
+ * runtime from the canonical event stream — see features/viewer/agent-viewer.ts.
+ */
+---
+
+<BaseLayout title="Agent Viewer" wide>
+  <p class="fs-detail__empty" data-viewer-missing hidden>
+    No session was named in this URL. Pick one from <a href="/sessions/">Sessions</a>.
+  </p>
+
+  <section class="fs-viewer" data-viewer-shell>
+    <header class="fs-viewer__bar">
+      <h1 class="fs-viewer__title" data-session-name>Agent session</h1>
+      <span class="fs-viewer__id" data-session-id></span>
+
+      <span
+        class="fs-transport"
+        data-transport
+        data-historical="false"
+        data-live="false"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="fs-transport__dot" aria-hidden="true"></span>
+        <span data-transport-label>Loading</span>
+      </span>
+
+      <span class="fs-viewer__stat" data-stat-duration></span>
+      <span class="fs-viewer__stat" data-stat-events></span>
+      <span class="fs-viewer__stat" data-stat-errors></span>
+      <span class="fs-viewer__stat" data-stat-model></span>
+
+      <span class="fs-viewer__spacer"></span>
+      <button type="button" class="fs-button fs-button--danger" data-jump-failure hidden>
+        Jump to failure
+      </button>
+      <button type="button" class="fs-button" data-return-live hidden>Return to live</button>
+      <a class="fs-button" href="/sessions/">All sessions</a>
+    </header>
+
+    <div class="fs-banner fs-banner--historical" data-historical-banner hidden>
+      <strong>Historical</strong>
+      <span>Recorded session state. Nothing is executing.</span>
+      <span class="fs-viewer__stat" data-unread></span>
+    </div>
+
+    <div class="fs-viewer__body">
+      <div class="fs-pane fs-pane--agents">
+        <div class="fs-pane__head">Agents</div>
+        <div class="fs-pane__scroll">
+          <ul class="fs-agents" data-agent-tree aria-label="Agents in this session"></ul>
+        </div>
+      </div>
+
+      <div class="fs-pane">
+        <div class="fs-graph">
+          <!--
+            The WASM renderer takes over this element and owns its whole subtree.
+            Nothing else in the app writes inside it.
+          -->
+          <div
+            id="fleetscope-cockpit-canvas"
+            class="fs-graph__canvas"
+            role="img"
+            aria-label="Agent execution graph"
+            aria-describedby="fs-graph-fallback"
+          ></div>
+          <p class="fs-graph__fallback" id="fs-graph-fallback" data-graph-fallback>
+            Loading the execution graph…
+          </p>
+        </div>
+      </div>
+
+      <div class="fs-pane fs-pane--details" data-details-pane>
+        <div class="fs-pane__head">
+          Details
+          <button type="button" class="fs-button" data-close-details style="float:right">Close</button>
+        </div>
+        <div class="fs-pane__scroll" data-details aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="fs-timeline">
+      <div class="fs-timeline__head">
+        <span>Execution timeline</span>
+        <span class="fs-viewer__stat">↑ ↓ to step · End for the live edge</span>
+      </div>
+      <ul class="fs-timeline__rows" data-timeline-rows aria-label="Execution timeline"></ul>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { mountAgentViewer } from '../../../features/viewer/agent-viewer';
+  import { sessionIdFromLocation } from '../../../lib/local-api';
+
+  const id = sessionIdFromLocation(window.location.pathname);
+  if (id !== null) {
+    const idNode = document.querySelector('[data-session-id]');
+    if (idNode !== null) idNode.textContent = id;
+  }
+  void mountAgentViewer();
+</script>

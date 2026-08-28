@@ -47,7 +47,7 @@ const pendingApprovals = (state?.approvals ?? []).filter((a) => a.state === 'pen
 const openIncidents = incidents.filter((incident) => incident.state !== 'resolved');
 ---
 
-<BaseLayout title={`Case ${caseId}`}>
+<BaseLayout title={`Case ${caseId}`} legacy>
   <PageHeader title={`Case ${caseId}`} lede={summary.title ?? undefined}>
     <a slot="actions" class="fs-button" data-variant="primary" href={`/cockpit/${caseId}`}>
       Open Fleet Cockpit

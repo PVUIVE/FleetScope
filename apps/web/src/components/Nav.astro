@@ -2,23 +2,22 @@
 /**
  * Primary navigation.
  *
- * Order follows the product surface hierarchy: Cases → Catalog → Approvals →
- * Cockpit → Audit. Cases is first because that is where a procurement user
- * starts; the Cockpit is an expert surface, not the entry point.
+ * Two destinations, because the product has two: the developer's own sessions,
+ * and how to get them there. The enterprise surfaces (Cases, Catalog,
+ * Approvals, Cockpit, Audit) still exist and still work, but they are a future
+ * direction rather than this product's golden path, so they are not in the
+ * primary nav — see docs/archive/README.md.
  */
 interface Props {
   path: string;
-  defaultCaseId: string;
-  liveMode: boolean;
+  /** Shown only on the deferred enterprise routes, as an explicit label. */
+  legacy?: boolean;
 }
-const { path, defaultCaseId, liveMode } = Astro.props;
+const { path, legacy = false } = Astro.props;
 
 const links = [
-  { href: '/cases/', label: 'Cases', section: '/cases' },
-  { href: '/catalog/', label: 'Agent Catalog' },
-  { href: '/approvals/', label: 'Approvals' },
-  { href: `/cockpit/${defaultCaseId}/`, label: 'Fleet Cockpit', section: '/cockpit' },
-  { href: `/audit/${defaultCaseId}/`, label: 'Audit', section: '/audit' },
+  { href: '/sessions/', label: 'Sessions', section: '/sessions' },
+  { href: '/docs/', label: 'Setup', section: '/docs' },
 ];
 
 const isCurrent = (link: { href: string; section?: string }): boolean => {
@@ -28,24 +27,26 @@ const isCurrent = (link: { href: string; section?: string }): boolean => {
 ---
 
 <nav class="fs-nav" aria-label="Primary">
-  <a class="fs-nav__brand" href="/cases/">
+  <a class="fs-nav__brand" href="/">
     <span class="fs-nav__brand-name">FleetScope</span>
-    <span class="fs-nav__brand-sub">Governed Agent Operations</span>
+    <span class="fs-nav__brand-sub">Local Agent Viewer</span>
   </a>
   <div class="fs-nav__links">
     {links.map((link) => (
-      <a
-        class="fs-nav__link"
-        href={link.href}
-        aria-current={isCurrent(link) ? 'page' : undefined}
-      >{link.label}</a>
+      <a class="fs-nav__link" href={link.href} aria-current={isCurrent(link) ? 'page' : undefined}>
+        {link.label}
+      </a>
     ))}
   </div>
   <div class="fs-nav__env">
-    <span class="fs-mode" data-tone={liveMode ? 'info' : 'neutral'} title={liveMode
-      ? 'The bounded live-proof endpoint is enabled for this deployment.'
-      : 'Recorded path only. Zero cloud calls, zero spend.'}>
-      {liveMode ? 'Live proof enabled' : 'Recorded mode'}
-    </span>
+    {legacy ? (
+      <span class="fs-mode" data-tone="neutral" title="An earlier enterprise surface, kept for reference. It is not part of the local Agent Viewer.">
+        Enterprise preview
+      </span>
+    ) : (
+      <span class="fs-mode" data-tone="neutral" title="Gemini / Google ADK sessions captured on this machine.">
+        Gemini · Google ADK
+      </span>
+    )}
   </div>
 </nav>

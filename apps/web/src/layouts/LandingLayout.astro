@@ -3,7 +3,6 @@ import '../styles/global.css';
 import '../styles/landing.css';
 import LandingNav from '../components/landing/LandingNav.astro';
 import LandingFooter from '../components/landing/LandingFooter.astro';
-import { webConfig } from '../lib/config';
 
 /**
  * The public shell (DESIGN.md §8, §10).
@@ -18,10 +17,10 @@ import { webConfig } from '../lib/config';
 interface Props {
   title: string;
   description: string;
-  caseId: string;
+  /** The recorded run this build's figures came from. Shown in the footer. */
+  sessionId?: string;
 }
-const { title, description, caseId } = Astro.props;
-const config = webConfig();
+const { title, description, sessionId = 'recorded session' } = Astro.props;
 ---
 
 <html lang="en" class="fs-l" data-motion="on">
@@ -38,12 +37,12 @@ const config = webConfig();
   </head>
   <body class="fs-l">
     <a class="fs-visually-hidden" href="#fs-l-main">Skip to content</a>
-    <LandingNav caseId={caseId} />
+    <LandingNav />
     <main id="fs-l-main" class="fs-l-main">
       <div class="fs-l-frame">
         <slot />
       </div>
     </main>
-    <LandingFooter caseId={caseId} liveMode={config.liveMode} />
+    <LandingFooter sessionId={sessionId} />
   </body>
 </html>

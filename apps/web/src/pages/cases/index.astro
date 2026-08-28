@@ -36,7 +36,7 @@ const rows = listCaseIds()
 const needingAttention = rows.filter((row) => row.attention.flags.length > 0).length;
 ---
 
-<BaseLayout title="Cases">
+<BaseLayout title="Cases" legacy>
   <PageHeader
     title="Cases"
     lede="Long-running governed workflows. A Case spans several Runtime Sessions and outlives every one of them."

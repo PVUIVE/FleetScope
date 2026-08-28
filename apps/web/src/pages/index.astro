@@ -1,43 +1,34 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
 import Hero from '../components/landing/Hero.astro';
-import SectionSessions from '../components/landing/SectionSessions.astro';
-import SectionContext from '../components/landing/SectionContext.astro';
-import SectionBoundaries from '../components/landing/SectionBoundaries.astro';
-import SectionIncident from '../components/landing/SectionIncident.astro';
+import SectionLogsToGraph from '../components/landing/SectionLogsToGraph.astro';
+import SectionExecutionEvents from '../components/landing/SectionExecutionEvents.astro';
+import SectionFailure from '../components/landing/SectionFailure.astro';
 import SectionReplay from '../components/landing/SectionReplay.astro';
-import SectionEvidence from '../components/landing/SectionEvidence.astro';
-import SectionCockpit from '../components/landing/SectionCockpit.astro';
-import SectionAudit from '../components/landing/SectionAudit.astro';
-import SectionSurfaces from '../components/landing/SectionSurfaces.astro';
 import SectionCta from '../components/landing/SectionCta.astro';
-import { landingData } from '../lib/landing-data';
+import { landingSession } from '../lib/landing-session';
 
 /**
- * The public landing page (DESIGN.md §12).
+ * The public landing page.
  *
- * Every figure below is read out of the recorded Case at build time by
- * `landingData()`. Nothing on this page is typed by hand, so the page cannot
- * drift from what the product can actually prove (DESIGN.md §38).
+ * Six sections, one promise: see what your agents are doing. Every figure below
+ * is read at BUILD time out of a REAL recorded Google ADK run
+ * (`packages/fixtures/sessions/vendor-onboarding`), so the page cannot claim
+ * something the product did not capture.
  */
-const data = landingData();
+const data = landingSession();
 ---
 
 <LandingLayout
-  title="FleetScope — control every agent, understand every decision"
-  description="FleetScope gives enterprise teams one place to monitor, govern, intervene in and replay long-running AI-agent workflows across sessions, systems and teams."
-  caseId={data.caseId}
+  title="FleetScope — see what your agents are doing"
+  description="FleetScope is a local Agent Viewer for Gemini and Google ADK that turns agent sessions into a live execution graph and inspectable timeline."
+  sessionId={data.sessionId}
 >
   <Hero data={data} />
-  <SectionSessions data={data} />
-  <SectionContext data={data} />
-  <SectionBoundaries data={data} />
-  <SectionIncident data={data} />
+  <SectionLogsToGraph data={data} />
+  <SectionExecutionEvents data={data} />
+  <SectionFailure data={data} />
   <SectionReplay data={data} />
-  <SectionEvidence data={data} />
-  <SectionCockpit data={data} />
-  <SectionAudit data={data} />
-  <SectionSurfaces data={data} />
   <SectionCta data={data} />
 </LandingLayout>
 

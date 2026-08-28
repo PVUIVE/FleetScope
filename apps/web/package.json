@@ -19,7 +19,8 @@
     "@fleetscope/scenario-compiler": "workspace:*",
     "@fleetscope/shared": "workspace:*",
     "@fleetscope/warden": "workspace:*",
-    "gsap": "^3.15.0"
+    "gsap": "^3.15.0",
+    "@fleetscope/viewer": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",

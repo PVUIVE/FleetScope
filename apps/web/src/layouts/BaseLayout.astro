@@ -1,7 +1,6 @@
 ---
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
-import { webConfig } from '../lib/config';
 
 /**
  * The application shell.
@@ -15,10 +14,11 @@ interface Props {
   title: string;
   /** Console surfaces use the full viewport width; documents stay measured. */
   wide?: boolean;
+  /** Marks a deferred enterprise surface so the shell says so out loud. */
+  legacy?: boolean;
 }
 
-const { title, wide = false } = Astro.props;
-const config = webConfig();
+const { title, wide = false, legacy = false } = Astro.props;
 const path = Astro.url.pathname;
 ---
 
@@ -31,17 +31,16 @@ const path = Astro.url.pathname;
   </head>
   <body>
     <div class="fs-shell">
-      <Nav path={path} defaultCaseId={config.defaultCaseId} liveMode={config.liveMode} />
+      <Nav path={path} legacy={legacy} />
       <main class={wide ? 'fs-main fs-main--wide' : 'fs-main'} id="fs-main">
         <slot />
       </main>
       <footer class="fs-footer">
-        <span>FleetScope · governed agent operations</span>
+        <span>FleetScope · local Agent Viewer for Gemini and Google ADK</span>
         <span>
-          Recorded evidence is bundled with this build and needs no backend.
-          {config.liveMode
-            ? ' The bounded live-proof endpoint is enabled.'
-            : ' Live mode is disabled.'}
+          {legacy
+            ? 'This is a deferred enterprise surface, rendered from a recorded fixture. It is not part of the local Agent Viewer.'
+            : 'Sessions are captured and stored on this machine only.'}
         </span>
         <span>Third-party attribution in THIRD-PARTY-NOTICES.md</span>
       </footer>

@@ -1,126 +1,84 @@
 ---
-import type { LandingData } from '../../lib/landing-data';
+import type { LandingData } from '../../lib/landing-session';
+import { formatDuration } from '../../lib/format';
 
 /**
- * 01 — Hero (DESIGN.md §13–16).
+ * 01 — Hero.
  *
- * The Case Orbit: seven agent-touched systems resolving onto one Case anchor.
- * Structural points are black, connections are sparse blue, and the evidence
- * field behind them is a single canvas — never one DOM node per particle
- * (DESIGN.md §37).
+ * The Execution Spine: the run drawn as one vertical line, agent → model →
+ * tool → handoff → tool → error → result. It replaces the old Case Orbit, whose
+ * seven governed systems belonged to a product this one no longer is.
+ *
+ * Every node is a real event from the recorded run. Nothing here is a mock-up.
  */
 interface Props {
   data: LandingData;
 }
 const { data } = Astro.props;
 
-const C = 250;
-const R = 186;
+const spine = data.spine.slice(0, 7);
+const start = data.session.startedAt;
 
-/** The seven connected entities named by DESIGN.md §15. */
-const nodes = [
-  { code: 'ORC', label: 'Orchestrator', angle: -90, live: true },
-  { code: 'MEM', label: 'Memory', angle: -38, live: true },
-  { code: 'ERP', label: 'ERP', angle: 12, live: false },
-  { code: 'LOG', label: 'Logistics', angle: 64, live: true },
-  { code: 'EVD', label: 'Evidence', angle: 116, live: false },
-  { code: 'SEC', label: 'Security', angle: 168, live: false },
-  { code: 'EXT', label: 'External input', angle: 218, live: false },
-];
-
-const pos = (angle: number, radius: number = R): { x: number; y: number } => {
-  const rad = (angle * Math.PI) / 180;
-  return { x: C + Math.cos(rad) * radius, y: C + Math.sin(rad) * radius };
+const kindOf = (type: string): string => {
+  if (type.startsWith('model')) return 'MODEL';
+  if (type.startsWith('tool')) return 'TOOL';
+  if (type === 'agent.handoff') return 'HANDOFF';
+  if (type === 'error') return 'ERROR';
+  return 'SESSION';
 };
 
-const edge = (angle: number): string => {
-  const from = pos(angle, R - 32);
-  const to = pos(angle, 62);
-  const mid = pos(angle + 8, (R + 62) / 2);
-  return `M${from.x.toFixed(1)} ${from.y.toFixed(1)} Q${mid.x.toFixed(1)} ${mid.y.toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+const offset = (iso: string): string => {
+  if (start === null) return '';
+  const ms = Date.parse(iso) - Date.parse(start);
+  return Number.isFinite(ms) && ms >= 0 ? `+${(ms / 1000).toFixed(2)}s` : '';
 };
-
-const denials = [data.screeningBlocked, data.gatewayDenied, data.identityDenied].filter(
-  (decision) => decision !== null,
-).length;
 ---
 
 <section class="fs-l-sec fs-l-hero" aria-labelledby="fs-l-hero-title" data-hero>
   <div class="fs-l-hero__grid">
     <div>
       <h1 id="fs-l-hero-title">
-        <span class="fs-l-reveal"><span>Control every agent.</span></span>
-        <span class="fs-l-reveal"><span>Understand <span class="fs-l-blue">every decision.</span></span></span>
+        <span class="fs-l-reveal"><span>See what your</span></span>
+        <span class="fs-l-reveal"><span><span class="fs-l-blue">agents</span> are doing.</span></span>
       </h1>
       <p class="fs-l-hero__sub" data-rise>
-        FleetScope gives enterprise teams one place to monitor, govern, intervene in,
-        and replay long-running AI-agent workflows across sessions, systems, and teams.
+        FleetScope turns local Gemini/ADK sessions into a live execution graph —
+        agents, tools, handoffs, errors, and timeline included.
       </p>
       <div class="fs-l-ctas" data-rise>
-        <a class="fs-l-btn fs-l-btn--primary" href={`/cases/${data.caseId}`}>
-          Explore {data.caseId}
+        <a class="fs-l-btn fs-l-btn--primary" href="/sessions/">
+          Open Agent Viewer
           <span class="fs-l-btn__arrow" aria-hidden="true">→</span>
         </a>
-        <a class="fs-l-btn fs-l-btn--ghost" href={`/cockpit/${data.caseId}`}>
-          Open Fleet Cockpit
-        </a>
+        <a class="fs-l-btn fs-l-btn--ghost" href="/docs/">Setup in two commands</a>
+      </div>
+      <div class="fs-d-term" data-rise>
+        <code>$ fleetscope watch</code>
+        <code>$ python examples/vendor_agent.py</code>
       </div>
     </div>
 
     <div class="fs-l-hero__scene">
-      <canvas class="fs-l-hero__field" id="fs-l-field" data-on="false" aria-hidden="true"></canvas>
-      <svg viewBox="0 0 500 500" role="img" aria-labelledby="fs-l-scene-title" data-scene>
-        <title id="fs-l-scene-title">
-          {`${data.caseId}: seven agent-touched systems — orchestrator, memory, ERP, logistics, evidence, security and external input — resolving onto one governed Case.`}
-        </title>
-
-        <g data-scene-part="core">
-          <circle class="fs-l-core__ring" cx={C} cy={C} r="104" stroke-dasharray="2 9" />
-          <circle class="fs-l-core__ring" cx={C} cy={C} r="140" stroke-dasharray="2 15" stroke-opacity="0.6" />
-        </g>
-
-        <g data-scene-part="edges">
-          {nodes.map((node, index) => (
-            <path
-              class={`fs-l-edge ${node.live ? 'fs-l-edge--live' : ''}`}
-              d={edge(node.angle)}
-              data-edge
-              style={`--i:${index}`}
-            />
-          ))}
-        </g>
-
-        <g data-scene-part="nodes">
-          {nodes.map((node, index) => {
-            const p = pos(node.angle);
-            return (
-              <g transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}>
-                <g data-node style={`--i:${index}`}>
-                  <circle class="fs-l-node__ring" r="26" />
-                  <text class="fs-l-node__glyph" y="4">{node.code}</text>
-                  <text class="fs-l-node__label" y="42">{node.label.toUpperCase()}</text>
-                </g>
-              </g>
-            );
-          })}
-        </g>
-
-        <g data-scene-part="plate">
-          <rect class="fs-l-core__plate" x={C - 82} y={C - 31} width="164" height="62" />
-          <text class="fs-l-core__id" x={C} y={C - 3}>{data.caseId}</text>
-          <text class="fs-l-core__sub" x={C} y={C + 17}>GOVERNED CASE</text>
-        </g>
-      </svg>
+      <ol class="fs-d-spine" aria-label="A recorded Gemini / Google ADK run">
+        {spine.map((row, index) => (
+          <li class="fs-d-spine__row" data-kind={kindOf(row.type)} data-node style={`--i:${index}`}>
+            <span class="fs-d-spine__t">{offset(row.timestamp)}</span>
+            <span class="fs-d-spine__k">{kindOf(row.type)}</span>
+            <span class="fs-d-spine__l">{row.toolName ?? row.model ?? row.label}</span>
+            <span class="fs-d-spine__a">{row.agentId ?? ''}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   </div>
 
   <div class="fs-l-strip">
-    <span><span class="fs-l-strip__dot" aria-hidden="true"></span><strong>{data.caseId}</strong></span>
-    <span>{data.title}</span>
-    <span>Recorded evidence</span>
-    <span><strong>{data.eventCount}</strong> events</span>
-    <span><strong>{data.sessionCount}</strong> runtime sessions</span>
-    <span><strong>{denials}</strong> control denials</span>
-    <span><strong>0</strong> side effects on replay</span>
+    <span><span class="fs-l-strip__dot" aria-hidden="true"></span><strong>{data.name}</strong></span>
+    <span>{data.framework === 'google-adk' ? 'Gemini · Google ADK' : data.framework} {data.frameworkVersion}</span>
+    <span><strong>{data.session.eventCount}</strong> events</span>
+    <span><strong>{data.agents.length}</strong> agents</span>
+    <span><strong>{data.session.toolCallCount}</strong> tool calls</span>
+    <span><strong>{data.session.errorCount}</strong> failures</span>
+    <span>{formatDuration(data.session.durationMs)}</span>
   </div>
 </section>

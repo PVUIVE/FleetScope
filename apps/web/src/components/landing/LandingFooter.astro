@@ -1,30 +1,30 @@
 ---
 /**
- * 12 — Footer.
+ * 06 — Footer.
  *
  * Technology is credibility information here and nowhere else (DESIGN.md §39):
  * small, at the bottom, never a hero claim and never a brand-coloured badge.
+ *
+ * The enterprise surfaces are linked from here, and only from here, labelled as
+ * what they are: a future direction, not part of the local Agent Viewer.
  */
 interface Props {
-  caseId: string;
-  liveMode: boolean;
+  sessionId: string;
 }
-const { caseId, liveMode } = Astro.props;
+const { sessionId } = Astro.props;
 ---
 
 <footer class="fs-l-footer">
   <div>
     <p style="margin:0;font-weight:700;color:var(--fs-fg);font-size:13px">FleetScope</p>
-    <p style="margin:4px 0 0">The control plane for long-running agent operations.</p>
+    <p style="margin:4px 0 0">A local Agent Viewer for Gemini and Google ADK.</p>
   </div>
-  <nav aria-label="Product surfaces" style="display:flex;flex-wrap:wrap;gap:8px 20px">
-    <a href="/catalog">Agent Catalog</a>
-    <a href={`/cases/${caseId}`}>Case Workspace</a>
-    <a href="/approvals">Approvals</a>
-    <a href={`/cockpit/${caseId}`}>Fleet Cockpit</a>
-    <a href={`/audit/${caseId}`}>Audit</a>
+  <nav aria-label="Product" style="display:flex;flex-wrap:wrap;gap:8px 20px">
+    <a href="/sessions/">Sessions</a>
+    <a href="/docs/">Setup</a>
+    <a href="/cases/" title="An earlier enterprise direction, kept for reference.">
+      Enterprise preview
+    </a>
   </nav>
-  <p class="fs-l-mono" style="margin:0">
-    {caseId} · recorded evidence · {liveMode ? 'live mode enabled' : 'static demo'}
-  </p>
+  <p class="fs-l-mono" style="margin:0">{sessionId} · recorded run</p>
 </footer>

@@ -1,0 +1,63 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import type { LandingData } from '../../lib/landing-session';
+import { formatDuration } from '../../lib/format';
+
+/**
+ * 03 — Every model call. Every tool. Every handoff.
+ *
+ * Four blueprint cells, each rendered from one real event of the recorded run.
+ * A cell whose event the recording does not contain is not rendered at all.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+const { model, tool, handoff, failure } = data.highlights;
+
+const cells = [
+  model === null
+    ? null
+    : { kind: 'MODEL', title: model.model ?? 'Gemini', detail: formatDuration(model.durationMs), tone: 'ok' },
+  tool === null
+    ? null
+    : { kind: 'TOOL', title: tool.toolName ?? 'tool', detail: formatDuration(tool.durationMs), tone: 'ok' },
+  handoff === null
+    ? null
+    : {
+        kind: 'HANDOFF',
+        title: `${handoff.parentAgentId ?? '?'} → ${handoff.agentId ?? '?'}`,
+        detail: 'sub-agent delegation',
+        tone: 'info',
+      },
+  failure === null
+    ? null
+    : {
+        kind: 'ERROR',
+        title: failure.toolName ?? failure.label,
+        detail: failure.errorClass ?? 'failure',
+        tone: 'deny',
+      },
+].filter((cell): cell is NonNullable<typeof cell> => cell !== null);
+---
+
+<section class="fs-l-sec" aria-labelledby="fs-l-events-title">
+  <SectionHeader num="03" label="Execution events" id="fs-l-events-title">
+    <span slot="headline">Every model call. Every tool. Every handoff.</span>
+    <p class="fs-l-lede">
+      FleetScope captures Google ADK's own callbacks — not terminal output — so every model
+      request, tool invocation, delegation and failure is a first-class event with an agent,
+      a timestamp and a duration.
+    </p>
+  </SectionHeader>
+
+  <div class="fs-d-cells">
+    {cells.map((cell, index) => (
+      <div class="fs-d-cell" data-tone={cell.tone} data-rise style={`--i:${index}`}>
+        <p class="fs-d-cell__k">{cell.kind}</p>
+        <p class="fs-d-cell__t">{cell.title}</p>
+        <p class="fs-d-cell__d">{cell.detail}</p>
+      </div>
+    ))}
+  </div>
+</section>

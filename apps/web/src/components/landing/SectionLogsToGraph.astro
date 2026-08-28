@@ -1,0 +1,60 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import type { LandingData } from '../../lib/landing-session';
+
+/**
+ * 02 — Your agent is more than a log stream.
+ *
+ * The page's primary storytelling animation: raw framework event names on the
+ * left connect, as the section scrolls, into the structured run on the right.
+ * Both columns are the SAME recorded events — the left is what the developer
+ * reads without FleetScope, the right is what FleetScope makes of it.
+ */
+interface Props {
+  data: LandingData;
+}
+const { data } = Astro.props;
+
+const structured = data.spine.slice(0, 6);
+---
+
+<section class="fs-l-sec" aria-labelledby="fs-l-logs-title" data-logs>
+  <SectionHeader num="02" label="From logs to graph" id="fs-l-logs-title">
+    <span slot="headline">Your agent is more than a log stream.</span>
+    <p class="fs-l-lede">
+      A two-agent run emits {data.session.eventCount} framework events. Read as text they are a
+      flat list; read as a graph they are a story with a beginning, a delegation and a failure.
+    </p>
+  </SectionHeader>
+
+  <div class="fs-d-split">
+    <div class="fs-d-raw" aria-label="Raw framework events">
+      <p class="fs-d-colhead">Terminal</p>
+      <ul>
+        {data.rawLogLines.map((name, index) => (
+          <li data-raw style={`--i:${index}`}><code>{name}</code></li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="fs-d-arrow" aria-hidden="true" data-logs-arrow></div>
+
+    <div class="fs-d-structured" aria-label="The same events as an execution graph">
+      <p class="fs-d-colhead">Agent Viewer</p>
+      <ol class="fs-d-spine fs-d-spine--compact">
+        {structured.map((row, index) => (
+          <li
+            class="fs-d-spine__row"
+            data-kind={row.category.toUpperCase()}
+            data-structured
+            style={`--i:${index}`}
+          >
+            <span class="fs-d-spine__k">{row.category.toUpperCase()}</span>
+            <span class="fs-d-spine__l">{row.toolName ?? row.model ?? row.label}</span>
+            <span class="fs-d-spine__a">{row.agentId ?? ''}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</section>

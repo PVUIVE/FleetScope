@@ -10,7 +10,6 @@ import { agentTree } from '../src/lib/agent-tree';
 import { answerCaseQuestions } from '../src/lib/case-view';
 import { caseAttention, caseStatus, controlStatus, interventionStatus } from '../src/lib/status';
 import { planAppend } from '../src/lib/live-proof';
-import { landingData } from '../src/lib/landing-data';
 
 /**
  * The presentation layer, tested against the real recorded Case.
@@ -322,76 +321,5 @@ describe('live proof append planning', () => {
     const latePlan = planAppend(events, late, CASE_ID);
     expect(latePlan.appendedEvents).toHaveLength(0);
     expect(latePlan.problems.join(' ')).toContain('rejected');
-  });
-});
-
-describe('landing page claims', () => {
-  // The landing page is the one surface a visitor sees before the evidence.
-  // Every figure on it is derived from the recorded Case, so this is where a
-  // marketing claim the evidence cannot support gets caught.
-  const landing = landingData();
-
-  it('reports the recorded Case, not a rewritten one', () => {
-    expect(landing.caseId).toBe(CASE_ID);
-    expect(landing.vendor).toBe(events[0]?.payloadRedacted['vendor']);
-    expect(landing.eventCount).toBe(events.length);
-    expect(landing.sessionCount).toBe(new Set(events.map((e) => e.sessionId).filter(Boolean)).size);
-    expect(landing.projectorVersion).toBe(state.projectorVersion);
-  });
-
-  it('takes the multi-day gap from the resume event, not from arithmetic', () => {
-    const resume = events.find((event) => event.type === 'runtime.resumed');
-    expect(landing.simulatedDayBoundary).toBe(resume?.payloadRedacted['simulatedDayBoundary']);
-  });
-
-  it('shows a durable fact with both ends of its provenance', () => {
-    const fact = landing.memoryFacts[0];
-    expect(fact).toBeDefined();
-    expect(fact?.summary).toBe(
-      events.find((event) => event.type === 'memory.written')?.payloadRedacted['summary'],
-    );
-    // Written in one session, read back in a later one — the whole claim.
-    expect(fact?.recalled).not.toBeNull();
-    expect(fact?.sessionId).not.toBe(fact?.recalled?.sessionId);
-  });
-
-  it('never invents a control decision', () => {
-    const recorded = new Set(events.map((event) => event.eventId));
-    for (const row of landing.evidenceRows) expect(recorded.has(row.eventId)).toBe(true);
-    for (const node of landing.spine) expect(recorded.has(node.eventId)).toBe(true);
-  });
-
-  it('uses only words the status vocabulary defines', () => {
-    for (const row of landing.evidenceRows) {
-      expect(controlStatus(row.badge).label).not.toBe('Unknown');
-    }
-  });
-
-  it('keeps the five intervention states distinct and in order', () => {
-    expect(landing.interventionLifecycle.map((step) => step.state)).toEqual([
-      'proposed',
-      'authorized',
-      'requested',
-      'acknowledged',
-      'succeeded',
-    ]);
-    const sequences = landing.interventionLifecycle.map((step) => step.caseSequence);
-    expect([...sequences].sort((a, b) => a - b)).toEqual(sequences);
-  });
-
-  it('only offers replay positions the fixture blessed a state hash for', () => {
-    expect(landing.replayFrames.length).toBeGreaterThan(0);
-    for (const frame of landing.replayFrames) {
-      expect(frame.stateHash).toMatch(/^[0-9a-f]{64}$/);
-      // Each frame must be the projection at that prefix, not the terminal one.
-      const at = project(events, { throughCaseSequence: frame.caseSequence }).state;
-      expect(frame.agentCount).toBe(at.agents.length);
-      expect(frame.memoryCount).toBe(at.memoryRecords.length);
-    }
-  });
-
-  it('ends on the blessed terminal hash', () => {
-    const last = landing.replayFrames[landing.replayFrames.length - 1];
-    expect(last?.stateHash).toBe(landing.terminalStateHash);
   });
 });

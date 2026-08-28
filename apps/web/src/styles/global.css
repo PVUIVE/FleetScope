@@ -67,6 +67,20 @@
   box-sizing: border-box;
 }
 
+/*
+ * `hidden` must beat a component's own `display`.
+ *
+ * The UA rule is `[hidden] { display: none }` at specificity (0,1,0), which any
+ * class rule that sets `display` silently outranks — and `.fs-button` sets
+ * `display: inline-flex`. Without this, `element.hidden = true` leaves the
+ * element on screen, which is how a "Return to live" control stayed visible in
+ * a live session. This is the one place `!important` is correct: `hidden` is
+ * not a style, it is a statement that the element is not part of the page.
+ */
+[hidden] {
+  display: none !important;
+}
+
 html {
   /* Belt and braces for the supported sizes (1440x900 and 1280x720): wide
      content scrolls inside its own container, never taking the page with it. */
