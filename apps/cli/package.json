@@ -1,0 +1,22 @@
+{
+  "name": "@fleetscope/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "fleetscope": "./bin/fleetscope.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fleetscope/session-store": "workspace:*",
+    "@fleetscope/shared": "workspace:*",
+    "@fleetscope/api": "workspace:*",
+    "tsx": "^4.19.2",
+    "@hono/node-server": "^1.14.0"
+  }
+}
