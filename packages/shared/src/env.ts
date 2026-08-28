@@ -29,6 +29,16 @@ export interface FleetScopeConfig {
   readonly webOrigins: readonly string[];
   readonly port: number;
   readonly logLevel: 'silent' | 'info';
+  /**
+   * Where the local Agent Viewer keeps its SQLite store. One developer, one
+   * machine, one file — see `packages/session-store`.
+   */
+  readonly storagePath: string;
+  /**
+   * Directory of the built static viewer to serve alongside the local API.
+   * `null` means "API only", which is what the tests and a headless collector use.
+   */
+  readonly viewerRoot: string | null;
   readonly gcp: { readonly projectId: string | null; readonly region: string | null };
   readonly gemini: {
     readonly model: string | null;
@@ -113,6 +123,8 @@ export function parseConfig(source: EnvSource): Result<FleetScopeConfig, string[
       .filter((origin) => origin !== ''),
     port: parseInt_(source['PORT'], 8080, 'PORT', problems),
     logLevel: source['API_LOG_LEVEL'] === 'silent' ? 'silent' : 'info',
+    storagePath: source['FLEETSCOPE_STORAGE'] ?? '.fleetscope/fleetscope.db',
+    viewerRoot: nullable(source['FLEETSCOPE_VIEWER_ROOT']),
     gcp: {
       projectId: nullable(source['GCP_PROJECT_ID']),
       region: nullable(source['GCP_REGION']),

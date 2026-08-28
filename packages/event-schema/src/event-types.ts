@@ -33,6 +33,10 @@ export const EVENT_TYPES = [
   'armor.sanitized',
   'armor.flagged',
 
+  'model.requested',
+  'model.responded',
+  'model.failed',
+
   'agent.spawned',
   'agent.started',
   'agent.completed',
@@ -75,6 +79,7 @@ export const EVENT_FAMILY_OWNER: Readonly<Record<string, string>> = {
   armor: 'Model Armor',
   case: 'FleetScope Case API',
   agent: 'Agent Runtime',
+  model: 'Agent Runtime model gateway',
   tool: 'Agent Runtime tool gateway',
   usage: 'Agent Observability',
   incident: 'FleetScope Incident Detector',

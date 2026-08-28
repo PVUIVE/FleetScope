@@ -37,6 +37,7 @@ const ERROR_TYPES = new Set([
   'armor.blocked',
   'memory.rejected',
   'tool.failed',
+  'model.failed',
   'agent.failed',
   'runtime.failed',
   'intervention.failed',

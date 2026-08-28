@@ -41,6 +41,7 @@ export const RENDER_DOMAINS = [
   'gateway',
   'armor',
   'agent',
+  'model',
   'tool',
   'incident',
   'policy',

@@ -71,6 +71,7 @@ describe('EVENT_TYPES', () => {
       'incident',
       'intervention',
       'memory',
+      'model',
       'policy',
       'registry',
       'runtime',

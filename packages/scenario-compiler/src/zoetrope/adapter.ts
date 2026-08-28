@@ -70,6 +70,7 @@ const DOMAIN_OF: Readonly<Record<string, RenderDomain>> = {
   gateway: 'gateway',
   armor: 'armor',
   agent: 'agent',
+  model: 'model',
   tool: 'tool',
   usage: 'usage',
   incident: 'incident',
@@ -116,6 +117,10 @@ const OUTCOME_OF: Readonly<Record<string, RenderOutcome>> = {
   'agent.started': 'informational',
   'agent.completed': 'succeeded',
   'agent.failed': 'failed',
+
+  'model.requested': 'pending',
+  'model.responded': 'succeeded',
+  'model.failed': 'failed',
 
   'tool.requested': 'pending',
   'tool.succeeded': 'succeeded',
@@ -406,7 +411,12 @@ export function compileZoetropeScene(events: readonly CanonicalEvent[]): Zoetrop
         if (parent === undefined) {
           // The root orchestrator IS the main node; it is not delegated to.
           agentNodes.set(id, null);
-          emitText(`${role} · ${c['agentVersionRef'] ?? 'unknown version'}`);
+          // The version ref exists for governed enterprise Cases and not for a
+          // local run. Absent, the label is the role alone — never the words
+          // "unknown version", which would read as a fault rather than as a
+          // field this framework simply does not report.
+          const version = c['agentVersionRef'];
+          emitText(version === undefined ? role : `${role} · ${version}`);
           break;
         }
 
@@ -450,7 +460,8 @@ export function compileZoetropeScene(events: readonly CanonicalEvent[]): Zoetrop
           agentId: rendererId,
           meta: subagentMeta({
             agentType: redactedSummary(c['agentVersionRef'], 'agent'),
-            description: `${id} · ${c['agentVersionRef'] ?? 'unknown version'}`,
+            description:
+              c['agentVersionRef'] === undefined ? id : `${id} · ${c['agentVersionRef']}`,
             toolUseId: spawnToolUseIds.get(id) ?? `spawn-${id}`,
           }),
         });
@@ -492,6 +503,41 @@ export function compileZoetropeScene(events: readonly CanonicalEvent[]): Zoetrop
         if (spawnId !== undefined && pendingCalls.get(spawnId)?.resolved === false) {
           emitResult(spawnId, failed ? 'agent failed' : 'agent completed', failed);
         }
+        break;
+      }
+
+      // ── Model calls ───────────────────────────────────────────────────────
+      //
+      // A model call renders as a named chip so the graph shows WHICH model ran
+      // and how long it took, without any prompt or response text reaching the
+      // renderer. `redactedSummary` is still the only path a payload value takes.
+      case 'model.requested': {
+        const modelName = redactedSummary(p['model'], 'model');
+        const callId = c['modelCallId'] ?? `model-${event.eventId}`;
+        emitAssistant([{ type: 'tool_use', id: callId, name: modelName, input: {} }]);
+        pendingCalls.set(callId, {
+          toolName: modelName,
+          rendererAgentId: nodeAgentId,
+          originEventId: event.eventId,
+          resolved: false,
+        });
+        break;
+      }
+
+      case 'model.responded':
+      case 'model.failed': {
+        const callId = c['modelCallId'] ?? `model-${event.eventId}`;
+        const failed = event.type === 'model.failed';
+        const tokens = num(p['outputTokens']);
+        emitResult(
+          callId,
+          failed
+            ? `failed · ${redactedSummary(p['errorClass'], 'unrecorded error class')}`
+            : tokens === undefined
+              ? redactedSummary(p['finishReason'], 'responded')
+              : `${redactedSummary(p['finishReason'], 'responded')} · ${tokens} out tok`,
+          failed,
+        );
         break;
       }
 
@@ -743,6 +789,12 @@ function labelFor(event: CanonicalEvent): string {
       return 'Agent completed';
     case 'agent.failed':
       return 'Agent failed';
+    case 'model.requested':
+      return `${redactedSummary(p['model'], 'model')} requested`;
+    case 'model.responded':
+      return `${redactedSummary(p['model'], 'model')} responded`;
+    case 'model.failed':
+      return `${redactedSummary(p['model'], 'model')} failed`;
     case 'tool.requested':
       return `${redactedSummary(p['tool'], 'tool')} requested`;
     case 'tool.succeeded':

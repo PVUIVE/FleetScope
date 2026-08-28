@@ -402,3 +402,85 @@ describe('manifest entries are safe to hand to the renderer', () => {
     ]);
   });
 });
+
+describe('model calls', () => {
+  // Model calls are the family the enterprise Case never had: a local ADK run
+  // is mostly Gemini requests, and the graph is useless if they are invisible.
+  const at = (n: number): string => `2026-08-28T10:00:0${n}.000Z`;
+  const modelEvent = (
+    type: 'model.requested' | 'model.responded' | 'model.failed',
+    caseSequence: number,
+    payload: Record<string, unknown>,
+  ): CanonicalEvent => ({
+    eventId: `evt-model-${caseSequence}`,
+    caseId: 'ses_1',
+    caseSequence,
+    sessionId: 'ses_1',
+    sessionSequence: caseSequence,
+    schemaVersion: '1.0.0',
+    type,
+    sourceTime: at(caseSequence),
+    acceptedTime: at(caseSequence),
+    actor: { kind: 'agent', id: 'root' },
+    correlations: { agentInstanceId: 'root', modelCallId: 'm1' },
+    payloadRedacted: payload,
+  });
+
+  it('draws a model call as a named chip that resolves', () => {
+    const scene = compileZoetropeScene([
+      modelEvent('model.requested', 0, { model: 'gemini-3.5-flash' }),
+      modelEvent('model.responded', 1, {
+        model: 'gemini-3.5-flash',
+        finishReason: 'STOP',
+        outputTokens: 71,
+      }),
+    ]);
+    expect(scene.main).toContain('"name":"gemini-3.5-flash"');
+    expect(scene.main).toContain('"tool_use_id":"m1"');
+    expect(scene.main).toContain('71 out tok');
+    expect(scene.manifest.entries.map((entry) => [entry.domain, entry.outcome])).toEqual([
+      ['model', 'pending'],
+      ['model', 'succeeded'],
+    ]);
+  });
+
+  it('marks a model failure as an error the renderer will style as one', () => {
+    const scene = compileZoetropeScene([
+      modelEvent('model.requested', 0, { model: 'gemini-3.5-flash' }),
+      modelEvent('model.failed', 1, { model: 'gemini-3.5-flash', errorClass: 'ResourceExhausted' }),
+    ]);
+    expect(scene.main).toContain('"is_error":true');
+    expect(scene.main).toContain('ResourceExhausted');
+    expect(scene.manifest.entries[1]?.outcome).toBe('failed');
+  });
+
+  it('omits a token count the framework never reported', () => {
+    const scene = compileZoetropeScene([
+      modelEvent('model.requested', 0, { model: 'gemini-3.5-flash' }),
+      modelEvent('model.responded', 1, { model: 'gemini-3.5-flash', finishReason: 'STOP' }),
+    ]);
+    // "0 out tok" would report a measurement that was never taken.
+    expect(scene.main).not.toContain('out tok');
+  });
+
+  it('names a local agent by its role when there is no version to cite', () => {
+    const scene = compileZoetropeScene([
+      {
+        eventId: 'evt-spawn',
+        caseId: 'ses_1',
+        caseSequence: 0,
+        sessionId: 'ses_1',
+        sessionSequence: 0,
+        schemaVersion: '1.0.0',
+        type: 'agent.spawned',
+        sourceTime: at(0),
+        acceptedTime: at(0),
+        actor: { kind: 'agent', id: 'root' },
+        correlations: { agentInstanceId: 'root' },
+        payloadRedacted: { role: 'vendor_onboarding' },
+      },
+    ]);
+    expect(scene.main).toContain('vendor_onboarding');
+    expect(scene.main).not.toContain('unknown version');
+  });
+});
