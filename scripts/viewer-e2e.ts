@@ -270,8 +270,11 @@ async function main(): Promise<number> {
     );
 
     // ── 21. The session completes ──────────────────────────────────────────
+    // `exitCode` first: a process that has ALREADY exited will never emit
+    // 'exit' again, and waiting for it would hang here forever.
     const exitCode = await new Promise<number>((resolve) => {
       if (agent === null) return resolve(0);
+      if (agent.exitCode !== null) return resolve(agent.exitCode);
       agent.on('exit', (code) => resolve(code ?? 0));
     });
     check('the real ADK agent exits cleanly', exitCode === 0, `exit ${exitCode}`);

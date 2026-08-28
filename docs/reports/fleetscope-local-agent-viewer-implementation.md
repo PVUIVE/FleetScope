@@ -404,7 +404,7 @@ Executed against the live Gemini API through Google ADK 1.20.0.
 |---|---|
 | Framework | google-adk 1.20.0, Python 3.13.5 |
 | Model | `gemini-3.5-flash` |
-| Runs | 5 successful golden-path captures (2 recording, 3 E2E) + 2 that did not delegate or hit quota |
+| Runs | 6 successful golden-path captures + 3 that did not delegate or hit the daily quota |
 | Events per run | 22 canonical |
 | Agents | 2 (`vendor_onboarding` → `logistics`) |
 | Model calls | 4 |
@@ -415,19 +415,28 @@ Executed against the live Gemini API through Google ADK 1.20.0.
 | Token usage | 2,693 in / 98 out (recorded run) |
 | Renderer entries | 24, manifest consistent, zero invariant violations |
 
-**E2E: 3 consecutive runs.** Runs 2 and 3 were 30/30. Run 1 failed on
-"the sub-agent appears after the handoff" — the model answered without
+**E2E: 3 consecutive runs on `gemini-3.5-flash`.** Runs 2 and 3 were 30/30. Run 1
+failed on "the sub-agent appears after the handoff" — the model answered without
 delegating. That is the agent's decision, not a FleetScope fault: the viewer
 showed a run that did not delegate, correctly. `temperature=0` was added
 afterwards and the confirming run was 30/30.
 
-Two honest failure captures along the way:
+**Final verification of the committed tree: 30/30**, on `gemini-3.1-flash-lite`
+via `FLEETSCOPE_DEMO_MODEL`, because the free tier's 20-requests-per-day limit
+for `gemini-3.5-flash` was exhausted by the earlier runs. Nothing in FleetScope
+differs between the two models; the switch is a quota fact, recorded here rather
+than hidden.
+
+Three honest failure captures along the way, all of which the product reported
+correctly rather than papering over:
 
 - A `429 RESOURCE_EXHAUSTED` from the Gemini free tier mid-run was captured as a
   `model.failed` event and surfaced in the viewer as a failure — the error path
   proved by an error nobody planned.
 - The non-delegating run rendered as a shorter, single-agent session with no
   handoff row. Exactly right.
+- A quota-exhausted run stopped after its first model call, and the viewer showed
+  a session that stopped after its first model call.
 
 No API key appears in any report, log, artifact or stored event.
 
@@ -537,8 +546,9 @@ where. Extension points are documented there too.
 8. **Demo reliability depends on the model.** `temperature=0` makes the golden
    path repeatable but cannot make it certain; a run that does not delegate is
    rendered faithfully as a run that did not delegate.
-9. **The Gemini free tier is 20 requests/day per model.** A demo day needs a paid
-   key or `FLEETSCOPE_DEMO_MODEL` pointed at a model with quota left.
+9. **The Gemini free tier is 20 requests/day per model**, and one demo run costs
+   four. A demo day needs a paid key or `FLEETSCOPE_DEMO_MODEL` pointed at a
+   model with quota left. This was hit twice during validation.
 10. **The deferred enterprise routes still render CASE-1042.** They are correct
     and labelled, but they are a second story in the same repository.
 
