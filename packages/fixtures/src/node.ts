@@ -81,3 +81,47 @@ export function loadSourceEvents(caseId: string): unknown[] {
     .filter((line) => line !== '')
     .map((line) => JSON.parse(line) as unknown);
 }
+
+// ── Recorded local agent sessions ───────────────────────────────────────────
+//
+// A recorded Gemini / Google ADK run, captured through the real ADK plugin.
+// It is a PRODUCT asset, not a test leftover: the landing page derives every
+// figure it prints from this file, and the browser E2E replays it, so a claim
+// on the marketing page cannot outrun what the product actually captured.
+
+const sessionsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'sessions');
+
+export interface RecordedSessionMeta {
+  readonly sessionId: string;
+  readonly name: string;
+  readonly framework: string;
+  readonly frameworkVersion: string;
+  readonly model: string | null;
+  readonly recordedAt: string;
+  /** What was real in this recording and what was a local stub. */
+  readonly provenance: string;
+}
+
+export const recordedSessionDir = (slug: string): string => join(sessionsDir, slug);
+
+export function loadRecordedSessionMeta(slug: string): RecordedSessionMeta {
+  return JSON.parse(
+    readFileSync(join(recordedSessionDir(slug), 'session.json'), 'utf8'),
+  ) as RecordedSessionMeta;
+}
+
+/** Throws on a malformed line: a fixture that does not parse is a build break. */
+export function loadRecordedSessionEvents(slug: string): CanonicalEvent[] {
+  const text = readFileSync(join(recordedSessionDir(slug), 'canonical-events.jsonl'), 'utf8');
+  const { events, failures } = parseCanonicalEventsJsonl(text);
+  if (failures.length > 0) {
+    throw new Error(
+      `Recorded session ${slug} has ${failures.length} invalid event line(s):\n` +
+        failures.map((f) => `  line ${f.line}: ${f.problem}`).join('\n'),
+    );
+  }
+  return events;
+}
+
+/** The golden demo recording the landing page and the E2E suite both use. */
+export const GOLDEN_SESSION = 'vendor-onboarding';

@@ -65,6 +65,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@fleetscope/adk-adapter':
+        specifier: workspace:*
+        version: link:../../packages/adk-adapter
+      '@fleetscope/canonicalizer':
+        specifier: workspace:*
+        version: link:../../packages/canonicalizer
       '@fleetscope/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -74,9 +80,15 @@ importers:
       '@fleetscope/platform-adapters':
         specifier: workspace:*
         version: link:../../packages/platform-adapters
+      '@fleetscope/session-store':
+        specifier: workspace:*
+        version: link:../../packages/session-store
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@fleetscope/viewer':
+        specifier: workspace:*
+        version: link:../../packages/viewer
       '@hono/node-server':
         specifier: ^1.14.0
         version: 1.19.17(hono@4.13.4)
@@ -90,15 +102,30 @@ importers:
         specifier: ^4.1.12
         version: 4.4.3
     devDependencies:
-      '@fleetscope/canonicalizer':
-        specifier: workspace:*
-        version: link:../../packages/canonicalizer
       '@fleetscope/fixtures':
         specifier: workspace:*
         version: link:../../packages/fixtures
       '@fleetscope/scenario-compiler':
         specifier: workspace:*
         version: link:../../packages/scenario-compiler
+
+  apps/cli:
+    dependencies:
+      '@fleetscope/api':
+        specifier: workspace:*
+        version: link:../api
+      '@fleetscope/session-store':
+        specifier: workspace:*
+        version: link:../../packages/session-store
+      '@fleetscope/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@hono/node-server':
+        specifier: ^1.14.0
+        version: 1.19.17(hono@4.13.4)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.12
 
   apps/web:
     dependencies:
@@ -126,6 +153,9 @@ importers:
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@fleetscope/viewer':
+        specifier: workspace:*
+        version: link:../../packages/viewer
       '@fleetscope/warden':
         specifier: workspace:*
         version: link:../../packages/warden
@@ -142,6 +172,15 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+
+  packages/adk-adapter:
+    dependencies:
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
+      zod:
+        specifier: ^4.1.12
+        version: 4.4.3
 
   packages/canonicalizer:
     dependencies:
@@ -222,7 +261,22 @@ importers:
         specifier: workspace:*
         version: link:../canonicalizer
 
+  packages/session-store:
+    dependencies:
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
+      '@fleetscope/viewer':
+        specifier: workspace:*
+        version: link:../viewer
+
   packages/shared: {}
+
+  packages/viewer:
+    dependencies:
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
 
   packages/warden:
     dependencies:
