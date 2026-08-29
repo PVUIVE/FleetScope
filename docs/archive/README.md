@@ -32,13 +32,18 @@ Everything in `docs/architecture.md`, `docs/local-agent-viewer.md` and
 | Deterministic projection | **Internal.** Proves replay determinism; no UI depends on it. | `packages/projector` |
 | Warden, policy, approvals, intervention | **Deferred.** Compiles, tested, off the golden path. | `packages/warden` |
 | Registry / Identity / Gateway / Model Armor / Memory | **Deferred.** Capability stubs only. | `packages/platform-adapters` |
-| CASE-1042 and its surfaces | **Deferred.** A regression fixture and an enterprise preview. | `packages/fixtures/cases/CASE-1042`, `/cases`, `/audit`, `/cockpit`, `/approvals`, `/catalog` |
+| CASE-1042 and its surfaces | **Deferred.** A regression fixture; the pages are preserved but no longer built. | `packages/fixtures/cases/CASE-1042`, `apps/web/src/deferred` |
 
-The deferred routes still resolve and still render. They are not in the primary
-navigation, they are labelled *Enterprise preview* in the shell, and no part of
-the local Agent Viewer calls them. `POST /live/decision` and `GET /capability`
-in `apps/api` belong to the same group: superseded by real ADK capture, kept
-because they work and are covered.
+The deferred pages are preserved verbatim in `apps/web/src/deferred/` and are
+**not built**. Keeping them out of the primary navigation was not enough: a static
+Astro build emits every page under `src/pages/`, so the public deployment served
+`/cases`, `/audit`, `/cockpit`, `/approvals` and `/catalog` by URL, and a visitor
+who reached one saw an enterprise product rather than the Agent Viewer. Moving a
+file back under `src/pages/` builds it again — see `apps/web/src/deferred/README.md`.
+
+`POST /live/decision` and `GET /capability` in `apps/api` belong to the same
+group and ARE still mounted: superseded by real ADK capture, kept because they
+work and are covered.
 
 ## Extension points the MVP deliberately preserved
 

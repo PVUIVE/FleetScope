@@ -1,0 +1,136 @@
+{
+  "description": "Deterministic offline Google ADK capture for local ingest, SQLite, SSE, and browser validation. It contains no prompt, completion, reasoning, credential, or live-provider data.",
+  "batches": [
+    {
+      "framework": "google-adk",
+      "frameworkVersion": "1.10.0",
+      "sessionId": "ses_offline_adk_capture",
+      "appName": "Offline ADK capture",
+      "events": [
+        {
+          "kind": "session.start",
+          "seq": 0,
+          "at": "2026-08-29T04:00:00.000Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1"
+        },
+        {
+          "kind": "agent.start",
+          "seq": 1,
+          "at": "2026-08-29T04:00:00.010Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1"
+        },
+        {
+          "kind": "model.start",
+          "seq": 2,
+          "at": "2026-08-29T04:00:00.020Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1",
+          "model": "gemini-2.5-flash",
+          "callId": "root-model-1",
+          "inputTokens": 73
+        },
+        {
+          "kind": "model.end",
+          "seq": 3,
+          "at": "2026-08-29T04:00:00.080Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1",
+          "model": "gemini-2.5-flash",
+          "callId": "root-model-1",
+          "outputTokens": 21,
+          "finishReason": "STOP"
+        }
+      ]
+    },
+    {
+      "framework": "google-adk",
+      "frameworkVersion": "1.10.0",
+      "sessionId": "ses_offline_adk_capture",
+      "appName": "Offline ADK capture",
+      "events": [
+        {
+          "kind": "agent.start",
+          "seq": 4,
+          "at": "2026-08-29T04:00:00.100Z",
+          "agent": "inventory",
+          "parentAgent": "orchestrator",
+          "invocationId": "inv-offline-1"
+        },
+        {
+          "kind": "model.start",
+          "seq": 5,
+          "at": "2026-08-29T04:00:00.110Z",
+          "agent": "inventory",
+          "invocationId": "inv-offline-1",
+          "model": "gemini-2.5-flash",
+          "callId": "inventory-model-1"
+        },
+        {
+          "kind": "model.end",
+          "seq": 6,
+          "at": "2026-08-29T04:00:00.170Z",
+          "agent": "inventory",
+          "invocationId": "inv-offline-1",
+          "model": "gemini-2.5-flash",
+          "callId": "inventory-model-1",
+          "finishReason": "STOP"
+        },
+        {
+          "kind": "tool.start",
+          "seq": 7,
+          "at": "2026-08-29T04:00:00.180Z",
+          "agent": "inventory",
+          "invocationId": "inv-offline-1",
+          "tool": "inventory_lookup",
+          "callId": "inventory-tool-1",
+          "args": {
+            "authorization": "Bearer offline-capture-secret-token-1234567890",
+            "sku": "SKU-42"
+          }
+        },
+        {
+          "kind": "tool.end",
+          "seq": 8,
+          "at": "2026-08-29T04:00:00.230Z",
+          "agent": "inventory",
+          "invocationId": "inv-offline-1",
+          "tool": "inventory_lookup",
+          "callId": "inventory-tool-1",
+          "error": true,
+          "errorClass": "timeout",
+          "summary": "inventory service timed out",
+          "result": {
+            "status": "error",
+            "error_class": "timeout",
+            "message": "inventory service timed out"
+          }
+        },
+        {
+          "kind": "agent.end",
+          "seq": 9,
+          "at": "2026-08-29T04:00:00.240Z",
+          "agent": "inventory",
+          "invocationId": "inv-offline-1",
+          "error": true,
+          "errorClass": "timeout"
+        },
+        {
+          "kind": "agent.end",
+          "seq": 10,
+          "at": "2026-08-29T04:00:00.250Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1"
+        },
+        {
+          "kind": "session.end",
+          "seq": 11,
+          "at": "2026-08-29T04:00:00.260Z",
+          "agent": "orchestrator",
+          "invocationId": "inv-offline-1"
+        }
+      ]
+    }
+  ]
+}
