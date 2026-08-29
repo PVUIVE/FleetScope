@@ -37,6 +37,8 @@
     "reliability": "tsx scripts/recorded-reliability.ts",
     "recorded:run": "tsx scripts/recorded-run.ts",
     "qa:browser": "tsx scripts/browser-qa.ts",
+    "test:plugin": "python3 examples/fleetscope_adk/test_plugin_contract.py",
+    "e2e:offline": "pnpm build:wasm && pnpm build:web && tsx scripts/offline-viewer-e2e.ts",
     "e2e": "tsx --env-file-if-exists=.env scripts/viewer-e2e.ts",
     "qa:a11y": "tsx scripts/a11y-qa.ts"
   },

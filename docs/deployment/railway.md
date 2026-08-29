@@ -8,7 +8,7 @@ The `railway/web.Dockerfile` build performs three stages:
 
 1. Build the Rust Cockpit with pinned Trunk `0.21.14`, producing `/wasm/cockpit.js` and `/wasm/cockpit_bg.wasm`.
 2. Build the Astro web application with `PUBLIC_LIVE_MODE=false` and no `PUBLIC_API_BASE_URL`.
-3. Serve `apps/web/dist` with Nginx on Railway's injected `$PORT`.
+3. Assert that no deferred enterprise route reached `dist/`, then serve `apps/web/dist` with Nginx on Railway's injected `$PORT`.
 
 `railway.json` selects the Dockerfile, checks `GET /health`, and retries only failed deployments up to three times.
 
@@ -37,10 +37,10 @@ The job deploys the documented `fleetscope-web` service with `railway up --ci`. 
 ## Post-deploy validation
 
 - `https://<domain>/health` returns `ok`.
-- `/catalog/`, `/cases/`, `/cases/CASE-1042/`, `/approvals/`, `/cockpit/CASE-1042/`, and `/audit/CASE-1042/` load.
-- Browser Network confirms `/wasm/cockpit.js` and `/wasm/cockpit_bg.wasm` return 200.
-- Cockpit renders without a console error and evidence selection/Return to live work.
-- Run the browser E2E suite against the Railway domain:
+- `/` serves the landing page, not a redirect.
+- `/sessions/` and `/docs/` load.
+- `/cases/`, `/catalog/`, `/approvals/`, `/cockpit/CASE-1042/` and `/audit/CASE-1042/` return **404**. These are the deferred enterprise surfaces: they are no longer built, and the image build fails if they reappear in `dist/`. See `apps/web/src/deferred/README.md`.
+- Run the browser QA suite against the Railway domain:
 
   ```bash
   FLEETSCOPE_QA_BASE_URL=https://<domain> pnpm qa:browser

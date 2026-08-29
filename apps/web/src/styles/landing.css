@@ -306,6 +306,146 @@ body.fs-l {
   gap: 12px;
 }
 
+/* ── Liquid-metal CTA (docs/ui/button.md) ───────────────────────────────────
+ * A port of the `LiquidMetalButton` reference to this stack. The original mounts
+ * a WebGL fragment shader (@paper-design/shaders) for its sheen; this reproduces
+ * it with a rotating conic gradient plus a specular sweep, so the landing page
+ * gains no runtime dependency and no second WebGL context beside the Cockpit's.
+ *
+ * DEVIATIONS FROM THE REFERENCE, both deliberate:
+ *   - the label is #e8e8ea, not the reference's #666666. On this near-black pill
+ *     #666 measures ~3.4:1, and DESIGN.md §28 requires WCAG-friendly contrast.
+ *   - it stays an <a>. The reference renders <button onClick>, which would cost
+ *     middle-click, open-in-new-tab and the link semantics of a navigation CTA.
+ *
+ * It also contradicts DESIGN.md §11 ("No gradient button", border-radius: 0).
+ * That is the requested design, applied to the two Agent Viewer CTAs only.
+ */
+@property --fs-metal-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.fs-l-btn--metal {
+  position: relative;
+  isolation: isolate;
+  border: none;
+  border-radius: 100px;
+  padding: 0 22px;
+  color: #e8e8ea;
+  background: transparent;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.3),
+    0 36px 14px rgb(0 0 0 / 0.02),
+    0 20px 12px rgb(0 0 0 / 0.08),
+    0 9px 9px rgb(0 0 0 / 0.12),
+    0 2px 5px rgb(0 0 0 / 0.15);
+  transition:
+    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform var(--fs-duration-fast) var(--fs-ease-out);
+}
+
+/* The molten rim: a conic gradient rotating under the face. */
+.fs-l-btn--metal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--fs-metal-angle),
+    #2a2a30,
+    #9aa3b2,
+    #34343c,
+    #cfd6e2,
+    #2a2a30,
+    #7e879a,
+    #2a2a30
+  );
+  animation: fs-metal-flow 6s linear infinite;
+}
+
+/* The face, inset by 2px so the rim reads as a bezel rather than a border. */
+.fs-l-btn--metal::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 180% at 30% -40%, rgb(255 255 255 / 0.22), transparent 60%),
+    linear-gradient(180deg, #202020 0%, #000000 100%);
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fs-metal-flow {
+  to {
+    --fs-metal-angle: 360deg;
+  }
+}
+
+.fs-l-btn--metal:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.4),
+    0 12px 6px rgb(0 0 0 / 0.05),
+    0 8px 5px rgb(0 0 0 / 0.1),
+    0 4px 4px rgb(0 0 0 / 0.15),
+    0 1px 2px rgb(0 0 0 / 0.2);
+}
+.fs-l-btn--metal:hover::before {
+  animation-duration: 3.6s;
+}
+
+.fs-l-btn--metal:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.5),
+    0 1px 2px rgb(0 0 0 / 0.3);
+}
+.fs-l-btn--metal:active::after {
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 0.4),
+    inset 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+/* Click ripple, spawned at the pointer by scripts/landing.ts. */
+.fs-l-btn__ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.4) 0%, rgb(255 255 255 / 0) 70%);
+  animation: fs-metal-ripple 600ms ease-out forwards;
+}
+@keyframes fs-metal-ripple {
+  from {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+/* DESIGN.md §35: the sheen is motion. Freeze it, keep the object. */
+@media (prefers-reduced-motion: reduce) {
+  .fs-l-btn--metal::before {
+    animation: none;
+  }
+  .fs-l-btn__ripple {
+    display: none;
+  }
+}
+.fs-l[data-motion='off'] .fs-l-btn--metal::before {
+  animation: none;
+}
+
 /* ── StatusLabel (DESIGN.md §5.2, §40) ──────────────────────────────────
  * Glyph + word + tone. Never colour alone.
  */
@@ -463,6 +603,13 @@ body.fs-l {
 
 .fs-l-hero {
   position: relative;
+  isolation: isolate;
+}
+/* Everything the hero asserts sits above the decorative field. */
+.fs-l-hero__grid,
+.fs-l-hero .fs-l-strip {
+  position: relative;
+  z-index: 1;
 }
 .fs-l-hero__grid {
   display: grid;
