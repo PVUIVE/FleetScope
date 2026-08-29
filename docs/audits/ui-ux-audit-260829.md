@@ -104,7 +104,7 @@ proved that ranking wrong. The corrected findings:
 |---|---|---|
 | P1-1 | The same overlay had **no dialog semantics**: no `role`, no `aria-modal`, no focus trap, no Escape, no focus restore, no scrim, no `inert` background. It read as a drawer visually and as nothing at all to assistive tech. | `styles/viewer.css` ≤1180 block; baseline: 6 consecutive FAILs |
 | P1-2 | **Stepping the timeline re-opened a drawer the developer had just closed**, on every keypress — `paintDetails` un-hid the pane on each paint. Closing it to read the timeline and then stepping the timeline was impossible. | `paintDetails`, `agent-viewer.ts` |
-| P1-3 | **`scripts/browser-qa.ts` had been dead since the landing rewrite.** It drove the *deleted* enterprise landing — `#corridor-screening`, the cockpit tablist, the evidence rail, an `h1` reading "Control every agent". It failed on `HEAD` before any change here, so the landing page had **no working browser gate at all**. | `git grep corridor-screening HEAD -- apps/web/src` → absent |
+| P1-3 | **`scripts/browser-qa.ts` was dead at the commit this branch started from** (`570adb6`): it drove the *deleted* enterprise landing — `#corridor-screening`, the cockpit tablist, an `h1` reading "Control every agent" — and failed outright, so the landing had no working browser gate. **Superseded:** PR #5 fixed the same file on `main` in parallel, independently reaching the same 6-section count and the same `top 92%` reveal threshold, plus checks this branch did not have (primary CTAs resolve to `/sessions/`, returning to the newest event leaves historical mode, exactly one failure step is current). On merge, **their version was taken as the base** and only two genuinely additive checks were kept from here — see §7. | `git log 570adb6..origin/main -- scripts/browser-qa.ts` |
 | P1-4 | **Closing the details pane on desktop left a dead 330px column.** `.fs-viewer__body` has fixed `grid-template-columns`, so `[hidden]` collapsed the element and left its track. | measured 831px graph before/after; now 1161px |
 
 ### P2 — significant visual/consistency issue
@@ -277,20 +277,19 @@ speculatively:
 - **No visual change.** It is on-contract, it has no P0/P1/P2 findings, and
   `DESIGN.md` governs it explicitly. Redesigning it would have been change for
   its own sake.
-- Its **browser gate was repaired**: `checkLanding` now drives the landing that
-  ships — six sections, the real headline, the replay marks, historical
-  flagging, "nothing is executing", the recorded `ERROR` row — instead of the
-  deleted enterprise page. (P1-3)
-- The reveal check now tests against the animation's own `top 92%` threshold
-  rather than the viewport edge, so it measures whether a reader ever sees a
-  blank block instead of failing on an 8% sliver.
-- The session-list console check no longer counts the *expected* `/api/` 404 on
-  a collector-less static server as a defect, and instead asserts the offline
-  state is shown and does not also claim there are no sessions.
-- A new check scrolls the whole landing in steps and asserts **every**
-  `[data-rise]` section has revealed by the end. A full-page screenshot of an
-  unscrolled landing shows blank blocks below the fold and proves nothing about
-  them either way; this settles the question by assertion instead.
+- Its **browser gate was repaired on `main` by PR #5 while this branch was in
+  flight**, independently and slightly better — `section.fs-l-sec` is a more
+  precise selector than `main section`, and it added checks this branch lacked.
+  This branch's parallel rewrite was therefore **discarded on merge** in favour
+  of theirs. Same for the `top 92%` reveal threshold and the `/api/` 404
+  filtering: both sides reached the same answer, and theirs landed first. (P1-3)
+- Two checks from this branch were genuinely additive and were kept on top:
+  - the collector-less session list must **say** the collector is not answering
+    and must not simultaneously claim there are no sessions — filtering the 404
+    proves the page does not error, not that it explains itself;
+  - the landing is scrolled through in steps and **every** `[data-rise]` section
+    must have revealed by the end. The bounded check above it is correct for
+    "reading position" but says nothing about sections below that line.
 
 ### Tooling
 - **`scripts/viewer-qa.ts`** (new, `pnpm qa:viewer`): seeds the recorded Google
@@ -313,7 +312,7 @@ Screenshots: `docs/audits/shots/{before,after}/`.
 | Agent Viewer @ 1440 | `Close` left a dead 330px column. | Graph takes the width: 831 → 1161px. |
 | Agent Viewer @ 1024×768 | Second agent of a two-agent run clipped; graph starved until the renderer dropped node labels. | Whole tree visible; graph at 251px with labels intact. |
 | Timeline @ ≤720 | Kind word and duration deleted. | Both kept, reflowed to two lines. |
-| Landing browser QA | Failing on `HEAD` against a page deleted three commits earlier. | 61/61, driving the real replay and failure sections. |
+| Landing browser QA | Failing at `570adb6` against a page deleted three commits earlier. | 63/63 — PR #5's repair, plus two additive checks from here. |
 
 ---
 
@@ -329,7 +328,7 @@ Every command below was run to completion on this branch.
 | Tests | `pnpm test` | **368 passed**, 22 files |
 | Build | `pnpm run build:web` | 4 pages, exit 0 |
 | Full pipeline | `pnpm run check` | **exit 0** |
-| Static browser QA | `pnpm qa:browser` | **61/61** (was: crashed on `HEAD`) |
+| Static browser QA | `pnpm qa:browser` | **63/63** (crashed at the branch point; PR #5 fixed it on `main` in parallel) |
 | Viewer responsive QA | `pnpm qa:viewer` | **57/57** (baseline before changes: 32/45) |
 | Accessibility QA | `pnpm qa:a11y` against a live collector | **15/15** |
 
@@ -366,9 +365,10 @@ spend, and `qa:a11y` was run against a real collector process.
 **Future**
 
 - `qa:viewer` should run in CI; it is the harness that would have caught P0-1.
-- `browser-qa.ts` drifted silently for three commits because nothing failed
-  loudly enough to notice. A landing selector smoke-check would surface the next
-  drift at the commit that causes it.
+- `browser-qa.ts` drifted silently for three commits, and **two branches then
+  fixed it independently and collided** — this one and PR #5. The duplicated
+  effort is the cost of a broken gate nobody was alerted to. Running the
+  harnesses in CI is what prevents both the drift and the collision.
 - The token system could support `prefers-color-scheme`; the console is
   hardcoded dark, which is defensible for a control room but is a choice worth
   making explicitly rather than by default.

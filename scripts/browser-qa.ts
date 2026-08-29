@@ -115,42 +115,29 @@ async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
     check(`${label}: exactly one h1`, (await page.locator('h1').count()) === 1);
     check(
       `${label}: the full narrative is present`,
-      (await page.locator('main section').count()) === 6,
-      await page.locator('main section').count(),
+      (await page.locator('main section.fs-l-sec').count()) === 6,
+      await page.locator('main section.fs-l-sec').count(),
     );
     check(
       `${label}: the headline states what the product shows`,
-      (await page.locator('h1').innerText()).includes('See what your'),
+      (await page.locator('h1').innerText()).includes('agents'),
       await page.locator('h1').innerText(),
     );
 
-    /*
-     * Nothing in reading position may be left invisible by an animation that
-     * never ran.
-     *
-     * "Reading position" is the animation's own threshold, not the edge of the
-     * viewport: `[data-rise]` reveals at `top 92%`, so an element that has only
-     * peeked into the bottom 8% is not late, it is simply not up yet. Testing
-     * against the viewport edge instead fails on that sliver and says nothing
-     * about whether a reader ever sees a blank block.
-     */
-    const REVEAL_LINE = 0.92;
-    const hidden = await page.evaluate((line: number) => {
-      const names: string[] = [];
+    // Nothing in view may be left invisible by an animation that never ran. The
+    // bound mirrors the reveal trigger (top 92%): an element below that line has
+    // not been asked to appear yet, so counting it would test the threshold
+    // rather than the page.
+    const hidden = await page.evaluate(() => {
+      let count = 0;
       for (const element of document.querySelectorAll('[data-rise]')) {
         const box = element.getBoundingClientRect();
-        const inView = box.top < window.innerHeight * line && box.bottom > 0;
-        if (inView && getComputedStyle(element).opacity === '0') {
-          names.push(`${element.tagName.toLowerCase()}.${element.className}`);
-        }
+        const inView = box.top < window.innerHeight * 0.92 && box.bottom > 0;
+        if (inView && getComputedStyle(element).opacity === '0') count++;
       }
-      return names;
-    }, REVEAL_LINE);
-    check(
-      `${label}: no content in reading position left invisible`,
-      hidden.length === 0,
-      hidden.join(' | '),
-    );
+      return count;
+    });
+    check(`${label}: no in-view content left invisible`, hidden === 0, hidden);
 
     // The decorative field must not run when motion is not wanted.
     const fieldOn = await page.evaluate(
@@ -158,60 +145,70 @@ async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
     );
     check(`${label}: the hero field respects the motion preference`, fieldOn === !reduced, fieldOn);
 
-    /*
-     * Replay is the page's central claim — "move backwards and nothing
-     * executes" — so it is checked by behaviour rather than by copy: an earlier
-     * position must change the reconstructed state, must be flagged historical,
-     * and must keep saying that nothing is running.
-     */
-    await page.locator('[data-replay]').scrollIntoViewIfNeeded();
-    await page.waitForTimeout(300);
-
-    const marks = page.locator('[data-replay-mark]');
-    const markCount = await marks.count();
-    check(`${label}: the replay offers recorded positions`, markCount > 1, markCount);
-
-    const liveSeq = await page.locator('[data-replay-seq]').innerText();
-    await marks.first().click();
-    await page.waitForTimeout(300);
-
+    // The page's two promises: it opens the real viewer, and looking backwards
+    // executes nothing.
+    const primaryTargets = await page
+      .locator('a.fs-l-btn--primary')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
     check(
-      `${label}: an earlier position changes the reconstructed state`,
-      (await page.locator('[data-replay-seq]').innerText()) !== liveSeq,
-      `${liveSeq} → ${await page.locator('[data-replay-seq]').innerText()}`,
+      `${label}: every primary action opens the Agent Viewer`,
+      primaryTargets.length > 0 && primaryTargets.every((href) => href === '/sessions/'),
+      primaryTargets.join(', '),
     );
+
+    await page.locator('[data-replay]').scrollIntoViewIfNeeded();
+    const marks = page.locator('[data-replay-mark]');
+    const liveSequence = await page.locator('[data-replay-seq]').innerText();
+    await marks.first().click();
+    await page.waitForTimeout(200);
+
     check(
       `${label}: an earlier position is flagged historical`,
       (await page.locator('[data-replay-state]').getAttribute('data-historical')) === 'true',
     );
     check(
-      `${label}: the replay says nothing is executing`,
-      (await page.locator('[data-replay-exec]').innerText()).toLowerCase().includes('nothing'),
-      await page.locator('[data-replay-exec]').innerText(),
+      `${label}: the historical position states that nothing executes`,
+      (await page.locator('[data-replay-note]').innerText())
+        .toLowerCase()
+        .includes('nothing is executing'),
+      await page.locator('[data-replay-note]').innerText(),
     );
     check(
-      `${label}: the chosen position is the pressed one`,
+      `${label}: scrubbing changes the reconstructed position`,
+      (await page.locator('[data-replay-seq]').innerText()) !== liveSequence,
+    );
+    check(
+      `${label}: the selected position is the pressed control`,
       (await marks.first().getAttribute('aria-pressed')) === 'true',
     );
 
-    // A failure is what the page promises to make findable, so the section that
-    // claims it has to name a real error class rather than the word "error".
+    await marks.last().click();
+    await page.waitForTimeout(200);
+    check(
+      `${label}: returning to the newest event leaves historical mode`,
+      (await page.locator('[data-replay-state]').getAttribute('data-historical')) === 'false' &&
+        (await page.locator('[data-replay-badge]').innerText()).trim() === 'LIVE',
+      await page.locator('[data-replay-badge]').innerText(),
+    );
+
+    // The failure story is stepped, and exactly one step is current.
     await page.locator('[data-failure]').scrollIntoViewIfNeeded();
     await page.waitForTimeout(300);
     check(
-      `${label}: the failure section shows a recorded ERROR row`,
-      (await page.locator('[data-failure] [data-kind="ERROR"]').count()) > 0,
-      await page.locator('[data-failure] [data-kind="ERROR"]').count(),
+      `${label}: exactly one failure step is current`,
+      (await page.locator('[data-step][aria-current="step"]').count()) === 1,
+      await page.locator('[data-step][aria-current="step"]').count(),
     );
 
     /*
      * Walk the whole page, not just the first screen.
      *
-     * `[data-rise]` reveals on a scroll trigger, so a section below the fold is
-     * legitimately at opacity 0 until it is reached — a full-page screenshot of
-     * an unscrolled landing shows blanks for that reason and proves nothing.
-     * Scrolling through in steps fires every trigger; anything still invisible
-     * at the end is a section a reader would arrive at and find empty.
+     * The check above is bounded by the reveal trigger, which is right for
+     * "has anything in reading position been left blank". It says nothing about
+     * the sections below that line — and a full-page screenshot of an unscrolled
+     * landing shows those as blank, which is easy to mistake for a bug either
+     * way. Scrolling through in steps fires every trigger; anything still
+     * invisible at the end is a section a reader would arrive at and find empty.
      */
     await page.evaluate(async () => {
       const step = window.innerHeight * 0.75;
@@ -238,6 +235,8 @@ async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
       stillHidden.join(' | '),
     );
 
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(600);
     await assertNoBodyOverflow(page, `${label} @ 1440x900 after scroll`);
     check(`${label}: no console errors during interaction`, errors.length === 0, errors[0] ?? '');
     await shoot(page, reduced ? 'landing-reduced-motion' : 'landing-full');
@@ -271,15 +270,6 @@ async function main(): Promise<void> {
       ] as const) {
         errors.length = 0;
         await page.goto(baseUrl + route, { waitUntil: 'networkidle' });
-        // `/sessions/` asks the local collector for the session list. This
-        // harness serves the static build with no collector behind it, so that
-        // request is MEANT to fail — and how the page handles it is the thing
-        // worth checking, below. The probe's own 404 is not a defect.
-        if (name === 'sessions') {
-          for (let index = errors.length - 1; index >= 0; index -= 1) {
-            if (/404|Failed to load resource/.test(errors[index] ?? '')) errors.splice(index, 1);
-          }
-        }
         // The landing page's entrance beat sheet resolves by ~2s; screenshotting
         // through it would capture a half-drawn scene and call it the design.
         if (name === 'landing') await page.waitForTimeout(2400);
@@ -290,13 +280,21 @@ async function main(): Promise<void> {
           route,
         );
         await assertNoBodyOverflow(page, `${name} @ ${viewport.name}`);
+        // The Agent Viewer asks the local collector for sessions. Serving the
+        // static build alone, there is no collector, so its 404 is the expected
+        // answer rather than a defect. Every other console error still fails.
+        const unexpected = errors.filter(
+          (message) => !(name === 'sessions' && /404|Failed to fetch|load resource/i.test(message)),
+        );
         check(
           `${name} @ ${viewport.name}: no console errors`,
-          errors.length === 0,
-          errors[0] ?? '',
+          unexpected.length === 0,
+          unexpected[0] ?? '',
         );
-        // With no collector answering, the session list must SAY so rather than
-        // sit on an empty page that looks like "you have no sessions".
+        // Filtering that 404 proves the page does not error. It does not prove
+        // the page tells the developer what happened: with no collector the
+        // list must say so, rather than sit on an empty page that reads as
+        // "you have no sessions yet".
         if (name === 'sessions') {
           await page.waitForTimeout(300);
           check(
@@ -317,8 +315,8 @@ async function main(): Promise<void> {
     // ── The landing page, in depth ──────────────────────────────────────────
     // The landing page is the only surface a visitor sees before the evidence,
     // so what it claims has to be as testable as what the console shows. These
-    // checks are behavioural: seeking to an earlier position must change the
-    // reconstructed state and say that nothing re-executed.
+    // checks are behavioural: a control that says "Denied" must visibly stop the
+    // request, and a replay position must change recorded state.
     await checkLanding(browser, baseUrl);
   } finally {
     await browser?.close();

@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readConfig } from '../config.js';
 import { openBrowser } from '../open-browser.js';
@@ -10,10 +11,33 @@ import { blue, bold, dim, fail, line, ready, yellow } from '../ui.js';
 export interface WatchOptions {
   readonly port?: number;
   readonly openViewer: boolean;
+  /** Admit only the no-worker fixed scenario once the local collector is listening. */
+  readonly startDemo?: boolean;
   /** `fleetscope run <command>` — started once the collector is listening. */
   readonly command: readonly string[];
 }
 
+async function startFixedDemo(
+  url: string,
+): Promise<{ ok: true; runId: string } | { ok: false; detail: string }> {
+  try {
+    const response = await fetch(`${url}/runs`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'Idempotency-Key': `cli-demo-${randomUUID()}`,
+      },
+      body: JSON.stringify({ scenario: 'dependency_onboarding' }),
+    });
+    const body = (await response.json()) as { run?: { id?: string }; detail?: string };
+    const runId = body.run?.id;
+    if (!response.ok || runId === undefined)
+      return { ok: false, detail: body.detail ?? `HTTP ${response.status}` };
+    return { ok: true, runId };
+  } catch (error) {
+    return { ok: false, detail: (error as Error).message };
+  }
+}
 /**
  * `fleetscope watch`
  *
@@ -42,6 +66,14 @@ export async function runWatch(options: WatchOptions): Promise<number> {
     line(dim('  Stop it with Ctrl-C in its terminal, or use --port to run a second one.'));
     line();
     if (options.openViewer) openBrowser(`http://127.0.0.1:${port}`);
+    if (options.startDemo) {
+      const admitted = await startFixedDemo(`http://127.0.0.1:${port}`);
+      if (!admitted.ok) {
+        fail(`could not admit demo: ${admitted.detail}`);
+        return 1;
+      }
+      ready(`Demo admitted: ${admitted.runId} (worker unavailable; no model call started)`);
+    }
     return 0;
   }
   if (state.kind === 'occupied') {
@@ -67,6 +99,17 @@ export async function runWatch(options: WatchOptions): Promise<number> {
   } catch (error) {
     fail(`could not start FleetScope: ${(error as Error).message}`);
     return 1;
+  }
+
+  const url = runtime.url;
+  if (options.startDemo) {
+    const admitted = await startFixedDemo(url);
+    if (!admitted.ok) {
+      await runtime.stop();
+      fail(`could not admit demo: ${admitted.detail}`);
+      return 1;
+    }
+    ready(`Demo admitted: ${admitted.runId} (worker unavailable; no model call started)`);
   }
 
   line();
