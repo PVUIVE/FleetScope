@@ -345,10 +345,7 @@ async function detailsColumn(page: Page, sessionId: string): Promise<void> {
 async function widescreen(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1920, height: 1080 });
 
-  for (const [name, route] of [
-    ['sessions', '/sessions/'],
-    ['setup', '/docs/'],
-  ] as const) {
+  for (const route of ['/sessions/', '/docs/'] as const) {
     await page.goto(`${BASE}${route}`, { waitUntil: 'load' });
     await sleep(700);
 

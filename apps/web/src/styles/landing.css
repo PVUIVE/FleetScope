@@ -119,6 +119,32 @@ body.fs-l {
   display: block;
 }
 
+/*
+ * The fluid cursor canvas.
+ *
+ * Fixed to the viewport behind everything, inert to the pointer, and blended so
+ * it tints the white ground rather than painting over the type. `z-index: 0`
+ * puts it under `.fs-l-sec` (z-index 1) and far under the nav (50).
+ */
+.fs-l-fluid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Multiply keeps black text black: the trail can only darken toward its own
+     hue, so it can never wash out a heading it passes under. */
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-l-fluid {
+    display: none;
+  }
+}
+
 .fs-l-frame {
   position: relative;
   max-width: var(--fs-l-max);
