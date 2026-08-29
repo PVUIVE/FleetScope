@@ -19,3 +19,9 @@ serde_json = "1"
 # frontend (tokio / crossterm / filesystem tailing), which has no meaning here
 # and is what keeps this crate host-testable.
 zoetrope = { path = "../../vendor/zoetrope", default-features = false }
+# The renderer's theme/palette types. FleetScope sets `App.flow.theme` (a public
+# field) from `scene.rs` so the execution graph resolves from FleetScope's own
+# design tokens — a wrapper-level override, not a vendor patch. Versions match
+# zoetrope's own rataflow line and the workspace lock.
+rataflow = { version = "0.1.0", default-features = false, features = ["sugiyama"] }
+ratatui = { version = "0.30", default-features = false }

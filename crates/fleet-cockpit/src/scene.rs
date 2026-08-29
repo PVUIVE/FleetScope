@@ -16,6 +16,8 @@
 //! and timeline FleetScope claims it does, rather than discovering it in a
 //! browser after a wasm build.
 
+use rataflow::{Palette, Theme};
+use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use zoetrope::state::{App, Mode, Transport};
 use zoetrope::tailer::{replay_from_session, DemoSubagent, Source, UiEvent, Update};
@@ -27,6 +29,32 @@ use crate::manifest::{RenderManifest, RenderManifestEntry};
 /// Zoetrope replays a session at a pace; FleetScope opens a Recorded Case parked
 /// at its live edge, so the operator sees the finished Case and scrubs back.
 const REPLAY_SPEED: f64 = 8.0;
+
+/// The execution graph, in FleetScope's colours.
+///
+/// The renderer's own `new_flow()` ships a gold `accent` — its selection
+/// highlight, "done" node fill and REPLAY badge. FleetScope's rule, here as
+/// everywhere in the product, is that selection and focus are BLUE. Every
+/// graph surface resolves from one `Palette`, so this one mapping — FleetScope
+/// design tokens (`apps/web/src/styles/global.css`) to the eight semantic
+/// roles — recolours the whole graph.
+///
+/// It is applied by assigning `App.flow.theme`, a public field, after the app
+/// is built: a wrapper-level override, never a vendor patch (`vendor/VENDOR-PATCHES.md`).
+pub const FLEETSCOPE_GRAPH_BG: Color = Color::Rgb(0x0d, 0x10, 0x14); // --fs-bg
+
+pub fn fleetscope_palette() -> Palette {
+    Palette {
+        canvas_bg: FLEETSCOPE_GRAPH_BG,
+        surface: Color::Rgb(0x14, 0x18, 0x1e), // --fs-surface
+        muted: Color::Rgb(0x33, 0x3c, 0x47),   // --fs-border-strong (borders, edges)
+        subtle: Color::Rgb(0x26, 0x2d, 0x36),  // --fs-border (ambient)
+        accent: Color::Rgb(0x6b, 0x9c, 0xe0),  // --fs-info — selection / focus / done
+        text: Color::Rgb(0xe7, 0xeb, 0xf1),    // --fs-text
+        success: Color::Rgb(0x4e, 0xa8, 0x7a), // --fs-ok — running
+        error: Color::Rgb(0xe0, 0x78, 0x78),   // --fs-deny — failed
+    }
+}
 
 /// The product naming the renderer draws.
 ///
@@ -192,6 +220,10 @@ impl Cockpit {
         // Recorded Case is never tailed from a filesystem, and appends arrive
         // through `append` below.
         let mut app = App::new(session_id.clone(), Mode::Replay);
+        // Recolour the graph to FleetScope's tokens. `flow` is built once in
+        // `App::new`; `sync`/`relayout` mutate it but never rebuild it, so one
+        // assignment holds for the life of the Cockpit.
+        app.flow.theme = Theme::Custom(fleetscope_palette());
         app.handle_ui_event(UiEvent::ReplayLoaded {
             session_id,
             items,
