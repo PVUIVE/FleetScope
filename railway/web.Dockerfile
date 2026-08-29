@@ -40,6 +40,17 @@ ENV PUBLIC_LIVE_MODE=false
 ENV PUBLIC_API_BASE_URL=""
 RUN pnpm build:web
 
+# Defence in depth. The deferred enterprise surfaces live in `apps/web/src/deferred`
+# and are not built, so these directories should not exist — but a page moved back
+# under `src/pages/` would be published silently, and this image is public. Fail
+# loudly instead: the public deployment serves the local Agent Viewer only.
+RUN for route in cases catalog approvals cockpit audit; do \
+      if [ -e "apps/web/dist/${route}" ]; then \
+        echo "refusing to publish deferred enterprise route /${route} — see apps/web/src/deferred/README.md" >&2; \
+        exit 1; \
+      fi; \
+    done
+
 # Nginx's official entrypoint expands ${PORT} in template files, so Railway's
 # injected port is honored while local Docker runs default to 8080.
 FROM nginx:1.27.5-alpine AS runtime

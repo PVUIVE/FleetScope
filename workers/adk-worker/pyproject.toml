@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools==75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fleetscope-adk-worker"
+version = "0.1.0"
+requires-python = ">=3.11,<3.14"
+dependencies = ["google-adk==1.20.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

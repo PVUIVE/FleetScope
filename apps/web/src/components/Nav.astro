@@ -4,9 +4,11 @@
  *
  * Two destinations, because the product has two: the developer's own sessions,
  * and how to get them there. The enterprise surfaces (Cases, Catalog,
- * Approvals, Cockpit, Audit) still exist and still work, but they are a future
- * direction rather than this product's golden path, so they are not in the
- * primary nav — see docs/archive/README.md.
+ * Approvals, Cockpit, Audit) are a future direction rather than this product's
+ * golden path. They are preserved in `src/deferred/` and are NOT built: keeping
+ * them out of the primary nav was not enough, because a static build emits every
+ * page under `src/pages/` and the public deployment then served them by URL.
+ * See src/deferred/README.md and docs/archive/README.md.
  */
 interface Props {
   path: string;

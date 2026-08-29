@@ -4,6 +4,8 @@ import { createApp } from './app.js';
 import { Collector } from './collector/collector.js';
 import { EventHub } from './collector/hub.js';
 import { loadConfig } from './config/index.js';
+import { createRunDependencies } from './runs/runtime.js';
+import { createProcessWorker } from './runs/worker-process.js';
 
 /**
  * The local FleetScope process.
@@ -16,7 +18,14 @@ const store = SessionStore.open(config.storagePath);
 const hub = new EventHub();
 const collector = new Collector(store, hub);
 
-const app = createApp(config, config.logLevel, undefined, { store, collector, hub });
+// The Python ADK worker is opt-in: it runs a real agent and may spend model
+// credits, so an unset variable must leave the local server observer-only.
+const workerEnabled = process.env['FLEETSCOPE_ADK_WORKER'] === 'enabled';
+const runs = createRunDependencies(config.storagePath, {
+  events: collector,
+  ...(workerEnabled ? { worker: createProcessWorker({ enabled: true, env: process.env }) } : {}),
+});
+const app = createApp(config, config.logLevel, undefined, { store, collector, hub }, runs);
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, (info) => {
   console.log(

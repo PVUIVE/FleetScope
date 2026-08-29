@@ -1,5 +1,6 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { mountConstellation } from './constellation';
 
 /**
  * Landing page choreography (DESIGN.md §28–§30).
@@ -186,12 +187,53 @@ function replay(): void {
   }
 }
 
+// ── 01 Hero field ─────────────────────────────────────────────────────────
+
+/**
+ * The decorative node lattice behind the hero.
+ *
+ * `mountConstellation` returns null under reduced motion and when the canvas is
+ * unavailable; in both cases `data-on` stays "false" and CSS keeps the field
+ * hidden, so the hero reads exactly as it does with the field running.
+ */
+function heroField(): void {
+  const host = qs<HTMLElement>('#fs-l-field');
+  if (host === null) return;
+  mountConstellation(host);
+}
+
+// ── Liquid-metal CTA ──────────────────────────────────────────────────────
+
+/**
+ * The click ripple for `.fs-l-btn--metal` (docs/ui/button.md).
+ *
+ * The element stays an <a>: navigation is not intercepted, and the ripple is
+ * removed on animation end rather than on a timer, so a slow frame cannot leave
+ * one behind.
+ */
+function metalButtons(): void {
+  for (const button of qsa<HTMLElement>('[data-metal]')) {
+    button.addEventListener('pointerdown', (event) => {
+      if (reduced()) return;
+      const rect = button.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'fs-l-btn__ripple';
+      ripple.style.left = `${event.clientX - rect.left}px`;
+      ripple.style.top = `${event.clientY - rect.top}px`;
+      ripple.addEventListener('animationend', () => ripple.remove());
+      button.appendChild(ripple);
+    });
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 
 document.documentElement.dataset['motion'] = reduced() ? 'off' : 'on';
 
 nav();
 reveals();
+heroField();
+metalButtons();
 logsToGraph();
 failure();
 replay();

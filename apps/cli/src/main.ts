@@ -8,7 +8,7 @@ import { blue, bold, dim, fail, line } from './ui.js';
 /**
  * The `fleetscope` command surface.
  *
- * Four commands. A local viewer does not need more, and every one that is added
+ * Five commands. A local viewer does not need more, and every one that is added
  * is one more thing to keep working during a demo.
  */
 export const USAGE = `
@@ -22,6 +22,7 @@ ${bold('Commands')}
   watch                 start the collector and the Agent Viewer
   open                  open the Agent Viewer in a browser
   run <command>...      start the viewer, then run an agent against it
+  demo                  admit the fixed no-worker dependency-onboarding demo
 
 ${bold('Options')}
   --port <n>            listen on this port (default: 4317, or config.port)
@@ -33,6 +34,7 @@ ${bold('Examples')}
   fleetscope watch
   fleetscope run python examples/vendor_agent.py
   fleetscope open
+  fleetscope demo --open
 `;
 
 export const VERSION = '0.1.0';
@@ -128,6 +130,14 @@ export async function main(argv: readonly string[]): Promise<number> {
       return runWatch({
         ...(args.port === null ? {} : { port: args.port }),
         openViewer: args.openViewer,
+        command: [],
+      });
+
+    case 'demo':
+      return runWatch({
+        ...(args.port === null ? {} : { port: args.port }),
+        openViewer: args.openViewer,
+        startDemo: true,
         command: [],
       });
 
