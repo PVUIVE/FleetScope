@@ -32,9 +32,15 @@ importers:
       '@fleetscope/scenario-compiler':
         specifier: workspace:*
         version: link:packages/scenario-compiler
+      '@fleetscope/session-store':
+        specifier: workspace:*
+        version: link:packages/session-store
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:packages/shared
+      '@fleetscope/viewer':
+        specifier: workspace:*
+        version: link:packages/viewer
       '@fleetscope/warden':
         specifier: workspace:*
         version: link:packages/warden

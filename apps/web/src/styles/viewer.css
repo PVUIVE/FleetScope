@@ -151,6 +151,80 @@
   color: var(--fs-text-muted);
 }
 
+.fs-onboard__note {
+  /* The last line of the block carries no trailing rhythm. */
+  margin-bottom: 0;
+}
+
+/* ── Setup ─────────────────────────────────────────────────────────────────── */
+/*
+ * Setup borrowed the session list's class names, which made the stylesheet lie
+ * about what a rule governs: `.fs-sessions` on a page with no sessions and
+ * `.fs-onboard` on a page that is not onboarding. Same visual language, own
+ * vocabulary — and the shared pieces (`.fs-copy-row`, `.fs-copy-btn`) stay
+ * shared, because those really are the same component.
+ */
+
+.fs-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fs-space-5);
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.fs-setup__head h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.fs-setup__head p {
+  margin: var(--fs-space-2) 0 0;
+  color: var(--fs-text-muted);
+}
+
+.fs-setup__step {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-6);
+  background: var(--fs-surface);
+}
+
+.fs-setup__step h2 {
+  margin: 0 0 var(--fs-space-2);
+  font-size: 16px;
+}
+
+.fs-setup__step p {
+  margin: 0 0 var(--fs-space-4);
+  color: var(--fs-text-muted);
+}
+
+.fs-setup__note {
+  margin-bottom: 0;
+}
+
+.fs-setup__commands {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--fs-space-2) var(--fs-space-3);
+  margin: 0;
+}
+
+.fs-setup__commands dt {
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+}
+
+.fs-setup__commands dd {
+  margin: 0;
+  color: var(--fs-text-muted);
+  word-break: break-word;
+}
+
 .fs-copy-row {
   display: flex;
   align-items: stretch;
@@ -171,6 +245,10 @@
 }
 
 .fs-copy-btn {
+  /* `align-items: stretch` on the row is right for a one-line command and wrong
+     for a nine-line snippet, where it grew the button into a column-high slab.
+     The control sits at the top of what it copies. */
+  align-self: flex-start;
   appearance: none;
   background: var(--fs-surface-raised);
   border: 1px solid var(--fs-border-strong);
@@ -193,6 +271,10 @@
   flex-direction: column;
   /* The console owns the viewport: only the inner panes scroll. */
   height: calc(100vh - var(--fs-nav-height));
+  /* On a phone `100vh` is the height WITHOUT the browser's retracting toolbars,
+     so the timeline sits under the chrome until the user scrolls. `dvh` is the
+     height actually available; it is ignored by anything that lacks it. */
+  height: calc(100dvh - var(--fs-nav-height));
   min-height: 0;
 }
 
@@ -222,6 +304,15 @@
   color: var(--fs-text-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A run with a failure in it is the reason this screen gets opened. Rendering
+ * "1 failure" in exactly the same muted grey as "22 events" makes the reader
+ * find it by reading rather than by looking.
+ */
+.fs-viewer__stat[data-tone='danger'] {
+  color: var(--fs-deny);
 }
 
 .fs-viewer__spacer {
@@ -303,6 +394,22 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--fs-text-faint);
+}
+
+/* A head that carries a control lays it out rather than floating it out of flow. */
+.fs-pane__head--actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fs-space-3);
+  padding-top: var(--fs-space-2);
+  padding-bottom: var(--fs-space-2);
+}
+
+.fs-pane__title {
+  margin: 0;
+  font: inherit;
+  color: inherit;
 }
 
 .fs-pane__scroll {
@@ -575,9 +682,16 @@
 }
 
 .fs-event__label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fs-event__agent {
+  /* Inside an ellipsised label this must not establish its own width, or a long
+     agent id reaches past the right edge of a narrow viewport. */
+  min-width: 0;
 }
 
 .fs-event__agent {
@@ -624,9 +738,17 @@
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 
+/*
+ * The Agent Viewer is a three-column console. Below 1180px the third column
+ * cannot fit, and below 720px neither can the first — but nothing may be
+ * DELETED on the way down. A developer on a phone is looking at the same run
+ * for the same reason, so kind, duration and offset all survive; what changes
+ * is how they are arranged, not whether they exist.
+ */
+
 @media (max-width: 1180px) {
   /* The agent tree collapses into a strip above the graph and the details pane
-     becomes a drawer, so the graph and the timeline keep their full width. */
+     becomes an overlay, so the graph and the timeline keep their full width. */
   .fs-viewer__body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -635,39 +757,277 @@
   .fs-pane--agents {
     border-right: 0;
     border-bottom: 1px solid var(--fs-border);
-    max-height: 132px;
+    /*
+     * Sized in whole rows, not in viewport fractions.
+     *
+     * 132px clipped the second agent of a two-agent run — the smallest tree the
+     * product ever shows — and a `vh` cap did the same thing at a different
+     * width, cutting a row through the middle of its text. Three rows fit here,
+     * so the common cases are whole and a deep tree scrolls, which is what a
+     * half-row is supposed to mean. The graph keeps its own floor
+     * (`.fs-viewer__body`) and the timeline yields instead.
+     */
+    max-height: 184px;
   }
 
+  /*
+   * An overlay over the timeline is a dialog, and it is driven as one —
+   * scrim, focus trap, Escape, focus restore — by
+   * features/viewer/details-drawer.ts. The CSS only places it.
+   */
   .fs-pane--details {
     position: fixed;
     inset: var(--fs-nav-height) 0 0 auto;
     width: min(380px, 92vw);
     background: var(--fs-surface);
     box-shadow: var(--fs-shadow-drawer);
-    z-index: 20;
+    z-index: 21;
   }
 
   .fs-pane--details[hidden] {
     display: none;
   }
+
+  .fs-viewer__spacer {
+    /*
+     * `margin-left: auto` pushes the actions to the right of a single row. Once
+     * the bar wraps it pushes them onto a line of their own instead, leaving one
+     * action stranded far right and the rest below it. Below the breakpoint the
+     * actions simply follow the stats.
+     */
+    display: none;
+  }
+
+  /*
+   * Sharing a short viewport.
+   *
+   * Below the breakpoint the bar wraps to two rows and the agent tree takes a
+   * strip, which leaves the graph and the timeline dividing what remains. With
+   * the timeline pinned at 232px the graph was squeezed until the renderer drew
+   * unlabelled boxes — a graph too short to carry its own labels has stopped
+   * being the thing it is there for. So the graph keeps a floor and the
+   * timeline, which scrolls anyway and loses nothing by being shorter, gives.
+   */
+  .fs-viewer__body {
+    /* The body holds the graph. Without a floor it is the part that gives when
+       the column is short, because it is the only one declaring `min-height: 0`
+       all the way down — so the graph was silently clipped rather than sized. */
+    min-height: 260px;
+  }
+
+  .fs-timeline {
+    /* Shrinkable, and it loses nothing by it: the rows scroll either way. */
+    flex: 0 1 auto;
+    min-height: 168px;
+  }
+
+  .fs-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: #00000073;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-pane--details {
+    animation: fs-drawer-in 160ms ease-out;
+  }
+
+  @keyframes fs-drawer-in {
+    from {
+      transform: translateX(12px);
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Above the breakpoint the details pane is a column, and closing it must hand
+ * its width to the graph rather than leave a 330px hole. `[hidden]` collapses
+ * the element; this collapses the track it was sitting in.
+ */
+@media (min-width: 1181px) {
+  .fs-viewer__body:has(.fs-pane--details[hidden]) {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 720px) {
+  /* ── Session list ── */
   .fs-session__link {
     grid-template-columns: 24px minmax(0, 1fr);
     row-gap: var(--fs-space-2);
+    padding: var(--fs-space-3) var(--fs-space-2);
   }
 
   .fs-session__stat {
     grid-column: 2;
   }
 
-  .fs-event {
-    grid-template-columns: 70px minmax(0, 1fr);
+  /* ── Viewer bar ── */
+  .fs-viewer__bar {
+    gap: var(--fs-space-2) var(--fs-space-3);
+    padding: var(--fs-space-2) var(--fs-space-3);
   }
 
-  .fs-event__category,
-  .fs-event__duration {
+  .fs-viewer__title {
+    /* The name and the id are the identity of the run: they take the first line
+       and the stats wrap under them rather than pushing them off. */
+    flex: 1 0 100%;
+    font-size: 14px;
+  }
+
+  /* ── Agent tree: a strip that scrolls sideways, not a squeezed box ── */
+  .fs-pane--agents {
+    max-height: none;
+  }
+
+  .fs-pane--agents .fs-pane__scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .fs-agents {
+    display: flex;
+    gap: var(--fs-space-2);
+    padding: var(--fs-space-2) var(--fs-space-3);
+  }
+
+  .fs-agent {
+    /* The indent that carries depth in a column is meaningless in a row, and it
+       is set inline by the island, so it is overridden here rather than there. */
+    padding-left: var(--fs-space-3) !important;
+    border-color: var(--fs-border);
+    border-radius: var(--fs-radius-sm);
+    white-space: nowrap;
+    width: auto;
+  }
+
+  .fs-agent__last {
+    max-width: 42ch;
+  }
+
+  /*
+   * ── The viewer stops being viewport-locked ──
+   *
+   * On a desktop the console owns the viewport and each pane scrolls inside
+   * itself, which is right when there is height to divide. At 390px there is
+   * not: an agent strip, a graph and a timeline that all insist on a minimum
+   * cannot share 844px minus a wrapped header, and the loser was the graph,
+   * which slid under the timeline. So below 720px the page scrolls instead —
+   * the graph gets a fixed, honest height and the timeline gets all the length
+   * it needs, which is the one region a developer actually reads top to bottom.
+   */
+  .fs-viewer {
+    height: auto;
+    min-height: calc(100dvh - var(--fs-nav-height));
+  }
+
+  .fs-viewer__body {
+    /* No longer competing for a share of a fixed height. */
+    flex: 0 0 auto;
+  }
+
+  .fs-graph {
+    height: 260px;
+    flex: 0 0 auto;
+  }
+
+  .fs-timeline {
+    height: auto;
+  }
+
+  .fs-timeline__rows {
+    overflow-y: visible;
+  }
+
+  .fs-timeline__head {
+    /* Sticks to the top of the run as the developer scrolls through it, so the
+       column meanings do not scroll away from the rows they label. */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--fs-bg);
+  }
+
+  /* Keyboard stepping hints belong to a screen that has a keyboard. */
+  .fs-timeline__head .fs-viewer__stat {
     display: none;
+  }
+
+  /*
+   * The timeline row goes from four columns to two lines. Offset, kind and
+   * duration — the three things a run is scanned by — stay on the first line;
+   * the label, which is the part that can be long, gets the second to itself.
+   */
+  .fs-event {
+    grid-template-columns: 76px auto minmax(0, 1fr);
+    grid-template-areas:
+      'time kind duration'
+      'label label label';
+    row-gap: 2px;
+    padding: var(--fs-space-2) var(--fs-space-3);
+  }
+
+  .fs-event__time {
+    grid-area: time;
+  }
+
+  .fs-event__category {
+    grid-area: kind;
+  }
+
+  .fs-event__duration {
+    grid-area: duration;
+  }
+
+  .fs-event__label {
+    grid-area: label;
+    white-space: normal;
+    /* Two lines: enough for a tool name plus its agent, without a row growing
+       without limit and destroying the scan. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .fs-event__agent {
+    display: block;
+  }
+
+  /* ── Details drawer: full width at a phone size ── */
+  .fs-pane--details {
+    width: 100%;
+    inset: var(--fs-nav-height) 0 0 0;
+  }
+
+  /* ── Setup and the empty state ── */
+  .fs-copy-row {
+    flex-direction: column;
+  }
+
+  .fs-setup__commands {
+    /*
+     * A two-column definition list needs a definition column wide enough to
+     * hold a path. At 390px it is not, and `.fleetscope/config.json` broke
+     * across lines mid-word. The term takes its own line instead.
+     */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .fs-setup__commands dd {
+    margin-bottom: var(--fs-space-3);
+  }
+
+  .fs-setup__commands dd:last-child {
+    margin-bottom: 0;
+  }
+
+  .fs-copy-btn {
+    padding: var(--fs-space-2) var(--fs-space-3);
   }
 }

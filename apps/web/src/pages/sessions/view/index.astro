@@ -46,6 +46,7 @@ import '../../../styles/viewer.css';
       <button type="button" class="fs-button fs-button--danger" data-jump-failure hidden>
         Jump to failure
       </button>
+      <button type="button" class="fs-button" data-open-details hidden>Details</button>
       <button type="button" class="fs-button" data-return-live hidden>Return to live</button>
       <a class="fs-button" href="/sessions/">All sessions</a>
     </header>
@@ -83,10 +84,21 @@ import '../../../styles/viewer.css';
         </div>
       </div>
 
-      <div class="fs-pane fs-pane--details" data-details-pane>
-        <div class="fs-pane__head">
-          Details
-          <button type="button" class="fs-button" data-close-details style="float:right">Close</button>
+      <!--
+        Below 1180px this pane has no column to live in and becomes an overlay
+        over the timeline — which makes it a dialog. features/viewer/details-drawer.ts
+        owns that switch, including the scrim, the focus trap and Escape.
+      -->
+      <div class="fs-scrim" data-details-scrim hidden></div>
+      <div
+        class="fs-pane fs-pane--details"
+        data-details-pane
+        role="region"
+        aria-labelledby="fs-details-title"
+      >
+        <div class="fs-pane__head fs-pane__head--actions">
+          <h2 class="fs-pane__title" id="fs-details-title">Details</h2>
+          <button type="button" class="fs-button fs-button--sm" data-close-details>Close</button>
         </div>
         <div class="fs-pane__scroll" data-details aria-live="polite"></div>
       </div>

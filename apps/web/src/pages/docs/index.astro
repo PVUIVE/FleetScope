@@ -41,8 +41,8 @@ runner = Runner(
 ---
 
 <BaseLayout title="Setup">
-  <section class="fs-sessions">
-    <header class="fs-sessions__head">
+  <section class="fs-setup">
+    <header class="fs-setup__head">
       <h1>Setup</h1>
       <p>
         FleetScope is a local Agent Viewer for Gemini and Google ADK. It runs on your machine,
@@ -51,7 +51,7 @@ runner = Runner(
     </header>
 
     {steps.map((step) => (
-      <div class="fs-onboard">
+      <div class="fs-setup__step">
         <h2>{step.n} · {step.title}</h2>
         <p>{step.body}</p>
         {step.commands.map((command) => (
@@ -63,7 +63,7 @@ runner = Runner(
       </div>
     ))}
 
-    <div class="fs-onboard">
+    <div class="fs-setup__step">
       <h2>Watching your own agent</h2>
       <p>
         Register the plugin once on your <code>Runner</code>. It uses Google ADK's own
@@ -74,12 +74,12 @@ runner = Runner(
         <code data-copy-source>{PLUGIN_SNIPPET}</code>
         <button type="button" class="fs-copy-btn" data-copy>Copy</button>
       </div>
-      <p style="margin:0">
+      <p class="fs-setup__note">
         Or let FleetScope start it for you: <code>fleetscope run python my_agent.py</code>.
       </p>
     </div>
 
-    <div class="fs-onboard">
+    <div class="fs-setup__step">
       <h2>What FleetScope records</h2>
       <p>
         Agent names, model names, tool names, timings, token counts the framework reported, and
@@ -92,15 +92,15 @@ runner = Runner(
         never holds a Gemini credential of its own — your agent process calls the model, and
         FleetScope only hears what happened.
       </p>
-      <p style="margin:0">
+      <p class="fs-setup__note">
         Sessions live in <code>.fleetscope/fleetscope.db</code> in the directory you started
         <code>fleetscope watch</code> from. Delete the file to delete the history.
       </p>
     </div>
 
-    <div class="fs-onboard">
+    <div class="fs-setup__step">
       <h2>Commands</h2>
-      <dl class="fs-detail__grid">
+      <dl class="fs-setup__commands">
         <dt>init</dt><dd>Write <code>.fleetscope/config.json</code> and check the environment.</dd>
         <dt>watch</dt><dd>Start the collector and the viewer. <code>--port</code>, <code>--open</code>.</dd>
         <dt>open</dt><dd>Open a viewer that is already running.</dd>
@@ -111,17 +111,7 @@ runner = Runner(
 </BaseLayout>
 
 <script>
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
-    button.addEventListener('click', () => {
-      const source = button.previousElementSibling?.textContent ?? '';
-      void navigator.clipboard?.writeText(source).then(
-        () => {
-          button.textContent = 'Copied';
-          setTimeout(() => (button.textContent = 'Copy'), 1400);
-        },
-        // A denied clipboard permission must not look like a broken button.
-        () => (button.textContent = 'Select and copy'),
-      );
-    });
-  }
+  import { mountCopyButtons } from '../../lib/copy-button';
+
+  mountCopyButtons();
 </script>

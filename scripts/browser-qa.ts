@@ -200,6 +200,41 @@ async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
       await page.locator('[data-step][aria-current="step"]').count(),
     );
 
+    /*
+     * Walk the whole page, not just the first screen.
+     *
+     * The check above is bounded by the reveal trigger, which is right for
+     * "has anything in reading position been left blank". It says nothing about
+     * the sections below that line — and a full-page screenshot of an unscrolled
+     * landing shows those as blank, which is easy to mistake for a bug either
+     * way. Scrolling through in steps fires every trigger; anything still
+     * invisible at the end is a section a reader would arrive at and find empty.
+     */
+    await page.evaluate(async () => {
+      const step = window.innerHeight * 0.75;
+      for (let y = 0; y < document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((resolve) => setTimeout(resolve, 160));
+      }
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+    await page.waitForTimeout(900);
+
+    const stillHidden = await page.evaluate(() => {
+      const names: string[] = [];
+      for (const element of document.querySelectorAll('[data-rise]')) {
+        if (getComputedStyle(element).opacity === '0') {
+          names.push(`${element.tagName.toLowerCase()}.${element.className}`);
+        }
+      }
+      return names;
+    });
+    check(
+      `${label}: every section reveals once scrolled to`,
+      stillHidden.length === 0,
+      stillHidden.join(' | '),
+    );
+
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(600);
     await assertNoBodyOverflow(page, `${label} @ 1440x900 after scroll`);
@@ -256,6 +291,22 @@ async function main(): Promise<void> {
           unexpected.length === 0,
           unexpected[0] ?? '',
         );
+        // Filtering that 404 proves the page does not error. It does not prove
+        // the page tells the developer what happened: with no collector the
+        // list must say so, rather than sit on an empty page that reads as
+        // "you have no sessions yet".
+        if (name === 'sessions') {
+          await page.waitForTimeout(300);
+          check(
+            `${name} @ ${viewport.name}: says the collector is not answering`,
+            await page.locator('[data-offline]').isVisible(),
+          );
+          check(
+            `${name} @ ${viewport.name}: does not also claim there are no sessions`,
+            !(await page.locator('[data-empty]').isVisible()),
+          );
+        }
+
         await shoot(page, `${name}-${viewport.name}`);
       }
       await context.close();

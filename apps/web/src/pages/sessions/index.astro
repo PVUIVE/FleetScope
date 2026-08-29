@@ -49,7 +49,7 @@ import '../../styles/viewer.css';
         <button type="button" class="fs-copy-btn" data-copy>Copy</button>
       </div>
 
-      <p style="margin:0">
+      <p class="fs-onboard__note">
         Already running an agent? Add the plugin to your Runner —
         see <a href="/docs/">Setup</a>.
       </p>
@@ -65,6 +65,7 @@ import '../../styles/viewer.css';
 <script>
   import { fetchSessions, subscribe, type SessionRow } from '../../lib/local-api';
   import { formatAgo, formatCount, formatDuration, STATUS_GLYPH, STATUS_LABEL } from '../../lib/format';
+  import { mountCopyButtons } from '../../lib/copy-button';
 
   type Filter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -85,19 +86,7 @@ import '../../styles/viewer.css';
     });
   }
 
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
-    button.addEventListener('click', () => {
-      const source = button.previousElementSibling?.textContent ?? '';
-      void navigator.clipboard?.writeText(source).then(
-        () => {
-          button.textContent = 'Copied';
-          setTimeout(() => (button.textContent = 'Copy'), 1400);
-        },
-        // A denied clipboard permission must not look like a broken button.
-        () => (button.textContent = 'Select and copy'),
-      );
-    });
-  }
+  mountCopyButtons();
 
   function duration(session: SessionRow): string {
     if (session.startedAt === null) return formatDuration(null);
