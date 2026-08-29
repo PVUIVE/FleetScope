@@ -2,7 +2,7 @@
   "name": "fleetscope",
   "version": "0.1.0",
   "private": true,
-  "description": "FleetScope \u2014 enterprise agent-fleet control plane (monorepo root)",
+  "description": "FleetScope — enterprise agent-fleet control plane (monorepo root)",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "packageManager": "pnpm@11.24.0",
@@ -37,7 +37,8 @@
     "recorded:run": "tsx scripts/recorded-run.ts",
     "qa:browser": "tsx scripts/browser-qa.ts",
     "e2e": "tsx --env-file-if-exists=.env scripts/viewer-e2e.ts",
-    "qa:a11y": "tsx scripts/a11y-qa.ts"
+    "qa:a11y": "tsx scripts/a11y-qa.ts",
+    "qa:viewer": "tsx scripts/viewer-qa.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -48,7 +49,9 @@
     "@fleetscope/platform-adapters": "workspace:*",
     "@fleetscope/projector": "workspace:*",
     "@fleetscope/scenario-compiler": "workspace:*",
+    "@fleetscope/session-store": "workspace:*",
     "@fleetscope/shared": "workspace:*",
+    "@fleetscope/viewer": "workspace:*",
     "@fleetscope/warden": "workspace:*",
     "@types/node": "^22.10.2",
     "eslint": "^9.39.0",

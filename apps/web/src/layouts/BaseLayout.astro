@@ -31,6 +31,11 @@ const path = Astro.url.pathname;
   </head>
   <body>
     <div class="fs-shell">
+      <!--
+        The first Tab stop, so a keyboard user is not made to walk the nav on
+        every route before reaching the timeline they came for.
+      -->
+      <a class="fs-skip" href="#fs-main">Skip to content</a>
       <Nav path={path} legacy={legacy} />
       <main class={wide ? 'fs-main fs-main--wide' : 'fs-main'} id="fs-main">
         <slot />

@@ -25,6 +25,7 @@ import {
   formatDuration,
   formatOffset,
 } from '../../lib/format';
+import { mountDetailsDrawer, type DetailsDrawer } from './details-drawer';
 import { renderDetails } from './details';
 import { loadRendererGlue } from './renderer-glue';
 import { sceneDelta } from './scene-delta';
@@ -59,6 +60,8 @@ interface State {
   selectedSequence: number | null;
   focusedAgent: string | null;
   cockpit: CockpitAdapter | null;
+  /** Owns whether the details panel is a column or a dialog. See details-drawer.ts. */
+  drawer: DetailsDrawer | null;
   /**
    * Timestamp until which renderer-driven cursor changes are ignored.
    *
@@ -106,6 +109,7 @@ export async function mountAgentViewer(): Promise<void> {
     selectedSequence: null,
     focusedAgent: null,
     cockpit: null,
+    drawer: mountDetailsDrawer(),
     adoptRendererAfter: 0,
   };
 
@@ -282,7 +286,7 @@ function wire(state: State): void {
   $('[data-timeline-rows]')?.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>('[data-sequence]');
     if (button === null) return;
-    select(state, Number(button.dataset['sequence']));
+    select(state, Number(button.dataset['sequence']), { explicit: true });
   });
 
   $('[data-agent-tree]')?.addEventListener('click', (event) => {
@@ -295,7 +299,7 @@ function wire(state: State): void {
       // inside the renderer is optional in the ABI; the cursor move is real.
       const last = [...state.rows].reverse().find((row) => row.agentId === state.focusedAgent);
       state.cockpit?.select(state.focusedAgent);
-      if (last !== undefined) select(state, last.sequence);
+      if (last !== undefined) select(state, last.sequence, { explicit: true });
     }
     paint(state);
   });
@@ -309,16 +313,14 @@ function wire(state: State): void {
 
   $('[data-jump-failure]')?.addEventListener('click', () => {
     const failure = state.rows.find((row) => row.type === 'error' || row.type === 'tool.failed');
-    if (failure !== undefined) select(state, failure.sequence);
-  });
-
-  $('[data-close-details]')?.addEventListener('click', () => {
-    const pane = $('[data-details-pane]');
-    if (pane !== null) pane.hidden = true;
+    if (failure !== undefined) select(state, failure.sequence, { explicit: true });
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.target instanceof HTMLInputElement || event.metaKey || event.ctrlKey) return;
+    // While the panel is a dialog it owns its own keys, Escape included.
+    if (event.target instanceof HTMLElement && event.target.closest('[data-details-pane]') !== null)
+      return;
     const ordered = visibleRows(state);
     if (ordered.length === 0) return;
     const index = ordered.findIndex((row) => row.sequence === state.selectedSequence);
@@ -345,7 +347,11 @@ function wire(state: State): void {
  * details agree" is a property of one code path rather than of three that must
  * be kept in sync. It performs no I/O whatsoever.
  */
-function select(state: State, sequence: number, options: { seekRenderer?: boolean } = {}): void {
+function select(
+  state: State,
+  sequence: number,
+  options: { seekRenderer?: boolean; explicit?: boolean } = {},
+): void {
   if (!Number.isFinite(sequence)) return;
   state.selectedSequence = sequence;
   state.cursor = seekCursor(state.cursor, sequencesOf(state), sequence);
@@ -353,6 +359,9 @@ function select(state: State, sequence: number, options: { seekRenderer?: boolea
     state.adoptRendererAfter = performance.now() + RENDERER_SETTLE_MS;
     state.cockpit?.seekToCaseSequence(sequence);
   }
+  // Asking for an event is what reveals the panel. Merely stepping past one is
+  // not: on a narrow screen the panel covers the timeline being stepped.
+  state.drawer?.show(options.explicit === true);
   paint(state);
 }
 
@@ -405,12 +414,17 @@ function paintHeader(state: State): void {
 
   setText('[data-stat-duration]', formatDuration(elapsed(summary)));
   setText('[data-stat-events]', `${summary.eventCount} events`);
-  setText(
-    '[data-stat-errors]',
-    summary.errorCount === 0
-      ? 'No failures'
-      : `${summary.errorCount} failure${summary.errorCount === 1 ? '' : 's'}`,
-  );
+  const errors = $('[data-stat-errors]');
+  if (errors !== null) {
+    errors.textContent =
+      summary.errorCount === 0
+        ? 'No failures'
+        : `${summary.errorCount} failure${summary.errorCount === 1 ? '' : 's'}`;
+    // The failure count is why this screen gets opened. It reads as a failure
+    // count, not as one more grey number in a row of grey numbers.
+    if (summary.errorCount === 0) delete errors.dataset['tone'];
+    else errors.dataset['tone'] = 'danger';
+  }
   const jump = $('[data-jump-failure]');
   if (jump !== null) jump.hidden = summary.errorCount === 0;
   setText(
@@ -534,7 +548,4 @@ function paintDetails(state: State): void {
   const event =
     sequence === null ? null : (state.events.find((e) => e.caseSequence === sequence) ?? null);
   renderDetails(pane, row, event);
-
-  const drawer = $('[data-details-pane]');
-  if (drawer !== null && row !== null) drawer.hidden = false;
 }

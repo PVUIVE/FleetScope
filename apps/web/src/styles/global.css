@@ -199,6 +199,42 @@ a:hover {
   flex: 0 0 auto;
 }
 
+/*
+ * The nav at a phone width.
+ *
+ * Three fixed-width groups in a 48px row do not fit in 390px: the brand and the
+ * environment chip were overlapping the links, which then could not be read or
+ * tapped. Nothing is removed — the tagline and the chip are what a developer
+ * already knows, the destinations are what they need — so those two give way
+ * and the links keep their full width.
+ */
+@media (max-width: 720px) {
+  .fs-nav {
+    gap: var(--fs-space-2);
+    padding: 0 var(--fs-space-3);
+  }
+
+  .fs-nav__brand {
+    margin-right: 0;
+  }
+
+  .fs-nav__brand-sub,
+  .fs-nav__env {
+    display: none;
+  }
+
+  .fs-nav__link {
+    padding: 0 var(--fs-space-2);
+  }
+}
+
+/* The console's page padding is a luxury a 390px viewport cannot afford. */
+@media (max-width: 720px) {
+  .fs-main {
+    padding: var(--fs-space-4) var(--fs-space-3);
+  }
+}
+
 .fs-main {
   flex: 1;
   padding: var(--fs-space-5);
@@ -534,6 +570,37 @@ h3 {
  * Screen-reader-only text. Every state signalled with a glyph or a hue also
  * carries a word here, so nothing depends on colour alone.
  */
+/*
+ * Skip to content.
+ *
+ * Off-screen until focused rather than `display: none`, which would take it out
+ * of the tab order and make it decoration. It lands above everything, including
+ * the details drawer's scrim.
+ */
+.fs-skip {
+  position: fixed;
+  top: var(--fs-space-2);
+  left: var(--fs-space-2);
+  z-index: 100;
+  transform: translateY(calc(-100% - var(--fs-space-4)));
+  background: var(--fs-surface-raised);
+  border: 1px solid var(--fs-accent);
+  border-radius: var(--fs-radius-sm);
+  color: var(--fs-text);
+  padding: var(--fs-space-2) var(--fs-space-3);
+  text-decoration: none;
+}
+
+.fs-skip:focus-visible {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-skip {
+    transition: transform 120ms ease-out;
+  }
+}
+
 .fs-visually-hidden {
   /*
    * `position: absolute` with no positioned ancestor resolves against the
