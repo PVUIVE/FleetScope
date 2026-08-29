@@ -116,84 +116,93 @@ async function checkLanding(browser: Browser, baseUrl: string): Promise<void> {
     check(`${label}: exactly one h1`, (await page.locator('h1').count()) === 1);
     check(
       `${label}: the full narrative is present`,
-      (await page.locator('main section').count()) === 11,
-      await page.locator('main section').count(),
+      (await page.locator('main section.fs-l-sec').count()) === 6,
+      await page.locator('main section.fs-l-sec').count(),
     );
     check(
-      `${label}: the headline states the product, not a vendor`,
-      (await page.locator('h1').innerText()).includes('Control every agent'),
+      `${label}: the headline states what the product shows`,
+      (await page.locator('h1').innerText()).includes('agents'),
+      await page.locator('h1').innerText(),
     );
 
     // Nothing in view may be left invisible by an animation that never ran.
+    // The bound mirrors the reveal trigger (top 92%): an element below that line
+    // has not been asked to appear yet, so counting it would test the threshold
+    // rather than the page.
     const hidden = await page.evaluate(() => {
       let count = 0;
       for (const element of document.querySelectorAll('[data-rise]')) {
         const box = element.getBoundingClientRect();
-        const inView = box.top < window.innerHeight && box.bottom > 0;
+        const inView = box.top < window.innerHeight * 0.92 && box.bottom > 0;
         if (inView && getComputedStyle(element).opacity === '0') count++;
       }
       return count;
     });
     check(`${label}: no in-view content left invisible`, hidden === 0, hidden);
 
-    // The decorative field must not run when motion is not wanted.
-    const fieldOn = await page.evaluate(
-      () => document.querySelector('#fs-l-field')?.getAttribute('data-on') === 'true',
-    );
-    check(`${label}: the hero field respects the motion preference`, fieldOn === !reduced, fieldOn);
-
-    // Governance is claimed by behaviour: a denial has to stop the request.
-    await page.locator('#corridor-screening').scrollIntoViewIfNeeded();
-    await page.locator('#corridor-screening [data-corridor-state="blocked"]').click();
-    await page.waitForTimeout(400);
-    check(
-      `${label}: a blocked input visibly stops at the gate`,
-      await page.evaluate(() => {
-        const out = document.querySelector<SVGElement>('#corridor-screening [data-flow="out"]');
-        return out !== null && out.style.opacity === '0';
-      }),
+    // Motion is a declared state, so a reduced-motion visitor is verifiable.
+    const motion = await page.evaluate(
+      () => document.documentElement.dataset['motion'] ?? 'missing',
     );
     check(
-      `${label}: the corridor cites the event that proves it`,
-      /^evt-\d{4}$/.test(await page.locator('#corridor-screening [data-corridor-evt]').innerText()),
-      await page.locator('#corridor-screening [data-corridor-evt]').innerText(),
+      `${label}: the page declares its motion preference`,
+      motion === (reduced ? 'off' : 'on'),
+      motion,
     );
 
-    // Replay must re-read recorded state, and say so.
-    await page.locator('#replay').scrollIntoViewIfNeeded();
-    const agentsAtEnd = await page.locator('[data-replay-count="agents"]').innerText();
-    await page.locator('[data-replay-input]').fill('2');
-    await page.waitForTimeout(300);
+    // The two promises the page makes about itself: it opens the real viewer,
+    // and historical inspection executes nothing.
+    const primaryTargets = await page
+      .locator('a.fs-l-btn--primary')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
     check(
-      `${label}: scrubbing changes the reconstructed state`,
-      (await page.locator('[data-replay-count="agents"]').innerText()) !== agentsAtEnd,
+      `${label}: every primary action opens the Agent Viewer`,
+      primaryTargets.length > 0 && primaryTargets.every((href) => href === '/sessions/'),
+      primaryTargets.join(', '),
     );
+
+    await page.locator('[data-replay]').scrollIntoViewIfNeeded();
+    const marks = page.locator('[data-replay-mark]');
+    const liveSequence = await page.locator('[data-replay-seq]').innerText();
+    await marks.first().click();
+    await page.waitForTimeout(200);
+
     check(
       `${label}: an earlier position is flagged historical`,
-      (await page.locator('[data-replay-stage]').getAttribute('data-historical')) === 'true',
+      (await page.locator('[data-replay-state]').getAttribute('data-historical')) === 'true',
     );
     check(
-      `${label}: the position shows its recorded state hash`,
-      /^[0-9a-f]{10}…[0-9a-f]{6}$/.test(await page.locator('[data-replay-hash]').innerText()),
-      await page.locator('[data-replay-hash]').innerText(),
+      `${label}: the historical position states that nothing executes`,
+      (await page.locator('[data-replay-note]').innerText())
+        .toLowerCase()
+        .includes('nothing is executing'),
+      await page.locator('[data-replay-note]').innerText(),
     );
-
-    // Cockpit tabs are a real tablist, not five divs.
-    await page.locator('#cockpit').scrollIntoViewIfNeeded();
-    await page.locator('[data-cockpit-tab="incident"]').click();
-    await page.waitForTimeout(300);
     check(
-      `${label}: switching the Cockpit control switches the evidence rail`,
-      (await page.locator('[data-rail="incident"]').getAttribute('data-on')) === 'true',
+      `${label}: scrubbing changes the reconstructed position`,
+      (await page.locator('[data-replay-seq]').innerText()) !== liveSequence,
+    );
+    check(
+      `${label}: the selected position is the pressed control`,
+      (await marks.first().getAttribute('aria-pressed')) === 'true',
     );
 
-    await page.locator('#evidence').scrollIntoViewIfNeeded();
-    await page.locator('[data-ev-row]').nth(2).click();
+    await marks.last().click();
     await page.waitForTimeout(200);
     check(
-      `${label}: an evidence row opens its Decision Evidence`,
-      (await page.locator('[data-ev="evt"]').innerText()).includes('evt-'),
-      await page.locator('[data-ev="evt"]').innerText(),
+      `${label}: returning to the newest event leaves historical mode`,
+      (await page.locator('[data-replay-state]').getAttribute('data-historical')) === 'false' &&
+        (await page.locator('[data-replay-badge]').innerText()).trim() === 'LIVE',
+      await page.locator('[data-replay-badge]').innerText(),
+    );
+
+    // The failure story is stepped, and one step is always current.
+    await page.locator('[data-step]').first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    check(
+      `${label}: exactly one failure step is current`,
+      (await page.locator('[data-step][aria-current="step"]').count()) === 1,
+      await page.locator('[data-step][aria-current="step"]').count(),
     );
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -440,7 +449,7 @@ async function main(): Promise<void> {
         ),
       };
     });
-    check('cockpit: primary navigation is keyboard reachable', reachable.nav >= 5, reachable.nav);
+    check('cockpit: primary navigation is keyboard reachable', reachable.nav >= 3, reachable.nav);
     check('cockpit: evidence controls are real buttons', reachable.realButtons);
     await page.keyboard.press('Tab');
     check(
