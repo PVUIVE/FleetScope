@@ -35,6 +35,28 @@ function announce(message: string): void {
 }
 
 /**
+ * Put `value` on the clipboard and say so out loud.
+ *
+ * The single place the clipboard is touched, so the landing page's command
+ * blocks and the console's copy rows cannot drift in what they announce or in
+ * how they handle a refusal.
+ *
+ * Resolves `true` when the write succeeded. A denied clipboard permission is a
+ * normal outcome, not an error to throw at the caller: it resolves `false` and
+ * the caller shows the fallback.
+ */
+export async function copyText(value: string, label = 'command'): Promise<boolean> {
+  try {
+    await navigator.clipboard?.writeText(value);
+    announce(`${label} copied to the clipboard`);
+    return true;
+  } catch {
+    announce('The clipboard is not available. Select the command and copy it.');
+    return false;
+  }
+}
+
+/**
  * Wire every `[data-copy]` button on the page.
  *
  * The source is the `<code>` immediately before the button, which is what the
@@ -46,18 +68,15 @@ export function mountCopyButtons(root: ParentNode = document): void {
       const source = button.previousElementSibling?.textContent ?? '';
       const label = button.dataset['copyLabel'] ?? 'command';
 
-      void navigator.clipboard?.writeText(source).then(
-        () => {
-          button.textContent = 'Copied';
-          announce(`${label} copied to the clipboard`);
-          window.setTimeout(() => (button.textContent = 'Copy'), SETTLE_MS);
-        },
+      void copyText(source, label).then((ok) => {
         // A denied clipboard permission must not look like a broken button.
-        () => {
+        if (!ok) {
           button.textContent = 'Select and copy';
-          announce('The clipboard is not available. Select the command and copy it.');
-        },
-      );
+          return;
+        }
+        button.textContent = 'Copied';
+        window.setTimeout(() => (button.textContent = 'Copy'), SETTLE_MS);
+      });
     });
   }
 }

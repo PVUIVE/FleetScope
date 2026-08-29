@@ -45,7 +45,10 @@ html.fs-l {
   --fs-live: #2448ff;
 
   /* ── DESIGN.md §6 dark operational surface ───────────────────────────── */
-  --fs-terminal-bg: #0c0d12;
+  /* Charcoal rather than near-black: on a white blueprint page an absolute
+     black slab is the one element that fights the canvas. The log lines still
+     clear WCAG AA against it at their faded opacity (4.96:1). */
+  --fs-terminal-bg: #141821;
   --fs-terminal-surface: #12141b;
   --fs-terminal-border: #262933;
   --fs-terminal-text: #9da3b5;
@@ -1813,16 +1816,77 @@ body.fs-l {
   max-width: 420px;
 }
 
-.fs-d-term code {
-  display: block;
+/*
+ * A command a visitor is meant to run is a thing to take, not just to read.
+ * The whole block is the control — a 420px target rather than a 60px button —
+ * and the `$` stays out of what gets copied, because nobody wants the prompt.
+ */
+.fs-d-term__cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
   background: var(--fs-terminal-bg);
   color: var(--fs-terminal-text-active);
   border: 1px solid var(--fs-terminal-border);
   font-family: var(--fs-mono);
   font-size: 13px;
   padding: 10px 14px;
+}
+
+.fs-d-term__cmd:hover {
+  border-color: var(--fs-terminal-blue);
+}
+
+.fs-d-term__prompt {
+  color: var(--fs-terminal-text);
+}
+
+.fs-d-term__cmd code {
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
   white-space: pre;
+  font: inherit;
+  background: none;
+  color: inherit;
+}
+
+/* The affordance is quiet until the block is hovered or focused — and always
+   present for a keyboard user, who gets no hover to discover it with. */
+.fs-d-term__hint {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fs-terminal-text);
+  opacity: 0;
+}
+
+.fs-d-term__cmd:hover .fs-d-term__hint,
+.fs-d-term__cmd:focus-visible .fs-d-term__hint,
+.fs-d-term__cmd[data-copied='true'] .fs-d-term__hint {
+  opacity: 1;
+}
+
+.fs-d-term__cmd[data-copied='true'] {
+  border-color: var(--fs-terminal-blue);
+}
+
+.fs-d-term__cmd[data-copied='true'] .fs-d-term__hint {
+  color: var(--fs-terminal-blue);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-d-term__hint,
+  .fs-d-term__cmd {
+    transition:
+      opacity 120ms ease-out,
+      border-color 120ms ease-out;
+  }
 }
 
 /* ── The spine ─────────────────────────────────────────────────────────── */
