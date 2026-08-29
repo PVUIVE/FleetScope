@@ -176,6 +176,7 @@ export function createProcessWorker(options: ProcessWorkerOptions): WorkerPort {
         state,
         delegation: reply.delegation === 'delegated' ? 'delegated' : 'unknown',
         events,
+        wire: rawEvents,
         reason: typeof reply.reason === 'string' ? reply.reason : null,
       };
     },

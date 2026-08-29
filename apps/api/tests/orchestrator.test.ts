@@ -158,6 +158,42 @@ describe('executeRun', () => {
     });
   });
 
+  it('records the run evidence through the collector', async () => {
+    const { ledger, run } = admit();
+    const batches: { sessionId: string; events: unknown[] }[] = [];
+    const report = await executeRun(run, {
+      ledger,
+      worker: worker({
+        ...delegated(),
+        wire: [
+          { kind: 'session.start', seq: 0, at: AT, agent: DEMO_SCENARIO },
+          { kind: 'session.end', seq: 1, at: AT, agent: DEMO_SCENARIO },
+        ],
+      }),
+      events: {
+        ingest(batch) {
+          batches.push({ sessionId: batch.sessionId, events: [...batch.events] });
+          return { accepted: batch.events.length };
+        },
+      },
+      now: () => AT,
+    });
+    expect(report).toMatchObject({ state: 'completed', persisted: 2 });
+    expect(batches).toHaveLength(1);
+    expect(batches[0]?.sessionId).toBe(run.id);
+  });
+
+  it('reports zero persisted rather than recording evidence the collector would reject', async () => {
+    const { ledger, run } = admit();
+    const report = await executeRun(run, {
+      ledger,
+      worker: worker({ ...delegated(), wire: [{ kind: 'telepathy', seq: 0, at: AT }] }),
+      events: { ingest: () => ({ accepted: 99 }) },
+      now: () => AT,
+    });
+    expect(report.persisted).toBe(0);
+  });
+
   it('reports an observed worker failure as failed', async () => {
     const { ledger, run } = admit();
     const report = await executeRun(run, {

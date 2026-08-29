@@ -51,7 +51,7 @@ export async function startRuntime(options: StartOptions): Promise<Runtime> {
   const store = SessionStore.open(options.local.storage);
   const hub = new EventHub();
   const collector = new Collector(store, hub);
-  const runs = createRunDependencies(options.local.storage);
+  const runs = createRunDependencies(options.local.storage, { events: collector });
   const app = createApp(parsed.value, 'silent', undefined, { store, collector, hub }, runs);
 
   const server = await new Promise<ReturnType<typeof serve>>((resolve, reject) => {
