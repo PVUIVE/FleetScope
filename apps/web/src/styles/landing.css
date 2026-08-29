@@ -152,6 +152,33 @@ body.fs-l {
   border-bottom: 0;
 }
 
+/*
+ * Vertical rhythm between sections (DESIGN.md §8).
+ *
+ * The contract specifies `clamp(64px, 7vw, 116px)` of section padding and
+ * `.fs-l-block` implements it, but the content sections never applied either:
+ * every one of them computed to `padding: 0` on all four sides. The result was
+ * sections butted flat against each other — the terminal block of §02 ended and
+ * the `03` numeral began seven pixels later, and the event cells of §03 ran
+ * straight into `04`. Read as one page it looked like the sections had
+ * collapsed into one another.
+ *
+ * Block padding only. The horizontal flush-to-frame alignment is deliberate:
+ * headings and cell borders meet the frame's rules, which is the blueprint
+ * grid doing its job (§32), so the gutter is left alone.
+ *
+ * The hero, the pinned scenes and the final CTA already pad themselves; adding
+ * more here would double it.
+ */
+.fs-l-sec:not(.fs-l-hero):not(:has(> .fs-l-scene)):not(.fs-l-final) {
+  padding-block: clamp(56px, 5.5vw, 96px);
+}
+
+/* The heading and the thing it introduces are not the same beat. */
+.fs-l-sechead {
+  margin-bottom: clamp(28px, 3vw, 44px);
+}
+
 .fs-l-pad {
   padding-inline: var(--fs-l-gutter);
 }

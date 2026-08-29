@@ -123,6 +123,21 @@ proved that ranking wrong. The corrected findings:
 | P2-10 | `.fs-copy-row { align-items: stretch }` is right for a one-line command and wrong for the nine-line plugin snippet, where it grew the `Copy` button into a column-high slab. |
 | P2-11 | Setup's Commands list kept its 88px term column at 390px, leaving too little for the definition: `.fleetscope/config.json` broke across lines mid-word. |
 
+### P0/P1 — second pass: information design
+
+The first pass audited responsiveness, accessibility and interaction, and
+reported the console's visual design as sound. Seen on a 2000px display, that
+was wrong — and it was wrong because every harness in this repository, mine
+included, stopped at 1440px. What a wide screen showed:
+
+| # | Finding | Evidence |
+|---|---|---|
+| P1-5 | **`/sessions/` used 74% of the width and 31% of the height it was given.** The list was capped at 1120px inside a 1512px column on a 2000px viewport, and one run rendered as a single line of prose floating in an otherwise black page that ran on for another 700px. That does not read as "one run"; it reads as a page that failed to load. | measured 1120px content in a 2000px viewport; `shots/before-wide/` |
+| P1-6 | **The session list was not a table.** Five measurements a developer compares across runs — status, agent, events, duration, when — with no column headings and no alignment to compare along. No search, no sort. | `pages/sessions/index.astro` before this pass |
+| P1-7 | **Every landing section was flush against the next.** `.fs-l-sec` computed to `padding: 0` on all four sides: §02's terminal block ended and the `03` numeral began **7px** later; §03's event cells ran into `04` after **10px**. `DESIGN.md` §8 specifies `clamp(64px, 7vw, 116px)` and `.fs-l-block` implements it — it was simply never applied to the content sections. | computed styles on every `main section`; `shots/before-wide/landing-*.png` |
+| P2-12 | **Setup was 1828px tall to say six things**, at 32px card padding, one full-width card per step — roughly 900px of scrolling for a three-command quick start. | measured document height |
+| P2-13 | The `Copy` control sat as a flex sibling of a full-width code block, which on a wide screen put it **~700px from the snippet it copies**. | `shots/before-wide/docs-*.png` |
+
 ### P3 — polish
 
 | # | Finding |
@@ -264,6 +279,34 @@ speculatively:
 - Keyboard-stepping hints hidden on touch widths. (P3-3)
 - Sticky timeline head while scrolling a run on a phone.
 
+### Console — information design (second pass)
+
+- **The session list is a table.** Column headings in tracked micro-caps, a 2px
+  status rail per row, tabular numerals, and one bordered region that fills the
+  page instead of rows ending in mid-air. Sortable on Events, Duration and
+  Started — "which run was slow" and "which run did the most" are the two
+  questions a list of runs exists to answer. Text filter over name, agent and
+  id, focused by `/`. A persistent collector-state chip, because whether the
+  collector is answering is the precondition for everything else on the page and
+  was previously visible only as an error after a failure. (P1-5, P1-6)
+- **Width**: the list and Setup now use the column they are given (98% and 97%
+  of it) rather than a 1120px cap the Agent Viewer never obeyed.
+- **Setup**: three ordered steps sit side by side — the whole quick start in one
+  glance — and the reference panels pair up below. 1828px → one screen. (P2-12)
+- **`Copy` is pinned into the code block's top-right corner**, where every
+  documentation site has taught developers to look. (P2-13)
+- Narrow widths keep every fact: at ≤1080px the table drops root agent and
+  started (both restated elsewhere in the row); at ≤720px it becomes two lines
+  and the heading row goes with the columns.
+
+### Landing — spacing (second pass)
+
+- **Section rhythm restored** to what `DESIGN.md` §8 already specified:
+  `clamp(56px, 5.5vw, 96px)` of block padding on the content sections, and a
+  real gap between a section heading and the thing it introduces. Block padding
+  only — the horizontal flush-to-frame alignment is the blueprint grid doing its
+  job (§32) and was left alone. (P1-7)
+
 ### Console — Setup and session list
 - Setup moved onto `.fs-setup*`; shared components stay shared. (P2-6)
 - Both pages use `lib/copy-button.ts`, which announces success and the
@@ -329,7 +372,7 @@ Every command below was run to completion on this branch.
 | Build | `pnpm run build:web` | 4 pages, exit 0 |
 | Full pipeline | `pnpm run check` | **exit 0** |
 | Static browser QA | `pnpm qa:browser` | **63/63** (crashed at the branch point; PR #5 fixed it on `main` in parallel) |
-| Viewer responsive QA | `pnpm qa:viewer` | **57/57** (baseline before changes: 32/45) |
+| Viewer responsive QA | `pnpm qa:viewer` | **67/67** (baseline before changes: 32/45) |
 | Accessibility QA | `pnpm qa:a11y` against a live collector | **15/15** |
 
 Console errors: zero across every route and viewport in both browser harnesses.
@@ -365,6 +408,10 @@ spend, and `qa:a11y` was run against a real collector process.
 **Future**
 
 - `qa:viewer` should run in CI; it is the harness that would have caught P0-1.
+- **Every harness stopped at 1440px, so nobody had looked at the product on a
+  large display.** That is how a console that used 74% of its width and 31% of
+  its height passed a full audit. `qa:viewer` now drives 1920x1080 and asserts
+  both shares directly; the two checks fail on the pre-pass build.
 - `browser-qa.ts` drifted silently for three commits, and **two branches then
   fixed it independently and collided** — this one and PR #5. The duplicated
   effort is the cost of a broken gate nobody was alerted to. Running the

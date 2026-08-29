@@ -242,6 +242,12 @@ a:hover {
   width: 100%;
   margin: 0 auto;
   min-width: 0;
+  /* A column, so a page that wants to fill the viewport can actually do it.
+     Without this a `flex: 1` child has no main axis to grow along, and a short
+     table stopped dead halfway down the screen with bare background beneath. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 /* The Cockpit is a console, not a document: it uses the full width. */
 .fs-main--wide {

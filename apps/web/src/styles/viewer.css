@@ -14,32 +14,106 @@
  */
 
 /* ── Session list ──────────────────────────────────────────────────────────── */
+/*
+ * A run list is a TABLE. It was a stack of prose links inside a 1120px column,
+ * which on a wide screen put one row of text in the middle of an otherwise
+ * black page and gave the five measurements a developer compares — status,
+ * agent, events, duration, when — no alignment to be compared along. Column
+ * headings, aligned numerals, and one bordered region that fills the page.
+ *
+ * The column pattern (heading row in tracked micro-caps, a 2px status rail per
+ * row, tabular numerals right-aligned, a magnitude bar beside the number) is
+ * adapted from 21st.dev's Market Watchlist. Its per-row sparkline is not: this
+ * list is served by `/api/sessions`, which carries totals rather than the event
+ * series, and inventing a shape from data the endpoint does not return would
+ * draw a picture the product cannot stand behind.
+ */
 
 .fs-sessions {
   display: flex;
   flex-direction: column;
-  gap: var(--fs-space-5);
-  max-width: 1120px;
-  margin: 0 auto;
+  gap: var(--fs-space-4);
   width: 100%;
+  /* The Agent Viewer uses the full width; so does its list. A data table capped
+     at 1120px on a 2000px screen wastes 44% of the viewport it is trying to
+     fill. `.fs-main` still holds the outer 1560px measure. */
+  min-height: 0;
+  flex: 1;
+}
+
+.fs-sessions__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
 }
 
 .fs-sessions__head h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.01em;
 }
 
 .fs-sessions__head p {
-  margin: var(--fs-space-2) 0 0;
+  margin: var(--fs-space-1) 0 0;
   color: var(--fs-text-muted);
+  font-size: 13px;
+}
+
+/* ── Collector state ───────────────────────────────────────────────────────── */
+/*
+ * Whether the collector is answering is the precondition for everything else on
+ * this page, and it used to be visible only as an error paragraph after a
+ * failure. It is a persistent, quiet statement instead.
+ */
+
+.fs-live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  padding: var(--fs-space-1) var(--fs-space-3);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fs-text-muted);
+  white-space: nowrap;
+}
+
+.fs-live__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fs-unknown);
+}
+
+.fs-live[data-state='live'] .fs-live__dot {
+  background: var(--fs-ok);
+}
+
+.fs-live[data-state='offline'] {
+  border-color: var(--fs-deny);
+  color: var(--fs-deny);
+}
+
+.fs-live[data-state='offline'] .fs-live__dot {
+  background: var(--fs-deny);
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────────────────── */
+
+.fs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fs-space-4);
+  flex-wrap: wrap;
 }
 
 .fs-filters {
   display: flex;
   gap: var(--fs-space-1);
-  border-bottom: 1px solid var(--fs-border);
-  padding-bottom: var(--fs-space-2);
   flex-wrap: wrap;
 }
 
@@ -51,6 +125,7 @@
   color: var(--fs-text-muted);
   cursor: pointer;
   font: inherit;
+  font-size: 13px;
   padding: var(--fs-space-1) var(--fs-space-3);
 }
 
@@ -70,11 +145,141 @@
   font-variant-numeric: tabular-nums;
 }
 
+.fs-search {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  background: var(--fs-surface);
+  padding: 0 var(--fs-space-3);
+  min-width: 260px;
+}
+
+.fs-search:focus-within {
+  border-color: var(--fs-accent);
+}
+
+.fs-search__glyph {
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  border: 1px solid var(--fs-border);
+  border-radius: 3px;
+  padding: 0 5px;
+  line-height: 1.4;
+}
+
+.fs-search__input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fs-text);
+  font: inherit;
+  font-size: 13px;
+  padding: var(--fs-space-2) 0;
+  width: 100%;
+}
+
+.fs-search__input:focus {
+  outline: none;
+}
+
+.fs-search__input::placeholder {
+  color: var(--fs-text-faint);
+}
+
+/* ── The table ─────────────────────────────────────────────────────────────── */
+
+.fs-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  background: var(--fs-surface);
+  overflow: hidden;
+  /* Fills the page rather than ending in mid-air. One run used to leave most of
+     a 1200px screen as bare background, which reads as a page that failed. */
+  flex: 1;
+  min-height: 320px;
+}
+
+/*
+ * One grid definition, used by the heading row and every data row, so a column
+ * cannot drift from its own heading.
+ */
+.fs-table__head,
+.fs-session__link {
+  display: grid;
+  grid-template-columns:
+    2px minmax(104px, auto) minmax(0, 1fr)
+    minmax(120px, 200px) 96px minmax(150px, 230px) 116px;
+  align-items: center;
+  gap: var(--fs-space-4);
+}
+
+.fs-table__head {
+  padding: var(--fs-space-2) var(--fs-space-4) var(--fs-space-2) 0;
+  border-bottom: 1px solid var(--fs-border);
+  background: var(--fs-surface-raised);
+  color: var(--fs-text-faint);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}
+
+.fs-table__rail {
+  height: 100%;
+}
+
+.fs-sort {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.fs-sort:hover {
+  color: var(--fs-text);
+}
+
+.fs-sort[data-active='true'] {
+  color: var(--fs-text);
+}
+
+/* The arrow is drawn from the sort state, so it cannot contradict it. */
+.fs-sort__arrow::before {
+  content: '';
+  opacity: 0;
+}
+
+.fs-sort[data-active='true'][aria-sort='descending'] .fs-sort__arrow::before {
+  content: '↓';
+  opacity: 1;
+}
+
+.fs-sort[data-active='true'][aria-sort='ascending'] .fs-sort__arrow::before {
+  content: '↑';
+  opacity: 1;
+}
+
 .fs-session-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--fs-border);
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .fs-session {
@@ -82,24 +287,45 @@
 }
 
 .fs-session__link {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) repeat(3, minmax(90px, auto));
-  align-items: center;
-  gap: var(--fs-space-4);
-  padding: var(--fs-space-4) var(--fs-space-2);
+  padding: var(--fs-space-3) var(--fs-space-4) var(--fs-space-3) 0;
   color: inherit;
   text-decoration: none;
 }
 
 .fs-session__link:hover,
 .fs-session__link:focus-visible {
-  background: var(--fs-surface);
+  background: var(--fs-surface-raised);
   color: inherit;
 }
 
+/* The rail carries status at the very start of the row, where the eye lands. */
+.fs-session__rail {
+  height: 100%;
+  min-height: 34px;
+  background: var(--fs-unknown);
+}
+
+.fs-session[data-status='running'] .fs-session__rail {
+  background: var(--fs-info);
+}
+.fs-session[data-status='completed'] .fs-session__rail {
+  background: var(--fs-ok);
+}
+.fs-session[data-status='failed'] .fs-session__rail {
+  background: var(--fs-deny);
+}
+
+.fs-session__status {
+  display: flex;
+  align-items: center;
+  gap: var(--fs-space-2);
+  font-size: 12px;
+  color: var(--fs-text-muted);
+  padding-left: var(--fs-space-4);
+}
+
 .fs-session__glyph {
-  font-size: 13px;
-  text-align: center;
+  font-size: 12px;
   color: var(--fs-unknown);
 }
 
@@ -112,27 +338,93 @@
 .fs-session[data-status='failed'] .fs-session__glyph {
   color: var(--fs-deny);
 }
+.fs-session[data-status='failed'] .fs-session__status {
+  color: var(--fs-deny);
+}
+
+.fs-session__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 
 .fs-session__name {
   font-weight: 600;
-  display: block;
-}
-
-.fs-session__meta {
-  color: var(--fs-text-faint);
-  font-size: 12px;
-  display: block;
-  margin-top: 2px;
-}
-
-.fs-session__stat {
-  color: var(--fs-text-muted);
   font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ── Empty state / onboarding ──────────────────────────────────────────────── */
+.fs-session__id {
+  color: var(--fs-text-faint);
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-session__agent {
+  color: var(--fs-text-muted);
+  font-family: var(--fs-mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Numbers align on their digits, or the column cannot be scanned. */
+.fs-session__num {
+  color: var(--fs-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fs-session__duration {
+  display: grid;
+  /* Bar first, number last: the number is the fact and sits at the right edge
+     directly under its own heading, with the bar reading into it as context. */
+  grid-template-columns: minmax(0, 1fr) minmax(56px, auto);
+  align-items: center;
+  gap: var(--fs-space-3);
+}
+
+.fs-session__bar {
+  height: 3px;
+  background: var(--fs-neutral-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fs-session__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--fs-border-strong);
+}
+
+.fs-session[data-status='failed'] .fs-session__bar-fill {
+  background: var(--fs-deny);
+}
+.fs-session[data-status='running'] .fs-session__bar-fill {
+  background: var(--fs-info);
+}
+
+.fs-session__when {
+  color: var(--fs-text-faint);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fs-table__note {
+  color: var(--fs-text-faint);
+  margin: 0;
+  padding: var(--fs-space-5) var(--fs-space-4);
+  font-size: 13px;
+}
 
 .fs-onboard {
   border: 1px solid var(--fs-border);
@@ -169,8 +461,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--fs-space-5);
-  max-width: 1120px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -185,21 +475,79 @@
   color: var(--fs-text-muted);
 }
 
+/*
+ * The quick start, in one glance.
+ *
+ * Three steps done in order used to be three full-width cards at 32px padding —
+ * roughly 900px of scrolling to say three short things, on a page whose whole
+ * job is to be read once and acted on. Side by side they are one glance.
+ */
+.fs-setup__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--fs-space-4);
+}
+
 .fs-setup__step {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius);
-  padding: var(--fs-space-6);
+  padding: var(--fs-space-5);
   background: var(--fs-surface);
+}
+
+/* The number is the ordering, so it leads — and it is not part of the heading
+   text a screen reader has to read around. */
+.fs-setup__n {
+  margin: 0 0 var(--fs-space-2);
+  font-family: var(--fs-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--fs-accent);
 }
 
 .fs-setup__step h2 {
   margin: 0 0 var(--fs-space-2);
-  font-size: 16px;
+  font-size: 15px;
 }
 
-.fs-setup__step p {
+.fs-setup__body {
   margin: 0 0 var(--fs-space-4);
   color: var(--fs-text-muted);
+  font-size: 13px;
+  /* Pushes the commands to a common baseline across the three cards. */
+  flex: 1;
+}
+
+.fs-setup__panel {
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  padding: var(--fs-space-5);
+  background: var(--fs-surface);
+}
+
+.fs-setup__panel h2 {
+  margin: 0 0 var(--fs-space-3);
+  font-size: 15px;
+}
+
+.fs-setup__panel p {
+  margin: 0 0 var(--fs-space-3);
+  color: var(--fs-text-muted);
+  font-size: 13px;
+}
+
+/* Two references that are read, not followed: they sit beside each other
+   rather than each taking a full screen width to hold a short list. */
+.fs-setup__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: var(--fs-space-4);
+  align-items: start;
 }
 
 .fs-setup__note {
@@ -208,9 +556,10 @@
 
 .fs-setup__commands {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   gap: var(--fs-space-2) var(--fs-space-3);
   margin: 0;
+  font-size: 13px;
 }
 
 .fs-setup__commands dt {
@@ -225,15 +574,24 @@
   word-break: break-word;
 }
 
+/*
+ * The control sits ON the block it copies.
+ *
+ * As a flex sibling the button was pushed to the far right of a full-width code
+ * block — around 700px from the snippet it belonged to on a wide screen, which
+ * is far enough that the pairing stops being obvious. Pinned into the block's
+ * top-right corner it is where every documentation site has taught developers
+ * to look for it.
+ */
 .fs-copy-row {
-  display: flex;
-  align-items: stretch;
-  gap: var(--fs-space-2);
+  position: relative;
   margin-bottom: var(--fs-space-3);
 }
 
 .fs-copy-row code {
-  flex: 1;
+  display: block;
+  /* Room for the button, so a long single-line command never runs under it. */
+  padding-right: 76px;
   background: var(--fs-surface-sunken);
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius-sm);
@@ -245,10 +603,9 @@
 }
 
 .fs-copy-btn {
-  /* `align-items: stretch` on the row is right for a one-line command and wrong
-     for a nine-line snippet, where it grew the button into a column-high slab.
-     The control sits at the top of what it copies. */
-  align-self: flex-start;
+  position: absolute;
+  top: 6px;
+  right: 6px;
   appearance: none;
   background: var(--fs-surface-raised);
   border: 1px solid var(--fs-border-strong);
@@ -853,16 +1210,88 @@
   }
 }
 
-@media (max-width: 720px) {
-  /* ── Session list ── */
+@media (max-width: 1080px) {
+  /*
+   * The table gives up its two weakest columns before it gives up alignment.
+   * Root agent also appears under the session name, and "started" is the least
+   * scanned of the numbers, so both can go without losing a fact from the row.
+   */
+  .fs-table__head,
   .fs-session__link {
-    grid-template-columns: 24px minmax(0, 1fr);
-    row-gap: var(--fs-space-2);
-    padding: var(--fs-space-3) var(--fs-space-2);
+    grid-template-columns: 2px minmax(96px, auto) minmax(0, 1fr) 88px minmax(120px, 190px);
   }
 
-  .fs-session__stat {
-    grid-column: 2;
+  .fs-table__head > :nth-child(4),
+  .fs-table__head > :nth-child(7),
+  .fs-session__agent,
+  .fs-session__when {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  /*
+   * ── Session list at a phone width ──
+   *
+   * Columns stop being columns: five of them in 390px is four characters each.
+   * The row becomes two lines — status and name, then the numbers — which keeps
+   * every fact and drops only the alignment that had stopped working anyway.
+   * The heading row goes with them, because a heading over nothing is noise.
+   */
+  .fs-table__head {
+    display: none;
+  }
+
+  .fs-session__link {
+    grid-template-columns: 2px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'rail main   main     main'
+      'rail status events   duration';
+    row-gap: var(--fs-space-2);
+    column-gap: var(--fs-space-3);
+    padding: var(--fs-space-3) var(--fs-space-3) var(--fs-space-3) 0;
+  }
+
+  .fs-session__rail {
+    grid-area: rail;
+  }
+
+  .fs-session__main {
+    grid-area: main;
+    padding-left: var(--fs-space-3);
+  }
+
+  .fs-session__status {
+    grid-area: status;
+    padding-left: var(--fs-space-3);
+  }
+
+  .fs-session__num {
+    grid-area: events;
+  }
+
+  .fs-session__duration {
+    grid-area: duration;
+    /* The bar compared runs against each other in a column of runs. Stacked,
+       there is no column to compare along, so only the number remains. */
+    grid-template-columns: minmax(0, auto);
+  }
+
+  .fs-session__bar {
+    display: none;
+  }
+
+  .fs-session__agent,
+  .fs-session__when {
+    display: none;
+  }
+
+  .fs-toolbar {
+    align-items: stretch;
+  }
+
+  .fs-search {
+    min-width: 0;
   }
 
   /* ── Viewer bar ── */
@@ -1005,8 +1434,9 @@
   }
 
   /* ── Setup and the empty state ── */
-  .fs-copy-row {
-    flex-direction: column;
+  .fs-copy-btn {
+    /* A real tap target, still clear of the command text beneath it. */
+    padding: var(--fs-space-2) var(--fs-space-3);
   }
 
   .fs-setup__commands {

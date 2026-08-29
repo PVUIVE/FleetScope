@@ -50,20 +50,28 @@ runner = Runner(
       </p>
     </header>
 
-    {steps.map((step) => (
-      <div class="fs-setup__step">
-        <h2>{step.n} · {step.title}</h2>
-        <p>{step.body}</p>
-        {step.commands.map((command) => (
-          <div class="fs-copy-row">
-            <code data-copy-source>{command}</code>
-            <button type="button" class="fs-copy-btn" data-copy>Copy</button>
-          </div>
-        ))}
-      </div>
-    ))}
+    <!--
+      Three steps that are done in order, shown in order. Stacked full-width
+      they cost 900px of scrolling to say three short things; side by side the
+      whole quick start is one glance, which is what a quick start is for.
+    -->
+    <ol class="fs-setup__steps">
+      {steps.map((step) => (
+        <li class="fs-setup__step">
+          <p class="fs-setup__n">{step.n}</p>
+          <h2>{step.title}</h2>
+          <p class="fs-setup__body">{step.body}</p>
+          {step.commands.map((command) => (
+            <div class="fs-copy-row">
+              <code data-copy-source>{command}</code>
+              <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+            </div>
+          ))}
+        </li>
+      ))}
+    </ol>
 
-    <div class="fs-setup__step">
+    <div class="fs-setup__panel">
       <h2>Watching your own agent</h2>
       <p>
         Register the plugin once on your <code>Runner</code>. It uses Google ADK's own
@@ -79,7 +87,8 @@ runner = Runner(
       </p>
     </div>
 
-    <div class="fs-setup__step">
+    <div class="fs-setup__pair">
+    <div class="fs-setup__panel">
       <h2>What FleetScope records</h2>
       <p>
         Agent names, model names, tool names, timings, token counts the framework reported, and
@@ -98,7 +107,7 @@ runner = Runner(
       </p>
     </div>
 
-    <div class="fs-setup__step">
+    <div class="fs-setup__panel">
       <h2>Commands</h2>
       <dl class="fs-setup__commands">
         <dt>init</dt><dd>Write <code>.fleetscope/config.json</code> and check the environment.</dd>
@@ -106,6 +115,7 @@ runner = Runner(
         <dt>open</dt><dd>Open a viewer that is already running.</dd>
         <dt>run</dt><dd>Start the viewer, then run an agent command against it.</dd>
       </dl>
+    </div>
     </div>
   </section>
 </BaseLayout>
