@@ -45,6 +45,72 @@ async function landing(page: Page): Promise<void> {
   check('every section is labelled for a screen reader', labelled >= 5, `${labelled} sections`);
 }
 
+/**
+ * The landing page WITH motion running.
+ *
+ * `landing()` above runs in a reduced-motion context, where the scroll
+ * animations return early — so anything an animation does to legibility is
+ * invisible to it. That blind spot let the §02 terminal fade its log lines to
+ * opacity 0.32, compositing them to 1.79:1 against their own background: the
+ * evidence the section argues from, unreadable for everyone who has motion on.
+ */
+async function landingInMotion(page: Page): Promise<void> {
+  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  await page.waitForTimeout(600);
+
+  // Drive the scroll triggers to their settled state.
+  const height = await page.evaluate(() => document.body.scrollHeight);
+  for (let y = 0; y < height; y += 700) {
+    await page.evaluate((value: number) => window.scrollTo(0, value), y);
+    await page.waitForTimeout(180);
+  }
+  await page.evaluate(() => window.scrollTo(0, 1300));
+  await page.waitForTimeout(1200);
+
+  const contrast = await page.evaluate(() => {
+    const line = document.querySelector<HTMLElement>('[data-raw]');
+    const panel = line?.parentElement;
+    if (line == null || panel == null) return null;
+
+    const style = getComputedStyle(line);
+    const alpha = Number(style.opacity);
+    const foreground = (style.color.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+    const background = (getComputedStyle(panel).backgroundColor.match(/\d+(\.\d+)?/g) ?? [])
+      .slice(0, 3)
+      .map(Number);
+
+    // Opacity is not a colour: composite it before measuring, or the ratio
+    // reported is one no reader ever sees. Written inline because this body is
+    // serialised into the page, where tsx's wrapper for a named nested function
+    // is not defined.
+    const luminance: number[] = [];
+    for (const rgb of [
+      foreground.map((v, i) => v * alpha + (background[i] ?? 0) * (1 - alpha)),
+      background,
+    ]) {
+      let total = 0;
+      const weights = [0.2126, 0.7152, 0.0722];
+      for (let i = 0; i < 3; i += 1) {
+        const s = (rgb[i] ?? 0) / 255;
+        total += (weights[i] ?? 0) * (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4);
+      }
+      luminance.push(total);
+    }
+
+    const [a = 0, b = 0] = luminance;
+    return {
+      ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05),
+      opacity: alpha,
+    };
+  });
+
+  check(
+    'the raw log lines stay readable once the animation settles',
+    contrast !== null && contrast.ratio >= 4.5,
+    `${contrast?.ratio.toFixed(2) ?? '?'}:1 at opacity ${contrast?.opacity ?? '?'}`,
+  );
+}
+
 async function viewer(page: Page, sessionId: string): Promise<void> {
   await page.goto(`${BASE}/sessions/${sessionId}`, { waitUntil: 'load' });
   await page.waitForTimeout(2500);
@@ -133,6 +199,7 @@ try {
   await reduced.close();
 
   const normal = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await landingInMotion(await normal.newPage());
   await viewer(await normal.newPage(), sessionId);
   await normal.close();
 } finally {

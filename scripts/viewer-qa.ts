@@ -38,6 +38,7 @@ const RECORDED = 'vendor-onboarding';
  * be wrong on the pixel where it changes, so both are driven directly.
  */
 const VIEWPORTS = [
+  { name: '1920x1080', width: 1920, height: 1080 },
   { name: '1440x900', width: 1440, height: 900 },
   { name: '1280x720', width: 1280, height: 720 },
   { name: '1180x800', width: 1180, height: 800 },
@@ -332,6 +333,47 @@ async function detailsColumn(page: Page, sessionId: string): Promise<void> {
   check('1440x900 · reopening restores the column', await pane.isVisible());
 }
 
+/**
+ * The console must use the screen it was given.
+ *
+ * On a 2000px display the session list was capped at 1120px and drew a single
+ * run in an otherwise empty page — 44% of the viewport unused horizontally and
+ * most of it unused vertically. Neither reads as "nothing to show"; both read
+ * as a page that failed to finish loading. These are the two measurements that
+ * distinguish the two.
+ */
+async function widescreen(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+
+  for (const route of ['/sessions/', '/docs/'] as const) {
+    await page.goto(`${BASE}${route}`, { waitUntil: 'load' });
+    await sleep(700);
+
+    const used = await page.evaluate(() => {
+      const main = document.querySelector('.fs-main');
+      const content = document.querySelector('.fs-table, .fs-setup');
+      if (main === null || content === null) return null;
+      const mainBox = main.getBoundingClientRect();
+      const box = content.getBoundingClientRect();
+      return {
+        widthShare: box.width / mainBox.width,
+        heightShare: box.height / window.innerHeight,
+      };
+    });
+
+    check(
+      `1920x1080 · ${route} fills the width it was given`,
+      used !== null && used.widthShare > 0.9,
+      `${Math.round((used?.widthShare ?? 0) * 100)}% of the main column`,
+    );
+    check(
+      `1920x1080 · ${route} does not leave the page mostly empty`,
+      used !== null && used.heightShare > 0.5,
+      `${Math.round((used?.heightShare ?? 0) * 100)}% of the viewport height`,
+    );
+  }
+}
+
 /** The session list and Setup at a phone width. */
 async function staticRoutes(page: Page): Promise<void> {
   for (const route of ['/sessions/', '/docs/']) {
@@ -379,6 +421,7 @@ async function main(): Promise<void> {
     for (const size of VIEWPORTS) await viewerAt(page, sessionId, size);
     await detailsDrawer(page, sessionId);
     await detailsColumn(page, sessionId);
+    await widescreen(page);
     await staticRoutes(page);
 
     check('no console errors anywhere', console_.errors.length === 0, console_.errors.join(' | '));

@@ -1,6 +1,7 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { mountConstellation } from './constellation';
+import { copyText } from '../lib/copy-button';
 
 /**
  * Landing page choreography (DESIGN.md §28–§30).
@@ -101,9 +102,73 @@ function logsToGraph(): void {
     .timeline({
       scrollTrigger: { trigger: section, start: 'top 70%', end: 'center center', scrub: 0.4 },
     })
-    .to('[data-raw]', { opacity: 0.32, stagger: 0.02, duration: 0.4 }, 0)
+    /*
+     * The raw log lines recede — they do not become unreadable.
+     *
+     * This was 0.32, which composited `--fs-terminal-text` down to rgb(58,61,70)
+     * on the rgb(12,13,18) terminal ground: a contrast ratio of 1.79:1 against a
+     * 4.5:1 requirement. The section's whole argument is a comparison between
+     * the raw list on the left and the structured run on the right, and at that
+     * opacity the left-hand side of the comparison could not be read at all.
+     * 0.8 is the lowest step that still clears AA here (5.27:1), and the
+     * emergence of the structured side carries the transformation anyway.
+     */
+    .to('[data-raw]', { opacity: 0.8, stagger: 0.02, duration: 0.4 }, 0)
     .to('[data-logs-arrow]', { opacity: 1, scaleX: 1, duration: 0.5 }, 0.1)
     .from('[data-structured]', { opacity: 0, x: 18, stagger: 0.06, duration: 0.5 }, 0.2);
+}
+
+// ── Hero commands ─────────────────────────────────────────────────────────
+
+/**
+ * The two commands in the hero copy themselves when clicked.
+ *
+ * They are the first thing a visitor is asked to run, and they were only
+ * readable — which meant retyping them, or dragging a selection across a
+ * monospace block, to do the thing the page is asking for.
+ */
+function heroCommands(): void {
+  for (const button of qsa<HTMLButtonElement>('[data-copy-command]')) {
+    const command = button.dataset['copyCommand'] ?? '';
+    const hint = button.querySelector<HTMLElement>('[data-copy-hint]');
+    if (command === '') continue;
+
+    button.addEventListener('click', () => {
+      void copyText(command, 'Command').then((ok) => {
+        if (hint !== null) hint.textContent = ok ? 'Copied' : 'Select it';
+        button.dataset['copied'] = 'true';
+        window.setTimeout(() => {
+          if (hint !== null) hint.textContent = 'Copy';
+          delete button.dataset['copied'];
+        }, 1400);
+      });
+    });
+  }
+}
+
+// ── Fluid cursor ──────────────────────────────────────────────────────────
+
+/**
+ * Mount the pointer fluid, if this visitor should have one at all.
+ *
+ * Loaded on demand rather than bundled into the landing entry: it is a
+ * self-contained WebGL solver that most of the conditions below will decline to
+ * run, and a visitor on a phone should not pay to download a simulation that
+ * will never start.
+ */
+function fluidCursor(): void {
+  const canvas = qs<HTMLCanvasElement>('[data-fluid-cursor]');
+  if (canvas === null || reduced()) return;
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  void import('./fluid-cursor').then(({ mountFluidCursor }) => {
+    const fluid = mountFluidCursor(canvas);
+    if (fluid === null) {
+      canvas.remove();
+      return;
+    }
+    window.addEventListener('pagehide', () => fluid.destroy());
+  });
 }
 
 // ── 04 Failure ────────────────────────────────────────────────────────────
@@ -232,6 +297,8 @@ document.documentElement.dataset['motion'] = reduced() ? 'off' : 'on';
 
 nav();
 reveals();
+heroCommands();
+fluidCursor();
 heroField();
 metalButtons();
 logsToGraph();

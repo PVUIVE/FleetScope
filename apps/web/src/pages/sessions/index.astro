@@ -9,56 +9,109 @@ import '../../styles/viewer.css';
  * collector's store, not in this build. It renders the empty state first, so a
  * developer with no sessions yet sees onboarding rather than an empty table of
  * zeros.
+ *
+ * The list is a TABLE, not a stack of links. A run has five measurements a
+ * developer compares across runs — status, agent, events, duration, when — and
+ * comparison needs aligned columns with headings, not prose lines that each
+ * have to be re-parsed. The columns that are numbers are sortable, because
+ * "which run was slow" and "which run did the most" are the two questions a
+ * list of runs exists to answer.
  */
 ---
 
-<BaseLayout title="Sessions">
+<BaseLayout title="Sessions" wide>
   <section class="fs-sessions">
     <header class="fs-sessions__head">
-      <h1>Local Agent Sessions</h1>
-      <p>Gemini and Google ADK runs captured on this machine.</p>
+      <div class="fs-sessions__title">
+        <h1>Local Agent Sessions</h1>
+        <p>Gemini and Google ADK runs captured on this machine.</p>
+      </div>
+      <span class="fs-live" data-live role="status" aria-live="polite">
+        <span class="fs-live__dot" aria-hidden="true"></span>
+        <span data-live-label>Connecting…</span>
+      </span>
     </header>
 
-    <div class="fs-filters" role="group" aria-label="Filter sessions by status">
-      <button type="button" class="fs-filter" data-filter="all" aria-pressed="true">
-        All<span class="fs-filter__count" data-count="all">0</span>
-      </button>
-      <button type="button" class="fs-filter" data-filter="running" aria-pressed="false">
-        Running<span class="fs-filter__count" data-count="running">0</span>
-      </button>
-      <button type="button" class="fs-filter" data-filter="completed" aria-pressed="false">
-        Completed<span class="fs-filter__count" data-count="completed">0</span>
-      </button>
-      <button type="button" class="fs-filter" data-filter="failed" aria-pressed="false">
-        Failed<span class="fs-filter__count" data-count="failed">0</span>
-      </button>
+    <div class="fs-toolbar">
+      <div class="fs-filters" role="group" aria-label="Filter sessions by status">
+        <button type="button" class="fs-filter" data-filter="all" aria-pressed="true">
+          All<span class="fs-filter__count" data-count="all">0</span>
+        </button>
+        <button type="button" class="fs-filter" data-filter="running" aria-pressed="false">
+          Running<span class="fs-filter__count" data-count="running">0</span>
+        </button>
+        <button type="button" class="fs-filter" data-filter="completed" aria-pressed="false">
+          Completed<span class="fs-filter__count" data-count="completed">0</span>
+        </button>
+        <button type="button" class="fs-filter" data-filter="failed" aria-pressed="false">
+          Failed<span class="fs-filter__count" data-count="failed">0</span>
+        </button>
+      </div>
+
+      <div class="fs-search">
+        <span class="fs-search__glyph" aria-hidden="true">/</span>
+        <input
+          type="search"
+          class="fs-search__input"
+          data-search
+          placeholder="Filter by name, agent or session id"
+          aria-label="Filter sessions by name, agent or session id"
+        />
+      </div>
     </div>
 
-    <ul class="fs-session-list" data-session-list aria-live="polite" aria-label="Sessions"></ul>
-
-    <div class="fs-onboard" data-empty>
-      <h2>No agent sessions yet.</h2>
-      <p>Start FleetScope, then run your Gemini / ADK agent.</p>
-
-      <div class="fs-copy-row">
-        <code data-copy-source>fleetscope watch</code>
-        <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+    <!--
+      One bordered region rather than rows floating on the page background: a
+      table that ends in mid-air reads as a page that failed to load, which is
+      exactly how a single run looked on a large screen.
+    -->
+    <div class="fs-table">
+      <div class="fs-table__head" role="row">
+        <span class="fs-table__rail" aria-hidden="true"></span>
+        <span role="columnheader">Status</span>
+        <span role="columnheader">Session</span>
+        <span role="columnheader">Root agent</span>
+        <button type="button" role="columnheader" class="fs-sort" data-sort="events" aria-sort="none">
+          Events<span class="fs-sort__arrow" aria-hidden="true"></span>
+        </button>
+        <button type="button" role="columnheader" class="fs-sort" data-sort="duration" aria-sort="none">
+          Duration<span class="fs-sort__arrow" aria-hidden="true"></span>
+        </button>
+        <button type="button" role="columnheader" class="fs-sort" data-sort="started" aria-sort="descending">
+          Started<span class="fs-sort__arrow" aria-hidden="true"></span>
+        </button>
       </div>
-      <div class="fs-copy-row">
-        <code data-copy-source>python examples/vendor_agent.py</code>
-        <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+
+      <ul class="fs-session-list" data-session-list aria-live="polite" aria-label="Sessions"></ul>
+
+      <p class="fs-table__note" data-no-match hidden>
+        No session matches this filter.
+      </p>
+
+      <div class="fs-onboard" data-empty>
+        <h2>No agent sessions yet.</h2>
+        <p>Start FleetScope, then run your Gemini / ADK agent.</p>
+
+        <div class="fs-copy-row">
+          <code data-copy-source>fleetscope watch</code>
+          <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+        </div>
+        <div class="fs-copy-row">
+          <code data-copy-source>python examples/vendor_agent.py</code>
+          <button type="button" class="fs-copy-btn" data-copy>Copy</button>
+        </div>
+
+        <p class="fs-onboard__note">
+          Already running an agent? Add the plugin to your Runner —
+          see <a href="/docs/">Setup</a>.
+        </p>
       </div>
 
-      <p class="fs-onboard__note">
-        Already running an agent? Add the plugin to your Runner —
-        see <a href="/docs/">Setup</a>.
+      <p class="fs-table__note" data-offline hidden>
+        The local collector is not answering. Start it with <code>fleetscope watch</code>,
+        then reload.
       </p>
     </div>
-
-    <p class="fs-detail__empty" data-offline hidden>
-      The local collector is not answering. Start it with <code>fleetscope watch</code>,
-      then reload.
-    </p>
   </section>
 </BaseLayout>
 
@@ -68,13 +121,21 @@ import '../../styles/viewer.css';
   import { mountCopyButtons } from '../../lib/copy-button';
 
   type Filter = 'all' | 'running' | 'completed' | 'failed';
+  type SortKey = 'events' | 'duration' | 'started';
 
   const list = document.querySelector<HTMLUListElement>('[data-session-list]');
   const empty = document.querySelector<HTMLElement>('[data-empty]');
   const offline = document.querySelector<HTMLElement>('[data-offline]');
+  const noMatch = document.querySelector<HTMLElement>('[data-no-match]');
+  const search = document.querySelector<HTMLInputElement>('[data-search]');
 
   let sessions: SessionRow[] = [];
   let filter: Filter = 'all';
+  let query = '';
+  let sort: SortKey = 'started';
+  let descending = true;
+
+  mountCopyButtons();
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-filter]')) {
     button.addEventListener('click', () => {
@@ -86,12 +147,64 @@ import '../../styles/viewer.css';
     });
   }
 
-  mountCopyButtons();
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-sort]')) {
+    button.addEventListener('click', () => {
+      const key = (button.dataset['sort'] ?? 'started') as SortKey;
+      // Re-clicking the active column reverses it; a new column starts on the
+      // ordering that answers the question it was clicked to ask — longest run,
+      // busiest run, most recent run.
+      if (sort === key) descending = !descending;
+      else {
+        sort = key;
+        descending = true;
+      }
+      render();
+    });
+  }
 
-  function duration(session: SessionRow): string {
-    if (session.startedAt === null) return formatDuration(null);
+  search?.addEventListener('input', () => {
+    query = search.value.trim().toLowerCase();
+    render();
+  });
+
+  // `/` focuses the filter, the convention every developer tool shares. Typing
+  // into a field must never be hijacked by it.
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== '/' || event.metaKey || event.ctrlKey) return;
+    if (event.target instanceof HTMLInputElement) return;
+    event.preventDefault();
+    search?.focus();
+  });
+
+  const durationOf = (session: SessionRow): number | null => {
+    if (session.startedAt === null) return null;
     const end = session.endedAt === null ? Date.now() : Date.parse(session.endedAt);
-    return formatDuration(end - Date.parse(session.startedAt));
+    return end - Date.parse(session.startedAt);
+  };
+
+  const matches = (session: SessionRow): boolean => {
+    if (query === '') return true;
+    return [session.name, session.rootAgent, session.id, session.framework]
+      .filter((part): part is string => typeof part === 'string')
+      .some((part) => part.toLowerCase().includes(query));
+  };
+
+  function compare(a: SessionRow, b: SessionRow): number {
+    const result =
+      sort === 'events'
+        ? a.eventCount - b.eventCount
+        : sort === 'duration'
+          ? (durationOf(a) ?? -1) - (durationOf(b) ?? -1)
+          : Date.parse(a.startedAt ?? a.createdAt) - Date.parse(b.startedAt ?? b.createdAt);
+    return descending ? -result : result;
+  }
+
+  function paintSortHeaders(): void {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-sort]')) {
+      const active = button.dataset['sort'] === sort;
+      button.dataset['active'] = String(active);
+      button.setAttribute('aria-sort', active ? (descending ? 'descending' : 'ascending') : 'none');
+    }
   }
 
   function render(): void {
@@ -103,58 +216,97 @@ import '../../styles/viewer.css';
       node.textContent = String(counts[(node.dataset['count'] ?? 'all') as Filter]);
     }
 
-    const visible = filter === 'all' ? sessions : sessions.filter((s) => s.status === filter);
+    const visible = sessions
+      .filter((session) => (filter === 'all' ? true : session.status === filter))
+      .filter(matches)
+      .sort(compare);
+
+    // The duration bar is relative to the longest run ON SCREEN, so the
+    // comparison it draws is between the runs actually being compared.
+    const longest = visible.reduce((max, session) => Math.max(max, durationOf(session) ?? 0), 0);
 
     if (empty !== null) empty.hidden = sessions.length > 0;
+    if (noMatch !== null) noMatch.hidden = sessions.length === 0 || visible.length > 0;
+    paintSortHeaders();
     list.replaceChildren();
 
     for (const session of visible) {
+      const elapsed = durationOf(session);
+
       const item = document.createElement('li');
       item.className = 'fs-session';
       item.dataset['status'] = session.status;
-      item.dataset['sessionId'] = session.id;
 
       const link = document.createElement('a');
       link.className = 'fs-session__link';
       link.href = `/sessions/${encodeURIComponent(session.id)}`;
 
+      const rail = document.createElement('span');
+      rail.className = 'fs-session__rail';
+      rail.setAttribute('aria-hidden', 'true');
+
+      // Status: glyph AND word, so it survives a monochrome screen.
+      const status = document.createElement('span');
+      status.className = 'fs-session__status';
       const glyph = document.createElement('span');
       glyph.className = 'fs-session__glyph';
       glyph.setAttribute('aria-hidden', 'true');
       glyph.textContent = STATUS_GLYPH[session.status] ?? '?';
+      const word = document.createElement('span');
+      word.textContent = STATUS_LABEL[session.status] ?? session.status;
+      status.append(glyph, word);
 
       const main = document.createElement('span');
+      main.className = 'fs-session__main';
       const name = document.createElement('strong');
       name.className = 'fs-session__name';
       name.textContent = session.name;
       const meta = document.createElement('span');
-      meta.className = 'fs-session__meta';
-      meta.textContent = [
-        session.framework === 'google-adk' ? 'Gemini · Google ADK' : session.framework,
-        session.rootAgent ?? null,
-        session.id,
-      ]
-        .filter((part): part is string => part !== null)
-        .join(' · ');
+      meta.className = 'fs-session__id';
+      meta.textContent = session.id;
       main.append(name, meta);
 
-      const status = document.createElement('span');
-      status.className = 'fs-session__stat';
-      // The word, not only the colour: status must survive a monochrome screen.
-      status.textContent = STATUS_LABEL[session.status] ?? session.status;
+      const agent = document.createElement('span');
+      agent.className = 'fs-session__agent';
+      agent.textContent = session.rootAgent ?? '—';
+      agent.title = session.framework === 'google-adk' ? 'Gemini · Google ADK' : session.framework;
 
       const events = document.createElement('span');
-      events.className = 'fs-session__stat';
+      events.className = 'fs-session__num';
       events.textContent = formatCount(session.eventCount, 'event');
 
-      const elapsed = document.createElement('span');
-      elapsed.className = 'fs-session__stat';
-      elapsed.textContent = `${duration(session)} · ${formatAgo(session.startedAt)}`;
+      // Number plus bar: the number is the fact, the bar is the comparison.
+      const duration = document.createElement('span');
+      duration.className = 'fs-session__duration';
+      const bar = document.createElement('span');
+      bar.className = 'fs-session__bar';
+      bar.setAttribute('aria-hidden', 'true');
+      const fill = document.createElement('span');
+      fill.className = 'fs-session__bar-fill';
+      fill.style.width =
+        elapsed === null || longest === 0 ? '0%' : `${Math.max(2, (elapsed / longest) * 100)}%`;
+      bar.append(fill);
+      const value = document.createElement('span');
+      value.className = 'fs-session__num';
+      value.textContent = formatDuration(elapsed);
+      duration.append(bar, value);
 
-      link.append(glyph, main, status, events, elapsed);
+      const when = document.createElement('span');
+      when.className = 'fs-session__when';
+      when.textContent = formatAgo(session.startedAt);
+
+      link.append(rail, status, main, agent, events, duration, when);
       item.append(link);
       list.append(item);
     }
+  }
+
+  function setLive(state: 'live' | 'offline' | 'idle', label: string): void {
+    const node = document.querySelector<HTMLElement>('[data-live]');
+    if (node === null) return;
+    node.dataset['state'] = state;
+    const text = node.querySelector('[data-live-label]');
+    if (text !== null) text.textContent = label;
   }
 
   async function load(): Promise<void> {
@@ -162,10 +314,12 @@ import '../../styles/viewer.css';
       const payload = await fetchSessions();
       sessions = payload.sessions;
       if (offline !== null) offline.hidden = true;
+      setLive('live', 'Collector connected');
       render();
     } catch {
       if (offline !== null) offline.hidden = false;
       if (empty !== null) empty.hidden = true;
+      setLive('offline', 'Collector offline');
     }
   }
 
@@ -178,6 +332,7 @@ import '../../styles/viewer.css';
     if (!Array.isArray(payload.sessions)) return;
     sessions = payload.sessions;
     if (offline !== null) offline.hidden = true;
+    setLive('live', 'Collector connected');
     render();
   });
   window.addEventListener('pagehide', stop);

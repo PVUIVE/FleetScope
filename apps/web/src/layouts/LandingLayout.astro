@@ -37,6 +37,13 @@ const { title, description, sessionId = 'recorded session' } = Astro.props;
   </head>
   <body class="fs-l">
     <a class="fs-visually-hidden" href="#fs-l-main">Skip to content</a>
+    <!--
+      Decoration, and nothing else depends on it: it sits behind every layer,
+      takes no pointer events, and is not mounted at all under reduced motion,
+      on a touch pointer, or without WebGL. The console never mounts it — the
+      Agent Viewer's own WebGL renderer is not sharing the GPU with a flourish.
+    -->
+    <canvas class="fs-l-fluid" data-fluid-cursor aria-hidden="true"></canvas>
     <LandingNav />
     <main id="fs-l-main" class="fs-l-main">
       <div class="fs-l-frame">

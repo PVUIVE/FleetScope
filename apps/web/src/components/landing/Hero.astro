@@ -60,8 +60,18 @@ const offset = (iso: string): string => {
         <a class="fs-l-btn fs-l-btn--ghost" href="/docs/">Setup in two commands</a>
       </div>
       <div class="fs-d-term" data-rise>
-        <code>$ fleetscope watch</code>
-        <code>$ python examples/vendor_agent.py</code>
+        {['fleetscope watch', 'python examples/vendor_agent.py'].map((command) => (
+          <button
+            type="button"
+            class="fs-d-term__cmd"
+            data-copy-command={command}
+            aria-label={`Copy command: ${command}`}
+          >
+            <span class="fs-d-term__prompt" aria-hidden="true">$</span>
+            <code>{command}</code>
+            <span class="fs-d-term__hint" aria-hidden="true" data-copy-hint>Copy</span>
+          </button>
+        ))}
       </div>
     </div>
 

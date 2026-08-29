@@ -45,7 +45,10 @@ html.fs-l {
   --fs-live: #2448ff;
 
   /* ── DESIGN.md §6 dark operational surface ───────────────────────────── */
-  --fs-terminal-bg: #0c0d12;
+  /* Charcoal rather than near-black: on a white blueprint page an absolute
+     black slab is the one element that fights the canvas. The log lines still
+     clear WCAG AA against it at their faded opacity (4.96:1). */
+  --fs-terminal-bg: #141821;
   --fs-terminal-surface: #12141b;
   --fs-terminal-border: #262933;
   --fs-terminal-text: #9da3b5;
@@ -119,6 +122,32 @@ body.fs-l {
   display: block;
 }
 
+/*
+ * The fluid cursor canvas.
+ *
+ * Fixed to the viewport behind everything, inert to the pointer, and blended so
+ * it tints the white ground rather than painting over the type. `z-index: 0`
+ * puts it under `.fs-l-sec` (z-index 1) and far under the nav (50).
+ */
+.fs-l-fluid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Multiply keeps black text black: the trail can only darken toward its own
+     hue, so it can never wash out a heading it passes under. */
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-l-fluid {
+    display: none;
+  }
+}
+
 .fs-l-frame {
   position: relative;
   max-width: var(--fs-l-max);
@@ -150,6 +179,33 @@ body.fs-l {
 }
 .fs-l-sec:last-child {
   border-bottom: 0;
+}
+
+/*
+ * Vertical rhythm between sections (DESIGN.md §8).
+ *
+ * The contract specifies `clamp(64px, 7vw, 116px)` of section padding and
+ * `.fs-l-block` implements it, but the content sections never applied either:
+ * every one of them computed to `padding: 0` on all four sides. The result was
+ * sections butted flat against each other — the terminal block of §02 ended and
+ * the `03` numeral began seven pixels later, and the event cells of §03 ran
+ * straight into `04`. Read as one page it looked like the sections had
+ * collapsed into one another.
+ *
+ * Block padding only. The horizontal flush-to-frame alignment is deliberate:
+ * headings and cell borders meet the frame's rules, which is the blueprint
+ * grid doing its job (§32), so the gutter is left alone.
+ *
+ * The hero, the pinned scenes and the final CTA already pad themselves; adding
+ * more here would double it.
+ */
+.fs-l-sec:not(.fs-l-hero):not(:has(> .fs-l-scene)):not(.fs-l-final) {
+  padding-block: clamp(56px, 5.5vw, 96px);
+}
+
+/* The heading and the thing it introduces are not the same beat. */
+.fs-l-sechead {
+  margin-bottom: clamp(28px, 3vw, 44px);
 }
 
 .fs-l-pad {
@@ -1760,16 +1816,77 @@ body.fs-l {
   max-width: 420px;
 }
 
-.fs-d-term code {
-  display: block;
+/*
+ * A command a visitor is meant to run is a thing to take, not just to read.
+ * The whole block is the control — a 420px target rather than a 60px button —
+ * and the `$` stays out of what gets copied, because nobody wants the prompt.
+ */
+.fs-d-term__cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
   background: var(--fs-terminal-bg);
   color: var(--fs-terminal-text-active);
   border: 1px solid var(--fs-terminal-border);
   font-family: var(--fs-mono);
   font-size: 13px;
   padding: 10px 14px;
+}
+
+.fs-d-term__cmd:hover {
+  border-color: var(--fs-terminal-blue);
+}
+
+.fs-d-term__prompt {
+  color: var(--fs-terminal-text);
+}
+
+.fs-d-term__cmd code {
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
   white-space: pre;
+  font: inherit;
+  background: none;
+  color: inherit;
+}
+
+/* The affordance is quiet until the block is hovered or focused — and always
+   present for a keyboard user, who gets no hover to discover it with. */
+.fs-d-term__hint {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fs-terminal-text);
+  opacity: 0;
+}
+
+.fs-d-term__cmd:hover .fs-d-term__hint,
+.fs-d-term__cmd:focus-visible .fs-d-term__hint,
+.fs-d-term__cmd[data-copied='true'] .fs-d-term__hint {
+  opacity: 1;
+}
+
+.fs-d-term__cmd[data-copied='true'] {
+  border-color: var(--fs-terminal-blue);
+}
+
+.fs-d-term__cmd[data-copied='true'] .fs-d-term__hint {
+  color: var(--fs-terminal-blue);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fs-d-term__hint,
+  .fs-d-term__cmd {
+    transition:
+      opacity 120ms ease-out,
+      border-color 120ms ease-out;
+  }
 }
 
 /* ── The spine ─────────────────────────────────────────────────────────── */
