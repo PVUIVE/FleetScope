@@ -35,6 +35,13 @@ const offset = (iso: string): string => {
 ---
 
 <section class="fs-l-sec fs-l-hero" aria-labelledby="fs-l-hero-title" data-hero>
+  <!--
+    The node field. Decoration only, behind everything: the headline, the CTAs
+    and the Execution Spine all sit above it. It is mounted by script and stays
+    empty under reduced motion, so nothing here depends on it.
+  -->
+  <div class="fs-l-hero__field" id="fs-l-field" data-on="false" aria-hidden="true"></div>
+
   <div class="fs-l-hero__grid">
     <div>
       <h1 id="fs-l-hero-title">
@@ -46,7 +53,7 @@ const offset = (iso: string): string => {
         agents, tools, handoffs, errors, and timeline included.
       </p>
       <div class="fs-l-ctas" data-rise>
-        <a class="fs-l-btn fs-l-btn--primary" href="/sessions/">
+        <a class="fs-l-btn fs-l-btn--metal" href="/sessions/" data-metal>
           Open Agent Viewer
           <span class="fs-l-btn__arrow" aria-hidden="true">→</span>
         </a>
