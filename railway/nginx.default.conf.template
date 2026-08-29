@@ -13,10 +13,10 @@ server {
     return 200 "ok\n";
   }
 
-  # Avoid Astro's static meta-refresh redirect page at the public root.
-  location = / {
-    return 302 /cases/;
-  }
+  # `/` is the landing page (apps/web/src/pages/index.astro), served by the
+  # `location /` block below. It was previously redirected to /cases/, which
+  # predated the landing page and sent every visitor to the deferred enterprise
+  # surface instead of the product — see apps/web/src/deferred/README.md.
 
   location ^~ /_astro/ {
     try_files $uri =404;
