@@ -245,6 +245,18 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/recovery:
+    dependencies:
+      '@fleetscope/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@fleetscope/event-schema':
+        specifier: workspace:*
+        version: link:../event-schema
+      '@fleetscope/warden':
+        specifier: workspace:*
+        version: link:../warden
+
   packages/run-ledger: {}
 
   packages/scenario-compiler:
