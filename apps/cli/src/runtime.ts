@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp } from '@fleetscope/api/app';
+import { createRunDependencies } from '@fleetscope/api/runs';
 import { Collector, EventHub, SESSIONS_TOPIC } from '@fleetscope/api/collector';
 import { SessionStore } from '@fleetscope/session-store';
 import { parseConfig } from '@fleetscope/shared';
@@ -50,7 +51,8 @@ export async function startRuntime(options: StartOptions): Promise<Runtime> {
   const store = SessionStore.open(options.local.storage);
   const hub = new EventHub();
   const collector = new Collector(store, hub);
-  const app = createApp(parsed.value, 'silent', undefined, { store, collector, hub });
+  const runs = createRunDependencies(options.local.storage);
+  const app = createApp(parsed.value, 'silent', undefined, { store, collector, hub }, runs);
 
   const server = await new Promise<ReturnType<typeof serve>>((resolve, reject) => {
     const instance = serve({ fetch: app.fetch, port: options.local.port, hostname: host }, () =>

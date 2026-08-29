@@ -20,7 +20,8 @@
     "@fleetscope/adk-adapter": "workspace:*",
     "@fleetscope/session-store": "workspace:*",
     "@fleetscope/viewer": "workspace:*",
-    "@fleetscope/canonicalizer": "workspace:*"
+    "@fleetscope/canonicalizer": "workspace:*",
+    "@fleetscope/run-ledger": "workspace:*"
   },
   "devDependencies": {
     "@fleetscope/fixtures": "workspace:*",
@@ -28,6 +29,7 @@
   },
   "exports": {
     "./app": "./src/app.ts",
-    "./collector": "./src/collector/index.ts"
+    "./collector": "./src/collector/index.ts",
+    "./runs": "./src/runs/runtime.ts"
   }
 }

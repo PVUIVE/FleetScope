@@ -4,6 +4,7 @@ import { createApp } from './app.js';
 import { Collector } from './collector/collector.js';
 import { EventHub } from './collector/hub.js';
 import { loadConfig } from './config/index.js';
+import { createRunDependencies } from './runs/runtime.js';
 
 /**
  * The local FleetScope process.
@@ -16,7 +17,8 @@ const store = SessionStore.open(config.storagePath);
 const hub = new EventHub();
 const collector = new Collector(store, hub);
 
-const app = createApp(config, config.logLevel, undefined, { store, collector, hub });
+const runs = createRunDependencies(config.storagePath);
+const app = createApp(config, config.logLevel, undefined, { store, collector, hub }, runs);
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, (info) => {
   console.log(
