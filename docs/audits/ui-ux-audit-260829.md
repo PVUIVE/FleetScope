@@ -299,6 +299,62 @@ speculatively:
   started (both restated elsewhere in the row); at ≤720px it becomes two lines
   and the heading row goes with the columns.
 
+### Landing and console — third pass
+
+Found by looking at the running product on a large display, after the second
+pass shipped.
+
+- **P1-8 — the §02 terminal was unreadable with motion on.** `logsToGraph()`
+  faded the raw log lines to `opacity: 0.32`, compositing `--fs-terminal-text`
+  to rgb(58,61,70) on the rgb(12,13,18) ground: **1.79:1** against a 4.5:1
+  requirement. The section argues by comparing the raw list on the left with
+  the structured run on the right, and the left-hand side could not be read at
+  all. Raised to 0.8 — the lowest step that clears AA — and the emergence of
+  the structured side carries the transformation anyway.
+  **Why no harness saw it:** `a11y-qa` only ever drove the landing in a
+  *reduced-motion* context, where that timeline returns early and the lines
+  stay at full opacity. It now drives the landing with motion running,
+  composites opacity before measuring, and asserts the ratio a reader sees.
+- **P2-14 — the terminal ground was absolute black** (`#0c0d12`) on a white
+  blueprint page: the one element fighting the canvas. Charcoal `#141821`
+  instead; the faded lines still clear AA against it (4.96:1).
+- **P2-15 — the two hero commands were readable but not takeable.** They are
+  the first thing the page asks a visitor to run, and getting them meant
+  retyping or dragging a selection across a monospace block. The whole block is
+  the control now — a 420px target, a real `<button>` with an `aria-label`,
+  operable from the keyboard — and the `$` prompt stays out of the clipboard.
+  The clipboard is touched in exactly one place (`lib/copy-button.ts`
+  `copyText`), so the landing and the console cannot drift in what they
+  announce or in how they handle a refused permission.
+- **P2-16 — the console had no ground of its own.** The landing draws a
+  12-column rule grid; the console had nothing behind its panels, so the two
+  halves did not look like the same product and a page holding one run looked
+  like unpainted background. Same motif, dark, as one painted background image
+  rather than decorative divs, dropping below 1280px where the columns read as
+  noise. The session table rules its empty region **at the row pitch** (offset
+  33px for the heading, measured — not guessed), so the space below the last
+  row reads as a ledger with room rather than a slab. The execution timeline
+  stays opaque: it has a column system of its own, and a second grid crossing
+  it at a different pitch is two grids arguing in the densest part of the
+  product.
+
+### Fluid cursor (requested)
+
+A GPU Navier–Stokes solver behind the landing page, ported from the Vue
+reference to a plain TS island since this app has no Vue. Three adaptations
+rather than a straight port: splats are generated in a narrow band around the
+brand blue instead of cycling full HSV, which on a white blueprint page would
+read as confetti; the dye texture is 1024 rather than 1440, a quarter of the
+fill rate and no visible difference at this blur; and it declines to start
+under reduced motion, on a coarse pointer, or without float render targets, and
+idles while the tab is hidden.
+
+**Scoped to the landing.** The Agent Viewer owns a WebGL context for the
+execution graph, and a fluid solver competing for the GPU with the thing a
+developer came to read is a bad trade. `DESIGN.md` rejects "any animation that
+exists to be noticed", so this is a deliberate, owner-approved exception on the
+marketing surface only — recorded here rather than quietly taken.
+
 ### Landing — spacing (second pass)
 
 - **Section rhythm restored** to what `DESIGN.md` §8 already specified:
@@ -373,7 +429,7 @@ Every command below was run to completion on this branch.
 | Full pipeline | `pnpm run check` | **exit 0** |
 | Static browser QA | `pnpm qa:browser` | **63/63** (crashed at the branch point; PR #5 fixed it on `main` in parallel) |
 | Viewer responsive QA | `pnpm qa:viewer` | **67/67** (baseline before changes: 32/45) |
-| Accessibility QA | `pnpm qa:a11y` against a live collector | **15/15** |
+| Accessibility QA | `pnpm qa:a11y` against a live collector | **16/16** |
 
 Console errors: zero across every route and viewport in both browser harnesses.
 
