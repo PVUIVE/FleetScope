@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MemoryRunStore, RunLedger } from '@fleetscope/run-ledger';
 import { parseConfig, type FleetScopeConfig } from '@fleetscope/shared';
 import { createApp } from '../src/app.js';
+import { UNAVAILABLE_WORKER } from '../src/runs/orchestrator.js';
 import type { RunDependencies } from '../src/runs/runtime.js';
 
 const config = (): FleetScopeConfig => {
@@ -14,6 +15,7 @@ const runs = (store = new MemoryRunStore()): RunDependencies => ({
     now: () => new Date('2026-08-29T00:00:00.000Z'),
     newId: () => 'run-api',
   }),
+  worker: UNAVAILABLE_WORKER,
 });
 const request = (app: ReturnType<typeof createApp>, path: string, key = 'api-request-key-0001') =>
   app.request(path, {
@@ -77,6 +79,33 @@ describe('Phase B2 /runs controller', () => {
       ).status,
     ).toBe(400);
   });
+  it('runs the orchestration only when a worker is available', async () => {
+    const withWorker: RunDependencies = {
+      ...runs(),
+      worker: {
+        available: true,
+        async execute() {
+          return {
+            state: 'incomplete',
+            delegation: 'unknown',
+            events: [],
+            reason: 'delegation_not_observed',
+          };
+        },
+      },
+    };
+    const response = await request(
+      createApp(config(), 'silent', undefined, undefined, withWorker),
+      '/runs',
+    );
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      worker: 'available',
+      run: { state: 'incomplete' },
+      report: { state: 'incomplete', recovery: 'not_required', reason: 'delegation_not_observed' },
+    });
+  });
+
   it('rejects non-loopback mutation and reports durability loss', async () => {
     const app = createApp(config(), 'silent', undefined, undefined, runs());
     expect(

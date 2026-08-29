@@ -23,6 +23,9 @@ coverage/
 .DS_Store
 *.log
 
+__pycache__/
+*.py[cod]
+
 # Working notes and audit reports. Kept local: this repo is public, and a report
 # that names an unfixed weakness is a map to it.
 plans/
