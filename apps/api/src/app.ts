@@ -11,6 +11,8 @@ import type { Collector } from './collector/collector.js';
 import type { SessionStore } from '@fleetscope/session-store';
 import type { GeminiDependencies } from './live/gemini.js';
 import type { FleetScopeConfig } from './config/index.js';
+import { runRoutes } from './routes/runs.js';
+import type { RunDependencies } from './runs/runtime.js';
 
 /**
  * The local Agent Viewer's three collaborators. Absent in a headless health
@@ -44,6 +46,7 @@ export function createApp(
    */
   liveDependencies?: Partial<GeminiDependencies>,
   viewer?: ViewerRuntime,
+  runs?: RunDependencies,
 ): Hono {
   const app = new Hono();
 
@@ -55,6 +58,7 @@ export function createApp(
   app.route('/', healthRoutes(config));
   app.route('/', capabilityRoutes(config));
   app.route('/', liveRoutes(config, liveDependencies));
+  if (runs !== undefined) app.route('/', runRoutes(runs));
 
   // Last, so it can never shadow an API route.
   if (config.viewerRoot !== null) app.use('*', staticViewer(config.viewerRoot));

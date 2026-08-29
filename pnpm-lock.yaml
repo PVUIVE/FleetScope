@@ -80,6 +80,9 @@ importers:
       '@fleetscope/platform-adapters':
         specifier: workspace:*
         version: link:../../packages/platform-adapters
+      '@fleetscope/run-ledger':
+        specifier: workspace:*
+        version: link:../../packages/run-ledger
       '@fleetscope/session-store':
         specifier: workspace:*
         version: link:../../packages/session-store
@@ -241,6 +244,8 @@ importers:
       '@fleetscope/shared':
         specifier: workspace:*
         version: link:../shared
+
+  packages/run-ledger: {}
 
   packages/scenario-compiler:
     dependencies:

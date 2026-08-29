@@ -48,7 +48,7 @@ describe('argument parsing', () => {
 
 describe('help text', () => {
   it('documents every command the CLI implements', () => {
-    for (const command of ['init', 'watch', 'open', 'run']) {
+    for (const command of ['init', 'watch', 'open', 'run', 'demo']) {
       expect(USAGE).toContain(command);
     }
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
