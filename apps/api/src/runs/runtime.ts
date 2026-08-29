@@ -12,11 +12,14 @@ export interface RunDependencies {
 }
 
 /** The run ledger is local durable state, colocated with the local session DB. */
-export function createRunDependencies(storagePath: string): RunDependencies {
+export function createRunDependencies(
+  storagePath: string,
+  options: { readonly worker?: WorkerPort } = {},
+): RunDependencies {
   return {
     ledger: new RunLedger(new FileRunStore(join(dirname(storagePath), 'fleetscope-runs.jsonl'))),
-    // No Python/ADK worker is wired into the local process yet, so the honest
-    // answer is "unavailable" — not a stub that pretends to run agents.
-    worker: UNAVAILABLE_WORKER,
+    // Without an explicitly configured worker the honest answer is
+    // "unavailable" — never a stub that pretends to run agents.
+    worker: options.worker ?? UNAVAILABLE_WORKER,
   };
 }
