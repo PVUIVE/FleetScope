@@ -3,6 +3,7 @@ import {
   recoverFixedRead,
   type ReadRetryAdapter,
 } from '@fleetscope/recovery';
+import { parseAdkIngest, type AdkIngest } from '@fleetscope/adk-adapter';
 import type { CanonicalEvent } from '@fleetscope/event-schema';
 import type { Run, RunLedger } from '@fleetscope/run-ledger';
 
@@ -31,6 +32,13 @@ export interface WorkerRun {
   readonly delegation: 'delegated' | 'unknown';
   /** Evidence the worker observed. Empty when it never ran. */
   readonly events: readonly CanonicalEvent[];
+  /**
+   * The same evidence in the collector's accepted wire shape.
+   *
+   * Carried separately so the run's events reach the session store and the SSE
+   * stream through the SAME path a watched run uses, rather than a second one.
+   */
+  readonly wire?: readonly unknown[];
   readonly reason: string | null;
 }
 
@@ -51,7 +59,17 @@ export interface OrchestrationDependencies {
   readonly worker: WorkerPort;
   /** Present only where a recovery may be executed. Absent means "cannot recover". */
   readonly adapter?: ReadRetryAdapter;
+  /**
+   * Where the run's evidence is recorded and streamed. Absent means the run
+   * still happens, but its events are not persisted — which the report says.
+   */
+  readonly events?: RunEventSink;
   readonly now?: () => string;
+}
+
+/** The collector, as seen from here: it accepts a batch and reports what it took. */
+export interface RunEventSink {
+  ingest(batch: AdkIngest): { readonly accepted: number };
 }
 
 export interface RunReport {
@@ -59,6 +77,8 @@ export interface RunReport {
   readonly state: WorkerState;
   readonly delegation: 'delegated' | 'unknown';
   readonly recovery: 'not_required' | 'recovered' | 'not_recovered' | 'unavailable';
+  /** Events the collector accepted; null when nothing was recorded. */
+  readonly persisted: number | null;
   readonly reason: string | null;
 }
 
@@ -90,12 +110,14 @@ export async function executeRun(
       state: 'incomplete',
       delegation: 'unknown',
       recovery: 'unavailable',
+      persisted: null,
       reason: 'worker_unavailable',
     };
   }
 
   ledger.transition(run.id, 'executing', null);
   const observed = await worker.execute(run);
+  const persisted = record(run, observed, dependencies.events);
 
   if (observed.state === 'failed') {
     ledger.transition(run.id, 'failed', observed.reason);
@@ -104,6 +126,7 @@ export async function executeRun(
       state: 'failed',
       delegation: observed.delegation,
       recovery: 'not_required',
+      persisted,
       reason: observed.reason,
     };
   }
@@ -139,8 +162,29 @@ export async function executeRun(
     state: complete ? 'completed' : 'incomplete',
     delegation: observed.delegation,
     recovery,
+    persisted,
     reason: complete ? null : reason,
   };
+}
+
+/**
+ * Record the run's evidence where every other run's evidence goes.
+ *
+ * Returns the number of events the collector actually accepted, so "persisted"
+ * is something observed rather than assumed. A batch the collector would reject
+ * is not massaged into shape here; it simply is not recorded, and the count says
+ * so.
+ */
+function record(run: Run, observed: WorkerRun, sink: RunEventSink | undefined): number | null {
+  if (sink === undefined || observed.wire === undefined || observed.wire.length === 0) return null;
+  const batch = parseAdkIngest({
+    framework: 'google-adk',
+    sessionId: run.id,
+    appName: 'fleetscope-adk-worker',
+    events: observed.wire,
+  });
+  if (!batch.success) return 0;
+  return sink.ingest(batch.data).accepted;
 }
 
 /** The production worker: honestly absent until a real ADK worker is wired in. */

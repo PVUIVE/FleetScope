@@ -22,6 +22,7 @@ const collector = new Collector(store, hub);
 // credits, so an unset variable must leave the local server observer-only.
 const workerEnabled = process.env['FLEETSCOPE_ADK_WORKER'] === 'enabled';
 const runs = createRunDependencies(config.storagePath, {
+  events: collector,
   ...(workerEnabled ? { worker: createProcessWorker({ enabled: true, env: process.env }) } : {}),
 });
 const app = createApp(config, config.logLevel, undefined, { store, collector, hub }, runs);
