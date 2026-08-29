@@ -202,6 +202,39 @@
      a 1200px screen as bare background, which reads as a page that failed. */
   flex: 1;
   min-height: 320px;
+
+  /*
+   * Ruled lines where no run has been recorded yet.
+   *
+   * Filling the page fixed the table ending in mid-air, but the space below the
+   * last row was still one flat slab — indistinguishable from a panel that had
+   * failed to paint. Ruling it at the row pitch says what it is: a ledger with
+   * room in it. 61px is the measured height of a session row, so a run that
+   * arrives lands on a line that was already drawn for it.
+   */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 60px,
+    var(--fs-row-rule) 60px 61px
+  );
+  /*
+   * Start the ruling below the heading row, not at the table's top edge.
+   * Measured: the heading is 32px and a row is 61px, so without the offset
+   * every ruled line sits 33px away from the row boundary it is meant to be —
+   * close enough to look like a mistake rather than a grid.
+   */
+  background-position: 0 33px;
+  background-repeat: repeat;
+}
+
+/*
+ * The rows themselves sit on their own ground, so the ruling shows only where
+ * rows are not. It is `0 0 auto` deliberately: growing it would cover the
+ * ruling with a blank block and put the void back.
+ */
+.fs-session-list {
+  background: var(--fs-surface);
+  flex: 0 0 auto;
 }
 
 /*
@@ -280,6 +313,8 @@
   padding: 0;
   overflow-y: auto;
   min-height: 0;
+  /* A long list still scrolls inside the table rather than the page. */
+  max-height: 100%;
 }
 
 .fs-session {
@@ -958,6 +993,13 @@
   border-top: 1px solid var(--fs-border);
   height: 232px;
   min-height: 0;
+  /*
+   * Opaque, so the shell's blueprint grid stops at the edge of this panel.
+   * The timeline already has a column system of its own — offset, kind, label,
+   * duration — and a second set of rules cutting across it at a different pitch
+   * is two grids arguing in the densest region of the product.
+   */
+  background: var(--fs-bg);
 }
 
 .fs-timeline__head {

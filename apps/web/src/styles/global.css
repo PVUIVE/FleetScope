@@ -21,6 +21,21 @@
   --fs-border-strong: #333c47;
 
   /*
+   * The blueprint grid, in the dark.
+   *
+   * The landing page draws a 12-column rule grid over its white ground
+   * (landing.css `.fs-l-frame::before`). The console had nothing behind its
+   * panels at all, so the two halves of the product did not look like the same
+   * product — and a page holding one row looked like unpainted background
+   * rather than a surface. Same motif, one step above `--fs-bg` instead of one
+   * step below white, and low enough that no text ever competes with it.
+   */
+  --fs-grid-line: #ffffff0a;
+  --fs-grid-columns: 12;
+  /* One ruled line per session row, for the part of the table no run fills. */
+  --fs-row-rule: #ffffff07;
+
+  /*
    * Three text weights, all of which clear WCAG AA (4.5:1) against every
    * surface above — including `--fs-surface-raised`, the lightest, which is
    * where the smallest captions live. A caption an auditor cannot read is not a
@@ -127,6 +142,27 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /*
+   * Painted, not built: one background image rather than a stack of decorative
+   * divs, so the grid costs nothing to lay out and cannot be reached by a
+   * screen reader (DESIGN.md §37).
+   */
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--fs-grid-line) 0 1px,
+    transparent 1px calc(100% / var(--fs-grid-columns))
+  );
+}
+
+/*
+ * Below 1280px the columns are narrow enough that the rules read as noise
+ * against dense panels rather than as structure — the same threshold the
+ * landing page uses.
+ */
+@media (max-width: 1279px) {
+  .fs-shell {
+    background-image: none;
+  }
 }
 
 .fs-nav {
