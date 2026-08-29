@@ -80,6 +80,9 @@ importers:
       '@fleetscope/platform-adapters':
         specifier: workspace:*
         version: link:../../packages/platform-adapters
+      '@fleetscope/recovery':
+        specifier: workspace:*
+        version: link:../../packages/recovery
       '@fleetscope/run-ledger':
         specifier: workspace:*
         version: link:../../packages/run-ledger

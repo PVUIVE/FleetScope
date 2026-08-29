@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { DEMO_SCENARIO } from '@fleetscope/run-ledger';
+import { executeRun } from '../runs/orchestrator.js';
 import type { RunDependencies } from '../runs/runtime.js';
 
 function loopback(url: string): boolean {
@@ -63,14 +64,29 @@ export function runRoutes(runs: RunDependencies): Hono {
             : 409;
       return c.json(failure(admitted.reason, admitted.detail), status);
     }
+    // Execution happens only where a worker genuinely exists. Without one the
+    // response says so, and the run stays admitted rather than being marked
+    // finished by a process that never ran anything.
+    const executed = runs.worker.available ? await executeRun(admitted.run, runs) : null;
+    const reread = runs.ledger.get(admitted.run.id);
+    const current =
+      executed !== null && reread.ok && reread.run !== null ? reread.run : admitted.run;
+
     return c.json(
       {
-        run: admitted.run,
+        run: current,
         idempotent: admitted.idempotent,
         executing: false,
-        worker: 'unavailable',
-        message:
-          'Run admission is durable. No ADK worker, model, tool, or network call has started.',
+        worker: runs.worker.available ? 'available' : 'unavailable',
+        ...(executed === null
+          ? {
+              message:
+                'Run admission is durable. No ADK worker, model, tool, or network call has started.',
+            }
+          : {
+              report: executed,
+              message: `The run finished as "${executed.state}"; recovery was "${executed.recovery}".`,
+            }),
       },
       admitted.idempotent ? 200 : 201,
     );
